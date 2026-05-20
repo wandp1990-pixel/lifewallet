@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { useStore } from '@/lib/store'
 import type { Transaction, Category, Budget } from '@/lib/types'
 import { categoryColor } from '@/lib/colors'
@@ -256,6 +257,16 @@ interface CategoryStat {
   color: string
 }
 
+function CategoryTooltip({ active, payload }: { active?: boolean; payload?: { name: string; value: number }[] }) {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-3 shadow-[0px_4px_12px_rgba(0,0,0,0.12)] text-xs">
+      <p className="font-semibold text-[var(--color-text)]">{payload[0].name}</p>
+      <p className="text-[var(--color-text-body)]">{formatAmount(payload[0].value)}원</p>
+    </div>
+  )
+}
+
 function CategoryView({ stats, total }: { stats: CategoryStat[]; total: number }) {
   if (total === 0) {
     return (
@@ -265,31 +276,43 @@ function CategoryView({ stats, total }: { stats: CategoryStat[]; total: number }
     )
   }
 
+  const chartData = stats.map(s => ({ name: s.name, value: s.amount, color: s.color }))
+
   return (
-    <div className="px-4 pt-4 space-y-1">
-      {/* 색상 막대 시각화 */}
-      <div className="flex h-3 rounded-full overflow-hidden mb-4">
-        {stats.map(s => (
-          <div
-            key={s.categoryId}
-            style={{ width: `${s.pct}%`, backgroundColor: s.color }}
-            title={s.name}
-          />
-        ))}
+    <div className="px-4 pt-4">
+      {/* 도넛 차트 */}
+      <div className="flex justify-center mb-4">
+        <div className="relative">
+          <ResponsiveContainer width={200} height={200}>
+            <PieChart>
+              <Pie data={chartData} dataKey="value" innerRadius={55} outerRadius={85} strokeWidth={0}>
+                {chartData.map((d, i) => <Cell key={i} fill={d.color} />)}
+              </Pie>
+              <Tooltip content={<CategoryTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <p className="text-[11px] text-[var(--color-text-sub)]">총 지출</p>
+            <p className="text-[15px] font-bold text-[var(--color-expense)] tabular-nums">{formatAmount(total)}원</p>
+          </div>
+        </div>
       </div>
 
-      {stats.map(s => (
-        <div key={s.categoryId} className="flex items-center gap-3 py-3 border-b border-[var(--color-border)] last:border-0">
-          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
-          <span className="flex-1 text-[14px] text-[var(--color-text)] truncate">{s.name}</span>
-          <span className="text-[13px] text-[var(--color-text-sub)] w-10 text-right tabular-nums">
-            {s.pct.toFixed(1)}%
-          </span>
-          <span className="text-[14px] font-semibold text-[var(--color-text)] tabular-nums w-28 text-right">
-            {formatAmount(s.amount)}원
-          </span>
-        </div>
-      ))}
+      {/* 카테고리 목록 */}
+      <div className="space-y-0">
+        {stats.map(s => (
+          <div key={s.categoryId} className="flex items-center gap-3 py-3 border-b border-[var(--color-border)] last:border-0">
+            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+            <span className="flex-1 text-[14px] text-[var(--color-text)] truncate">{s.name}</span>
+            <span className="text-[13px] text-[var(--color-text-sub)] w-10 text-right tabular-nums">
+              {s.pct.toFixed(1)}%
+            </span>
+            <span className="text-[14px] font-semibold text-[var(--color-text)] tabular-nums w-28 text-right">
+              {formatAmount(s.amount)}원
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

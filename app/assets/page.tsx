@@ -8,6 +8,8 @@ import { formatAmount } from '@/lib/utils'
 import AssetForm from '@/components/assets/AssetForm'
 import type { Asset, AssetGroupType } from '@/lib/types'
 
+type MenuAction = 'edit' | 'toggle-visible' | 'delete'
+
 const GROUP_ORDER: AssetGroupType[] = [
   'cash', 'bank', 'card', 'check_card', 'prepaid_card',
   'savings', 'investment', 'minus_account', 'loan', 'insurance', 'other',
@@ -31,12 +33,13 @@ const DEBT_TYPES: AssetGroupType[] = ['card', 'minus_account', 'loan', 'insuranc
 
 export default function AssetsPage() {
   const router = useRouter()
-  const { assets, ready } = useStore()
+  const { assets, ready, updateAsset, deleteAsset } = useStore()
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<Asset | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [showHidden, setShowHidden] = useState(false)
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Asset | null>(null)
 
   const visibleAssets = useMemo(
     () => assets.filter(a => showHidden || a.visible),
@@ -95,6 +98,34 @@ export default function AssetsPage() {
     } else {
       openEdit(asset)
     }
+  }
+
+  async function handleMenuAction(asset: Asset, action: MenuAction) {
+    setMenuOpen(null)
+    if (action === 'edit') {
+      openEdit(asset)
+    } else if (action === 'toggle-visible') {
+      const res = await fetch(`/api/assets/${asset.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visible: !asset.visible }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        updateAsset(updated)
+      }
+    } else if (action === 'delete') {
+      setDeleteTarget(asset)
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return
+    const res = await fetch(`/api/assets/${deleteTarget.id}`, { method: 'DELETE' })
+    if (res.ok) {
+      deleteAsset(deleteTarget.id)
+    }
+    setDeleteTarget(null)
   }
 
   if (!ready) {
@@ -222,12 +253,24 @@ export default function AssetsPage() {
                           {menuOpen === asset.id && (
                             <>
                               <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(null)} />
-                              <div className="absolute right-2 top-10 z-20 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-lg overflow-hidden min-w-[100px]">
+                              <div className="absolute right-2 top-10 z-20 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-lg overflow-hidden min-w-[120px]">
                                 <button
-                                  onClick={() => openEdit(asset)}
+                                  onClick={() => handleMenuAction(asset, 'edit')}
                                   className="w-full px-4 py-2.5 text-sm text-left text-[var(--color-text)] hover:bg-[var(--color-surface-sub)] transition-colors"
                                 >
                                   수정
+                                </button>
+                                <button
+                                  onClick={() => handleMenuAction(asset, 'toggle-visible')}
+                                  className="w-full px-4 py-2.5 text-sm text-left text-[var(--color-text)] hover:bg-[var(--color-surface-sub)] transition-colors"
+                                >
+                                  {asset.visible ? '숨기기' : '보이기'}
+                                </button>
+                                <button
+                                  onClick={() => handleMenuAction(asset, 'delete')}
+                                  className="w-full px-4 py-2.5 text-sm text-left text-[var(--color-expense)] hover:bg-[var(--color-surface-sub)] transition-colors"
+                                >
+                                  삭제
                                 </button>
                               </div>
                             </>
@@ -258,6 +301,31 @@ export default function AssetsPage() {
         onClose={() => setSheetOpen(false)}
         editing={editing}
       />
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-[var(--color-surface)] rounded-2xl p-6 mx-4 max-w-sm w-full shadow-[0px_8px_24px_rgba(0,0,0,0.16)]">
+            <p className="text-[16px] font-semibold text-[var(--color-text)] mb-2">자산을 삭제할까요?</p>
+            <p className="text-sm text-[var(--color-text-sub)] mb-6">
+              &ldquo;{deleteTarget.name}&rdquo;을 삭제합니다. 연결된 거래가 있으면 해당 자산 정보가 제거됩니다.
+            </p>
+            <div className="flex gap-3">
+              <button
+                className="flex-1 h-12 rounded-xl border border-[var(--color-border)] text-[var(--color-text)] text-[15px] font-medium"
+                onClick={() => setDeleteTarget(null)}
+              >
+                취소
+              </button>
+              <button
+                className="flex-1 h-12 rounded-xl bg-[var(--color-expense)] text-white text-[15px] font-semibold"
+                onClick={confirmDelete}
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
