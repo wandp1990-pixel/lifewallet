@@ -81,6 +81,23 @@ export async function initDb() {
       memo        TEXT    NOT NULL DEFAULT '',
       created_at  TEXT    NOT NULL DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS recurring_transactions (
+      id                 TEXT    PRIMARY KEY,
+      type               TEXT    NOT NULL,
+      amount             INTEGER NOT NULL DEFAULT 0,
+      category_id        TEXT    NOT NULL DEFAULT '',
+      asset_id           TEXT    NOT NULL DEFAULT '',
+      from_asset_id      TEXT    NOT NULL DEFAULT '',
+      to_asset_id        TEXT    NOT NULL DEFAULT '',
+      content            TEXT    NOT NULL DEFAULT '',
+      note               TEXT    NOT NULL DEFAULT '',
+      fee                INTEGER NOT NULL DEFAULT 0,
+      day_of_month       INTEGER NOT NULL DEFAULT 1,
+      enabled            INTEGER NOT NULL DEFAULT 1,
+      last_applied_month TEXT    NOT NULL DEFAULT '',
+      created_at         TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
   `)
 }
 

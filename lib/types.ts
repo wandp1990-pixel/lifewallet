@@ -78,3 +78,20 @@ export interface WishlistItem {
   memo: string
   created_at: string
 }
+
+export interface RecurringTransaction {
+  id: string
+  type: TransactionType
+  amount: number
+  category_id: string
+  asset_id: string
+  from_asset_id: string
+  to_asset_id: string
+  content: string
+  note: string
+  fee: number
+  day_of_month: number
+  enabled: boolean
+  last_applied_month: string
+  created_at: string
+}

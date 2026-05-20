@@ -13,6 +13,10 @@ const CATEGORY_ITEMS = [
   { href: '/statistics/budget-settings', label: '예산 설정' },
 ]
 
+const LEDGER_ITEMS = [
+  { href: '/settings/recurring', label: '반복 거래 관리' },
+]
+
 function MenuList({ items }: { items: { href: string; label: string }[] }) {
   return (
     <ul className="rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] overflow-hidden">
@@ -46,6 +50,12 @@ export default function SettingsPage() {
       <section className="flex flex-col gap-2">
         <p className="text-xs font-semibold text-[var(--color-text-sub)] px-1">분류</p>
         <MenuList items={CATEGORY_ITEMS} />
+      </section>
+
+      {/* 가계부 */}
+      <section className="flex flex-col gap-2">
+        <p className="text-xs font-semibold text-[var(--color-text-sub)] px-1">가계부</p>
+        <MenuList items={LEDGER_ITEMS} />
       </section>
     </div>
   )

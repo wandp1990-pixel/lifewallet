@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight, ArrowUpDown } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ArrowUpDown, Repeat } from 'lucide-react'
 import { useStore } from '@/lib/store'
-import type { Transaction } from '@/lib/types'
+import type { Transaction, RecurringTransaction } from '@/lib/types'
 import { formatAmount } from '@/lib/utils'
 import ListTab from '@/components/ledger/ListTab'
 import CalendarTab from '@/components/ledger/CalendarTab'
@@ -36,6 +36,8 @@ export default function LedgerPage() {
   const [sort, setSort] = useState<SortType>('newest')
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
+  const [recurringList, setRecurringList] = useState<RecurringTransaction[]>([])
+  const [applyingId, setApplyingId] = useState<string | null>(null)
 
   const loanAssetIds = new Set(assets.filter(a => a.group_type === 'loan').map(a => a.id))
 
@@ -53,6 +55,36 @@ export default function LedgerPage() {
   useEffect(() => {
     fetchTransactions(year, month)
   }, [year, month, fetchTransactions])
+
+  useEffect(() => {
+    fetch('/api/recurring')
+      .then(r => r.json())
+      .then((data: RecurringTransaction[]) => setRecurringList(Array.isArray(data) ? data : []))
+      .catch(() => {})
+  }, [])
+
+  const currentMonthKey = `${year}-${String(month).padStart(2, '0')}`
+  const pendingRecurring = recurringList.filter(
+    r => r.enabled && r.last_applied_month !== currentMonthKey
+  )
+
+  async function applyRecurring(r: RecurringTransaction) {
+    setApplyingId(r.id)
+    try {
+      const res = await fetch(`/api/recurring/${r.id}/apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ month: currentMonthKey }),
+      })
+      if (res.ok) {
+        const { transaction } = await res.json()
+        setTransactions(prev => [transaction, ...prev])
+        setRecurringList(prev => prev.map(x => x.id === r.id ? { ...x, last_applied_month: currentMonthKey } : x))
+      }
+    } finally {
+      setApplyingId(null)
+    }
+  }
 
   function prevMonth() {
     if (month === 1) { setYear(y => y - 1); setMonth(12) }
@@ -294,6 +326,31 @@ export default function LedgerPage() {
           </button>
         </div>
       </div>
+
+      {/* 반복 거래 미적용 배너 — 이번 달 조회 시에만 표시 */}
+      {isCurrentMonth && pendingRecurring.length > 0 && (
+        <div className="mx-4 mt-3 rounded-2xl border border-[var(--color-primary)] bg-[var(--color-primary)]/5 p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <Repeat size={14} className="text-[var(--color-primary)]" />
+            <p className="text-[13px] font-semibold text-[var(--color-primary)]">이번 달 미적용 반복 거래 {pendingRecurring.length}건</p>
+          </div>
+          {pendingRecurring.map(r => (
+            <div key={r.id} className="flex items-center justify-between bg-[var(--color-surface)] rounded-xl px-3 py-2">
+              <div>
+                <p className="text-[13px] font-medium text-[var(--color-text)]">{r.content}</p>
+                <p className="text-[11px] text-[var(--color-text-sub)]">매월 {r.day_of_month}일 · {formatAmount(r.amount)}원</p>
+              </div>
+              <button
+                onClick={() => applyRecurring(r)}
+                disabled={applyingId === r.id}
+                className="px-3 py-1.5 rounded-lg bg-[var(--color-primary)] text-white text-[12px] font-semibold disabled:opacity-50"
+              >
+                {applyingId === r.id ? '적용 중…' : '적용'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* 본문 */}
       {loading ? (
