@@ -1,0 +1,43 @@
+import { NextRequest, NextResponse } from 'next/server'
+import db, { rowToAsset } from '@/lib/db'
+import { generateId } from '@/lib/utils'
+import type { Asset } from '@/lib/types'
+
+export const dynamic = 'force-dynamic'
+
+export async function GET() {
+  const rows = await db.execute('SELECT * FROM assets ORDER BY ord ASC')
+  return NextResponse.json(rows.rows.map(rowToAsset), { headers: { 'Cache-Control': 'no-store' } })
+}
+
+export async function POST(req: NextRequest) {
+  const body = await req.json()
+  if (!body.name) return NextResponse.json({ error: '자산 이름을 입력해주세요' }, { status: 400 })
+
+  const forceTrackDetail = body.group_type === 'loan' || body.group_type === 'savings'
+
+  const a: Asset = {
+    id: generateId('ast'),
+    group_type: body.group_type,
+    group_name: body.group_name ?? '',
+    name: body.name,
+    balance: body.balance ?? 0,
+    order: body.order ?? 0,
+    visible: body.visible ?? true,
+    track_detail: forceTrackDetail || (body.track_detail ?? false),
+    principal: body.principal,
+    interest_rate: body.interest_rate,
+    start_date: body.start_date,
+    end_date: body.end_date,
+    payment_day: body.payment_day,
+    monthly_payment: body.monthly_payment,
+  }
+
+  await db.execute({
+    sql: `INSERT INTO assets (id,group_type,group_name,name,balance,ord,visible,track_detail,principal,interest_rate,start_date,end_date,payment_day,monthly_payment)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    args: [a.id, a.group_type, a.group_name, a.name, a.balance, a.order, a.visible ? 1 : 0, a.track_detail ? 1 : 0, a.principal ?? 0, a.interest_rate ?? 0, a.start_date ?? '', a.end_date ?? '', a.payment_day ?? 0, a.monthly_payment ?? 0],
+  })
+
+  return NextResponse.json(a, { status: 201 })
+}

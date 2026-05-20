@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Toss Blue — 인터랙션 전용 */
+  --color-primary: #3182f6;
+  --color-primary-hover: #2272eb;
+  --color-primary-subtle: #e8f3ff;
+
+  /* 재무 시맨틱 */
+  --color-income: #03b26c;
+  --color-expense: #f04452;
+  --color-warning: #fe9800;
+
+  /* 중립 */
+  --color-bg: #f9fafb;
+  --color-surface: #ffffff;
+  --color-surface-sub: #f2f4f6;
+  --color-border: #e5e8eb;
+  --color-border-strong: #d1d6db;
+  --color-text: #191f28;
+  --color-text-body: #6b7684;
+  --color-text-sub: #8b95a1;
+  --color-text-placeholder: #b0b8c1;
+}
+
+.dark {
+  --color-bg: #0f1115;
+  --color-surface: #22262a;
+  --color-border: #292d32;
+  --color-text: #fafafa;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
