@@ -111,6 +111,8 @@ body {
   outline: none;
   transition: border-color 150ms;
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .tds-field::placeholder {

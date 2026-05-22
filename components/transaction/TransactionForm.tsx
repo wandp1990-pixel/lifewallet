@@ -262,7 +262,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
               type="date"
               value={form.date}
               onChange={e => set('date', e.target.value)}
-              className="tds-field flex-1"
+              className="tds-field flex-1 min-w-0 !w-auto"
             />
             <button
               type="button"

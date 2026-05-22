@@ -253,14 +253,14 @@ export default function AssetForm({ open, onClose, editing }: Props) {
           <label className="text-xs font-medium text-[var(--color-text-sub)] mb-1.5 block">
             {DEBT_TYPES.includes(form.group_type) ? '부채 금액' : '잔액'}
           </label>
-          <div className="flex items-center gap-2 rounded-xl px-4 transition-colors" style={{ background: "rgba(0,23,51,0.02)", border: "1px solid rgba(2,32,71,0.05)" }}>
+          <div className="flex items-center gap-2 rounded-xl px-4 overflow-hidden" style={{ background: "rgba(0,23,51,0.02)", border: "1px solid rgba(2,32,71,0.05)" }}>
             <input
               type="text"
               inputMode="numeric"
               value={form.balance}
               onChange={e => set('balance', fmtInput(e.target.value))}
               placeholder="0"
-              className="flex-1 text-right text-[22px] font-bold text-[var(--color-text)] bg-transparent py-3 outline-none placeholder:text-[var(--color-text-placeholder)]"
+              className="flex-1 min-w-0 text-right text-[22px] font-bold text-[var(--color-text)] bg-transparent py-3 outline-none placeholder:text-[var(--color-text-placeholder)]"
             />
             <span className="text-base font-bold text-[var(--color-text-sub)] shrink-0">원</span>
           </div>
@@ -274,14 +274,14 @@ export default function AssetForm({ open, onClose, editing }: Props) {
 
             <div>
               <label className="text-xs font-medium text-[var(--color-text-sub)] mb-1.5 block">원금</label>
-              <div className="flex items-center gap-2 rounded-xl px-3 transition-colors" style={{ background: "rgba(0,23,51,0.02)", border: "1px solid rgba(2,32,71,0.05)" }}>
+              <div className="flex items-center gap-2 rounded-xl px-3 overflow-hidden" style={{ background: "rgba(0,23,51,0.02)", border: "1px solid rgba(2,32,71,0.05)" }}>
                 <input
                   type="text"
                   inputMode="numeric"
                   value={form.principal}
                   onChange={e => set('principal', fmtInput(e.target.value))}
                   placeholder="0"
-                  className="flex-1 text-right text-[16px] text-[var(--color-text)] bg-transparent py-2.5 outline-none"
+                  className="flex-1 min-w-0 text-right text-[16px] text-[var(--color-text)] bg-transparent py-2.5 outline-none"
                 />
                 <span className="text-sm text-[var(--color-text-sub)] shrink-0">원</span>
               </div>
@@ -300,28 +300,28 @@ export default function AssetForm({ open, onClose, editing }: Props) {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
+              <div className="min-w-0">
                 <label className="text-xs font-medium text-[var(--color-text-sub)] mb-1.5 block">시작일</label>
                 <input
                   type="date"
                   value={form.start_date}
                   onChange={e => set('start_date', e.target.value)}
-                  className="tds-field"
+                  className="tds-field !py-2.5 !text-[14px] !px-3"
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="text-xs font-medium text-[var(--color-text-sub)] mb-1.5 block">만기일 (선택)</label>
                 <input
                   type="date"
                   value={form.end_date}
                   onChange={e => set('end_date', e.target.value)}
-                  className="tds-field"
+                  className="tds-field !py-2.5 !text-[14px] !px-3"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
+              <div className="min-w-0">
                 <label className="text-xs font-medium text-[var(--color-text-sub)] mb-1.5 block">상환일 (매월 N일)</label>
                 <input
                   type="text"
@@ -329,19 +329,19 @@ export default function AssetForm({ open, onClose, editing }: Props) {
                   value={form.payment_day}
                   onChange={e => set('payment_day', e.target.value.replace(/\D/g, ''))}
                   placeholder="25"
-                  className="tds-field"
+                  className="tds-field !py-2.5 !text-[14px] !px-3"
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="text-xs font-medium text-[var(--color-text-sub)] mb-1.5 block">월 상환액</label>
-                <div className="flex items-center gap-1 rounded-xl px-3 transition-colors" style={{ background: "rgba(0,23,51,0.02)", border: "1px solid rgba(2,32,71,0.05)" }}>
+                <div className="flex items-center gap-1 rounded-xl px-3 overflow-hidden" style={{ background: "rgba(0,23,51,0.02)", border: "1px solid rgba(2,32,71,0.05)" }}>
                   <input
                     type="text"
                     inputMode="numeric"
                     value={form.monthly_payment}
                     onChange={e => set('monthly_payment', fmtInput(e.target.value))}
                     placeholder="0"
-                    className="flex-1 text-right text-[16px] text-[var(--color-text)] bg-transparent py-2.5 outline-none"
+                    className="flex-1 min-w-0 text-right text-[16px] text-[var(--color-text)] bg-transparent py-2.5 outline-none"
                   />
                   <span className="text-xs text-[var(--color-text-sub)] shrink-0">원</span>
                 </div>
