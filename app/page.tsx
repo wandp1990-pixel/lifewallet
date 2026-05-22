@@ -191,9 +191,9 @@ export default function LedgerPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-full">
+    <div className="flex flex-col h-full">
       {/* 고정 헤더 */}
-      <div className="sticky top-0 z-10 bg-[var(--color-surface)]">
+      <div className="shrink-0 bg-[var(--color-surface)] z-10">
 
         {/* 타이틀 바 */}
         <div className="flex items-center justify-between px-4 pt-3 pb-2">
@@ -362,6 +362,8 @@ export default function LedgerPage() {
         )}
       </div>
 
+      {/* 스크롤 영역 — 탭 콘텐츠만 스크롤 */}
+      <div className="flex-1 overflow-y-auto pb-[var(--bottom-nav-total)] md:pb-0">
       {/* 탭 콘텐츠 */}
       {loading ? (
         <div className="flex items-center justify-center py-16 text-[var(--color-text-sub)]">
@@ -420,6 +422,7 @@ export default function LedgerPage() {
           <p className="text-sm mt-1">메모 기능이 곧 추가될 예정이에요</p>
         </div>
       )}
+      </div>
 
       {/* FAB — 바텀 탭(60px) + safe area + 여백(16px) */}
       <div className="fixed right-4 z-40 md:hidden" style={{ bottom: 'calc(var(--bottom-nav-total) + 16px)' }}>
