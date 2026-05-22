@@ -296,11 +296,13 @@ export default function AssetsPage() {
         </div>
       </div>
 
-      <AssetForm
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        editing={editing}
-      />
+      {sheetOpen && (
+        <AssetForm
+          open={sheetOpen}
+          onClose={() => { setSheetOpen(false); setEditing(null) }}
+          editing={editing}
+        />
+      )}
 
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">

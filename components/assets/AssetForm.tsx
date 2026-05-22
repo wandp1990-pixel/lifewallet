@@ -93,17 +93,6 @@ export default function AssetForm({ open, onClose, editing }: Props) {
   const [error, setError] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-  // form reset when sheet opens
-  const [prevOpen, setPrevOpen] = useState(open)
-  if (open !== prevOpen) {
-    setPrevOpen(open)
-    if (open) {
-      setForm(editing ? assetToForm(editing) : DEFAULT_FORM)
-      setError('')
-      setShowDeleteConfirm(false)
-    }
-  }
-
   const isLoan = form.group_type === 'loan'
   const forceTrackDetail = form.group_type === 'loan' || form.group_type === 'savings'
 
