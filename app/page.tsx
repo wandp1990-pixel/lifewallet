@@ -311,7 +311,7 @@ export default function LedgerPage() {
         {view !== 'monthly' && <div className="mx-4 mt-2 mb-2 bg-[var(--color-surface)] rounded-2xl px-4 py-3 border border-[var(--color-border)] shadow-[0px_1px_6px_rgba(0,0,0,0.06)]">
         <div className="flex items-baseline justify-between mb-2">
           <p className={`text-[22px] font-bold tabular-nums leading-tight ${netFlow >= 0 ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]'}`}>
-            {netFlow >= 0 ? '+' : ''}{new Intl.NumberFormat('ko-KR').format(netFlow)}원
+            {netFlow >= 0 ? '+' : '-'}{formatAmount(Math.abs(netFlow))}원
           </p>
           <p className="text-[11px] text-[var(--color-text-sub)]">{month}월 합계</p>
         </div>
