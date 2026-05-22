@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, Trash2 } from 'lucide-react'
 import { useStore } from '@/lib/store'
@@ -91,6 +91,20 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
   const [form, setForm] = useState<FormState>(initial ? txToForm(initial) : DEFAULT_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    fetch('/api/transactions/suggestions')
+      .then(r => r.json())
+      .then(data => setSuggestions(Array.isArray(data) ? data : []))
+      .catch(() => {})
+  }, [])
+
+  const filteredSuggestions = form.content.trim()
+    ? suggestions.filter(s => s.toLowerCase().includes(form.content.toLowerCase()) && s !== form.content)
+    : []
 
   const visibleAssets = assets.filter(a => a.visible)
   const loanAssets = assets.filter(a => a.group_type === 'loan')
@@ -248,7 +262,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
               type="date"
               value={form.date}
               onChange={e => set('date', e.target.value)}
-              className="flex-1 bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
+              className="flex-1 bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
             />
             <button
               type="button"
@@ -267,7 +281,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
             <select
               value={form.assetId}
               onChange={e => set('assetId', e.target.value)}
-              className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
+              className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
             >
               <option value="">자산 선택</option>
               {visibleAssets.map(a => (
@@ -285,7 +299,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
               <select
                 value={form.fromAssetId}
                 onChange={e => set('fromAssetId', e.target.value)}
-                className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
+                className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
               >
                 <option value="">계좌 선택</option>
                 {visibleAssets.map(a => (
@@ -300,7 +314,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
               <select
                 value={form.toAssetId}
                 onChange={e => set('toAssetId', e.target.value)}
-                className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
+                className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
               >
                 <option value="">계좌 선택</option>
                 {(form.type === 'loan_repayment' ? loanAssets : visibleAssets).map(a => (
@@ -322,7 +336,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
                 value={form.fee}
                 onChange={e => set('fee', fmtInput(e.target.value))}
                 placeholder="0"
-                className="flex-1 text-right text-sm text-[var(--color-text)] bg-transparent py-2.5 outline-none placeholder:text-[var(--color-text-placeholder)]"
+                className="flex-1 text-right text-[16px] text-[var(--color-text)] bg-transparent py-2.5 outline-none placeholder:text-[var(--color-text-placeholder)]"
               />
               <span className="text-sm text-[var(--color-text-sub)] shrink-0">원</span>
             </div>
@@ -362,13 +376,31 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
         {/* 내용 */}
         <div>
           <label className="text-xs font-medium text-[var(--color-text-sub)] mb-1.5 block">내용</label>
-          <input
-            type="text"
-            value={form.content}
-            onChange={e => set('content', e.target.value)}
-            placeholder="내용을 입력하세요"
-            className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors placeholder:text-[var(--color-text-placeholder)]"
-          />
+          <div ref={contentRef} className="relative">
+            <input
+              type="text"
+              value={form.content}
+              onChange={e => { set('content', e.target.value); setShowSuggestions(true) }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+              placeholder="내용을 입력하세요"
+              className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors placeholder:text-[var(--color-text-placeholder)]"
+            />
+            {showSuggestions && filteredSuggestions.length > 0 && (
+              <div className="absolute z-20 left-0 right-0 top-full mt-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-[0px_4px_12px_rgba(0,0,0,0.12)] overflow-hidden">
+                {filteredSuggestions.slice(0, 6).map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onMouseDown={() => { set('content', s); setShowSuggestions(false) }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-[var(--color-text)] hover:bg-[var(--color-surface-sub)] transition-colors border-b border-[var(--color-border)] last:border-0"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* 메모 */}
@@ -379,7 +411,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
             value={form.note}
             onChange={e => set('note', e.target.value)}
             placeholder="메모를 입력하세요"
-            className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors placeholder:text-[var(--color-text-placeholder)]"
+            className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors placeholder:text-[var(--color-text-placeholder)]"
           />
         </div>
 

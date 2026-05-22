@@ -93,7 +93,7 @@ export default function WishlistPage() {
           <select
             value={sort}
             onChange={e => setSort(e.target.value as SortKey)}
-            className="px-3 py-1.5 rounded-xl border border-[var(--color-border)] text-sm text-[var(--color-text-body)] bg-[var(--color-surface)] focus:outline-none"
+            className="px-3 py-1.5 rounded-xl border border-[var(--color-border)] text-[16px] text-[var(--color-text-body)] bg-[var(--color-surface)] focus:outline-none"
           >
             <option value="priority">우선순위순</option>
             <option value="date">날짜순</option>

@@ -222,13 +222,13 @@ export default function LedgerPage() {
               onChange={e => setSearch(e.target.value)}
               placeholder="내용·메모 검색"
               autoFocus
-              className="w-full rounded-xl bg-[var(--color-surface-sub)] border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+              className="w-full rounded-xl bg-[var(--color-surface-sub)] border border-[var(--color-border)] px-3 py-2 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
             />
             <div className="flex gap-2">
               <select
                 value={assetFilter}
                 onChange={e => setAssetFilter(e.target.value)}
-                className="flex-1 min-w-0 rounded-xl bg-[var(--color-surface-sub)] border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-text)] outline-none"
+                className="flex-1 min-w-0 rounded-xl bg-[var(--color-surface-sub)] border border-[var(--color-border)] px-3 py-2 text-[16px] text-[var(--color-text)] outline-none"
               >
                 <option value="">모든 자산</option>
                 {filterableAssets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -236,7 +236,7 @@ export default function LedgerPage() {
               <select
                 value={categoryFilter}
                 onChange={e => setCategoryFilter(e.target.value)}
-                className="flex-1 min-w-0 rounded-xl bg-[var(--color-surface-sub)] border border-[var(--color-border)] px-3 py-2 text-sm text-[var(--color-text)] outline-none"
+                className="flex-1 min-w-0 rounded-xl bg-[var(--color-surface-sub)] border border-[var(--color-border)] px-3 py-2 text-[16px] text-[var(--color-text)] outline-none"
               >
                 <option value="">모든 분류</option>
                 {filterableCategories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}

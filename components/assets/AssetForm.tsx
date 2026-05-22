@@ -218,7 +218,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
             value={form.name}
             onChange={e => set('name', e.target.value)}
             placeholder="예: 국민은행 통장"
-            className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
+            className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
           />
         </div>
 
@@ -228,7 +228,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
           <select
             value={form.group_type}
             onChange={e => set('group_type', e.target.value as AssetGroupType)}
-            className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
+            className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
           >
             {GROUP_TYPES.map(g => (
               <option key={g.value} value={g.value}>{g.label}</option>
@@ -244,7 +244,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
             value={form.group_name}
             onChange={e => set('group_name', e.target.value)}
             placeholder="예: 국민은행"
-            className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
+            className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
           />
         </div>
 
@@ -281,7 +281,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
                   value={form.principal}
                   onChange={e => set('principal', fmtInput(e.target.value))}
                   placeholder="0"
-                  className="flex-1 text-right text-sm text-[var(--color-text)] bg-transparent py-2.5 outline-none"
+                  className="flex-1 text-right text-[16px] text-[var(--color-text)] bg-transparent py-2.5 outline-none"
                 />
                 <span className="text-sm text-[var(--color-text-sub)] shrink-0">원</span>
               </div>
@@ -295,7 +295,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
                 value={form.interest_rate}
                 onChange={e => set('interest_rate', e.target.value.replace(/[^0-9.]/g, ''))}
                 placeholder="3.5"
-                className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
+                className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
               />
             </div>
 
@@ -306,7 +306,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
                   type="date"
                   value={form.start_date}
                   onChange={e => set('start_date', e.target.value)}
-                  className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
+                  className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
                 />
               </div>
               <div>
@@ -315,7 +315,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
                   type="date"
                   value={form.end_date}
                   onChange={e => set('end_date', e.target.value)}
-                  className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
+                  className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
                 />
               </div>
             </div>
@@ -329,7 +329,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
                   value={form.payment_day}
                   onChange={e => set('payment_day', e.target.value.replace(/\D/g, ''))}
                   placeholder="25"
-                  className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-sm text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
+                  className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
                 />
               </div>
               <div>
@@ -341,7 +341,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
                     value={form.monthly_payment}
                     onChange={e => set('monthly_payment', fmtInput(e.target.value))}
                     placeholder="0"
-                    className="flex-1 text-right text-sm text-[var(--color-text)] bg-transparent py-2.5 outline-none"
+                    className="flex-1 text-right text-[16px] text-[var(--color-text)] bg-transparent py-2.5 outline-none"
                   />
                   <span className="text-xs text-[var(--color-text-sub)] shrink-0">원</span>
                 </div>
