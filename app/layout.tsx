@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { StoreProvider } from '@/lib/store'
 import AppLayout from '@/components/layout/AppLayout'
@@ -6,6 +6,12 @@ import AppLayout from '@/components/layout/AppLayout'
 export const metadata: Metadata = {
   title: 'LifeWallet',
   description: '내 인생의 모든 재무를 관리하는 개인 전용 앱',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -12,8 +12,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <SideNav />
       </aside>
 
-      {/* 메인 콘텐츠 */}
-      <main className="flex-1 overflow-y-auto pb-[60px] md:pb-0">
+      {/* 메인 콘텐츠 — pb는 바텀 탭(60px) + safe area(iPhone 홈 인디케이터) 합산 */}
+      <main className="flex-1 overflow-y-auto pb-[var(--bottom-nav-total)] md:pb-0">
         {children}
       </main>
 
