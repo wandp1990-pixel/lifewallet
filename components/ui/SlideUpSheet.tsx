@@ -30,12 +30,12 @@ export default function SlideUpSheet({ open, onClose, title, children, rightActi
   return (
     <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center">
       <div
-        className="absolute inset-0 bg-black/40"
+        className="tds-fade-in absolute inset-0 bg-[rgba(2,9,19,0.5)]"
         onClick={onClose}
         aria-hidden
       />
       <div
-        className="relative w-full md:max-w-[480px] bg-[var(--color-surface)] rounded-t-2xl md:rounded-2xl shadow-[0px_8px_24px_rgba(0,0,0,0.16)] max-h-[90vh] flex flex-col"
+        className="tds-slide-up relative w-full md:max-w-[480px] bg-[var(--color-surface)] rounded-t-2xl md:rounded-2xl shadow-[0px_8px_24px_rgba(0,0,0,0.16)] max-h-[90vh] flex flex-col"
         role="dialog"
         aria-modal="true"
         aria-label={title}

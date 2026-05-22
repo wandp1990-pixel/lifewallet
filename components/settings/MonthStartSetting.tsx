@@ -27,7 +27,7 @@ export default function MonthStartSetting() {
           <select
             value={day}
             onChange={e => handleChange(Number(e.target.value))}
-            className="rounded-lg bg-[var(--color-surface-sub)] border border-[var(--color-border)] px-2 py-1 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+            className="tds-field !py-1 !px-2 !rounded-lg w-auto"
           >
             {Array.from({ length: 28 }, (_, i) => i + 1).map(d => (
               <option key={d} value={d}>{d}일</option>

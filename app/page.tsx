@@ -10,6 +10,7 @@ import { getMonthStartDay, getMonthRange } from '@/lib/monthStart'
 import ListTab from '@/components/ledger/ListTab'
 import CalendarTab from '@/components/ledger/CalendarTab'
 import MonthlyTab from '@/components/ledger/MonthlyTab'
+import { SkeletonCard, SkeletonSummaryCard } from '@/components/ui/Skeleton'
 
 type ViewType = 'list' | 'calendar' | 'monthly' | 'summary' | 'memo'
 type FilterType = 'all' | 'income' | 'expense' | 'transfer' | 'loan_repayment' | 'loan_received'
@@ -196,7 +197,7 @@ export default function LedgerPage() {
       <div className="shrink-0 bg-[var(--color-surface)] z-10">
 
         {/* 타이틀 바 */}
-        <div className="flex items-center justify-between px-4 pt-3 pb-2">
+        <div className="flex items-center justify-between px-4 h-[44px]">
           <button
             onClick={() => setSearchOpen(v => !v)}
             className="p-2 -ml-2 rounded-xl hover:bg-[var(--color-surface-sub)] transition-colors"
@@ -222,13 +223,13 @@ export default function LedgerPage() {
               onChange={e => setSearch(e.target.value)}
               placeholder="내용·메모 검색"
               autoFocus
-              className="w-full rounded-xl bg-[var(--color-surface-sub)] border border-[var(--color-border)] px-3 py-2 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+              className="tds-field !py-2.5"
             />
             <div className="flex gap-2">
               <select
                 value={assetFilter}
                 onChange={e => setAssetFilter(e.target.value)}
-                className="flex-1 min-w-0 rounded-xl bg-[var(--color-surface-sub)] border border-[var(--color-border)] px-3 py-2 text-[16px] text-[var(--color-text)] outline-none"
+                className="tds-field flex-1 min-w-0 !py-2.5"
               >
                 <option value="">모든 자산</option>
                 {filterableAssets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -236,7 +237,7 @@ export default function LedgerPage() {
               <select
                 value={categoryFilter}
                 onChange={e => setCategoryFilter(e.target.value)}
-                className="flex-1 min-w-0 rounded-xl bg-[var(--color-surface-sub)] border border-[var(--color-border)] px-3 py-2 text-[16px] text-[var(--color-text)] outline-none"
+                className="tds-field flex-1 min-w-0 !py-2.5"
               >
                 <option value="">모든 분류</option>
                 {filterableCategories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
@@ -246,7 +247,7 @@ export default function LedgerPage() {
         )}
 
         {/* 월/연도 이동 — 월별 탭은 연도 단위 */}
-        <div className="flex items-center justify-center gap-4 py-2">
+        <div className="flex items-center justify-center gap-4 h-[44px]">
           <button
             onClick={view === 'monthly' ? prevYear : prevMonth}
             className="p-1.5 rounded-xl hover:bg-[var(--color-surface-sub)] transition-colors"
@@ -270,7 +271,7 @@ export default function LedgerPage() {
             <button
               key={tab.id}
               onClick={() => setView(tab.id)}
-              className={`flex-1 py-2.5 text-[13px] font-medium border-b-2 transition-colors ${
+              className={`flex-1 h-[44px] text-[13px] font-medium border-b-2 transition-colors ${
                 view === tab.id
                   ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
                   : 'border-transparent text-[var(--color-text-sub)]'
@@ -283,7 +284,7 @@ export default function LedgerPage() {
 
         {/* 타입 필터 탭 — 일일에서만 */}
         {view === 'list' && (
-          <div className="flex gap-1.5 px-4 py-2 overflow-x-auto border-t border-[var(--color-border)]">
+          <div className="flex gap-1.5 px-4 py-1 overflow-x-auto border-t border-[var(--color-border)]">
             {(Object.keys(FILTER_LABELS) as FilterType[]).map(f => {
               const count = countByFilter(f)
               if (f !== 'all' && count === 0) return null
@@ -291,7 +292,7 @@ export default function LedgerPage() {
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`shrink-0 flex items-center gap-1 px-3 py-1.5 text-[13px] font-medium transition-colors border-b-2 ${
+                  className={`shrink-0 flex items-center gap-1 px-3 py-1 text-[13px] font-medium transition-colors border-b-2 ${
                     filter === f
                       ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
                       : 'border-transparent text-[var(--color-text-sub)]'
@@ -308,33 +309,42 @@ export default function LedgerPage() {
         )}
 
         {/* 요약 카드 — 월별 탭은 MonthlyTab 내부에서 자체 렌더 */}
-        {view !== 'monthly' && <div className="mx-4 mt-2 mb-2 bg-[var(--color-surface)] rounded-2xl px-4 py-3 border border-[var(--color-border)] shadow-[0px_1px_6px_rgba(0,0,0,0.06)]">
-        <div className="flex items-baseline justify-between mb-2">
-          <p className={`text-[22px] font-bold tabular-nums leading-tight ${netFlow >= 0 ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]'}`}>
-            {netFlow >= 0 ? '+' : '-'}{formatAmount(Math.abs(netFlow))}원
-          </p>
-          <p className="text-[11px] text-[var(--color-text-sub)]">{month}월 합계</p>
-        </div>
-        {(income + expense) > 0 ? (
-          <div className="h-[5px] rounded-full overflow-hidden flex mb-2">
-            <div
-              style={{ width: `${Math.round(income / (income + expense) * 100)}%` }}
-              className="bg-[var(--color-income)]"
-            />
-            <div className="flex-1 bg-[var(--color-expense)]" />
+        {view !== 'monthly' && (
+          <div className="px-4 py-3 bg-[var(--color-surface-sub)]">
+            {loading ? (
+              <SkeletonSummaryCard />
+            ) : (
+            <div className="bg-[var(--color-surface)] rounded-2xl h-20 border border-[var(--color-border)] shadow-[0px_2px_10px_rgba(0,0,0,0.06)] flex flex-col px-[18px] justify-center">
+              <div className="flex items-start justify-between mb-[5px]">
+                <p className={`text-[16px] font-bold tabular-nums leading-none ${netFlow >= 0 ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]'}`}>
+                  {netFlow >= 0 ? '+' : '-'}{formatAmount(Math.abs(netFlow))}원
+                </p>
+                <p className="text-[13px] text-[var(--color-text-sub)] -mt-0.5">{month}월 합계</p>
+              </div>
+              {(income + expense) > 0 ? (
+                <div className="h-[7px] rounded-full overflow-hidden flex mb-[5px]">
+                  <div style={{ width: `${Math.round(income / (income + expense) * 100)}%` }} className="bg-[var(--color-income)]" />
+                  <div className="flex-1 bg-[var(--color-expense)]" />
+                </div>
+              ) : (
+                <div className="h-[7px] rounded-full bg-[var(--color-surface-sub)] mb-[5px]" />
+              )}
+              <div className="flex justify-between">
+                <div className="flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 rounded-[1px] bg-[var(--color-income)]" />
+                  <span className="text-[10px] text-[var(--color-text-sub)]">수입</span>
+                  <span className="text-[11px] font-semibold tabular-nums text-[var(--color-income)]">{formatAmount(income)}원</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-1.5 h-1.5 rounded-[1px] bg-[var(--color-expense)]" />
+                  <span className="text-[10px] text-[var(--color-text-sub)]">지출</span>
+                  <span className="text-[11px] font-semibold tabular-nums text-[var(--color-expense)]">{formatAmount(expense)}원</span>
+                </div>
+              </div>
+            </div>
+            )}
           </div>
-        ) : (
-          <div className="h-[5px] rounded-full bg-[var(--color-surface-sub)] mb-2" />
         )}
-        <div className="flex justify-between text-[12px]">
-          <span className="text-[var(--color-text-sub)]">
-            ■ 수입 <span className="font-semibold text-[var(--color-income)]">{formatAmount(income)}원</span>
-          </span>
-          <span className="text-[var(--color-text-sub)]">
-            ■ 지출 <span className="font-semibold text-[var(--color-expense)]">{formatAmount(expense)}원</span>
-          </span>
-        </div>
-        </div>}
 
         {/* 반복 거래 배너 */}
         {view === 'list' && isCurrentMonth && pendingRecurring.length > 0 && (
@@ -366,8 +376,9 @@ export default function LedgerPage() {
       <div className="flex-1 overflow-y-auto pb-[var(--bottom-nav-total)] md:pb-0">
       {/* 탭 콘텐츠 */}
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-[var(--color-text-sub)]">
-          <p className="text-sm">불러오는 중…</p>
+        <div className="px-4 pt-3 pb-4 space-y-3">
+          <SkeletonCard rows={4} />
+          <SkeletonCard rows={3} />
         </div>
       ) : view === 'list' ? (
         <ListTab transactions={filtered} categories={categories} assets={assets} onDelete={handleDelete} />

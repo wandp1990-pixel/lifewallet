@@ -241,7 +241,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
         {/* 금액 */}
         <div>
           <label className="text-xs font-medium text-[var(--color-text-sub)] mb-1.5 block">금액</label>
-          <div className="flex items-center gap-2 bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-4 focus-within:border-[var(--color-primary)] transition-colors">
+          <div className="flex items-center gap-2 rounded-xl px-4 focus-within:outline focus-within:outline-[var(--color-primary)] transition-colors" style={{ background: 'rgba(0,23,51,0.02)', border: '1px solid rgba(2,32,71,0.05)' }}>
             <input
               type="text"
               inputMode="numeric"
@@ -262,7 +262,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
               type="date"
               value={form.date}
               onChange={e => set('date', e.target.value)}
-              className="flex-1 bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
+              className="tds-field flex-1"
             />
             <button
               type="button"
@@ -281,7 +281,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
             <select
               value={form.assetId}
               onChange={e => set('assetId', e.target.value)}
-              className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
+              className="tds-field"
             >
               <option value="">자산 선택</option>
               {visibleAssets.map(a => (
@@ -299,7 +299,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
               <select
                 value={form.fromAssetId}
                 onChange={e => set('fromAssetId', e.target.value)}
-                className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
+                className="tds-field"
               >
                 <option value="">계좌 선택</option>
                 {visibleAssets.map(a => (
@@ -314,7 +314,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
               <select
                 value={form.toAssetId}
                 onChange={e => set('toAssetId', e.target.value)}
-                className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors"
+                className="tds-field"
               >
                 <option value="">계좌 선택</option>
                 {(form.type === 'loan_repayment' ? loanAssets : visibleAssets).map(a => (
@@ -329,7 +329,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
         {showFee && (
           <div>
             <label className="text-xs font-medium text-[var(--color-text-sub)] mb-1.5 block">수수료 (선택)</label>
-            <div className="flex items-center gap-2 bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 focus-within:border-[var(--color-primary)] transition-colors">
+            <div className="flex items-center gap-2 rounded-xl px-3 focus-within:outline focus-within:outline-[var(--color-primary)] transition-colors" style={{ background: 'rgba(0,23,51,0.02)', border: '1px solid rgba(2,32,71,0.05)' }}>
               <input
                 type="text"
                 inputMode="numeric"
@@ -384,7 +384,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
               onFocus={() => setShowSuggestions(true)}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
               placeholder="내용을 입력하세요"
-              className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors placeholder:text-[var(--color-text-placeholder)]"
+              className="tds-field"
             />
             {showSuggestions && filteredSuggestions.length > 0 && (
               <div className="absolute z-20 left-0 right-0 top-full mt-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-[0px_4px_12px_rgba(0,0,0,0.12)] overflow-hidden">
@@ -411,7 +411,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
             value={form.note}
             onChange={e => set('note', e.target.value)}
             placeholder="메모를 입력하세요"
-            className="w-full bg-[var(--color-surface-sub)] border border-[var(--color-border)] rounded-xl px-3 py-2.5 text-[16px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)] transition-colors placeholder:text-[var(--color-text-placeholder)]"
+            className="tds-field"
           />
         </div>
 
@@ -422,13 +422,13 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
       </div>
 
       {/* 하단 버튼 */}
-      <div className="fixed bottom-0 left-0 right-0 z-10 bg-[var(--color-surface)] border-t border-[var(--color-border)] px-4 py-3 flex gap-2 md:static md:mt-auto">
+      <div className="fixed bottom-0 left-0 right-0 z-10 bg-[var(--color-surface)] border-t border-[var(--color-border)] px-4 py-3 flex gap-2 md:static md:mt-auto" style={{ paddingBottom: 'calc(12px + var(--safe-area-bottom))' }}>
         {mode === 'new' && (
           <button
             type="button"
             onClick={() => submit(true)}
             disabled={saving}
-            className="flex-1 py-3 rounded-xl border border-[var(--color-border)] text-sm font-semibold text-[var(--color-text)] hover:bg-[var(--color-surface-sub)] transition-colors disabled:opacity-50"
+            className="flex-1 h-14 rounded-xl border border-[var(--color-border)] text-[15px] font-semibold text-[var(--color-text)] hover:bg-[var(--color-surface-sub)] transition-colors disabled:opacity-50"
           >
             저장 후 계속
           </button>
@@ -437,7 +437,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
           type="button"
           onClick={() => submit(false)}
           disabled={saving}
-          className={`${mode === 'new' ? 'flex-1' : 'w-full'} py-3 rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold hover:bg-[var(--color-primary-hover)] transition-colors disabled:opacity-50`}
+          className={`${mode === 'new' ? 'flex-1' : 'w-full'} h-14 rounded-xl bg-[var(--color-primary)] text-white text-[15px] font-semibold hover:bg-[var(--color-primary-hover)] transition-colors disabled:opacity-50`}
         >
           {saving ? '저장 중…' : '저장'}
         </button>

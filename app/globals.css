@@ -49,3 +49,79 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
+
+/* ─── TDS Motion ─────────────────────────────────────────────────────────── */
+
+@keyframes tds-slide-up {
+  from { transform: translateY(40px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes tds-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes tds-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.tds-slide-up {
+  animation: tds-slide-up 250ms cubic-bezier(0, 0, 0.2, 1) both;
+}
+
+.tds-fade-in {
+  animation: tds-fade-in 250ms cubic-bezier(0, 0, 0.2, 1) both;
+}
+
+/* ─── TDS Skeleton ───────────────────────────────────────────────────────── */
+
+.tds-skeleton {
+  background: linear-gradient(
+    90deg,
+    #f2f4f6 25%,
+    rgba(255, 255, 255, 0.65) 50%,
+    #f2f4f6 75%
+  );
+  background-size: 200% 100%;
+  animation: tds-shimmer 1.2s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+.dark .tds-skeleton {
+  background: linear-gradient(
+    90deg,
+    #22262a 25%,
+    rgba(255, 255, 255, 0.06) 50%,
+    #22262a 75%
+  );
+  background-size: 200% 100%;
+}
+
+/* ─── TDS Field (box variant) ────────────────────────────────────────────── */
+
+.tds-field {
+  background: rgba(0, 23, 51, 0.02);
+  border: 1px solid rgba(2, 32, 71, 0.05);
+  border-radius: 12px;
+  padding: 13px 16px;
+  font-size: 17px;
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 150ms;
+  width: 100%;
+}
+
+.tds-field::placeholder {
+  color: var(--color-text-placeholder);
+}
+
+.tds-field:focus {
+  border-color: var(--color-primary);
+}
+
+.dark .tds-field {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}

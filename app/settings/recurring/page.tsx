@@ -270,7 +270,7 @@ export default function RecurringPage() {
                 value={form.amountStr}
                 onChange={e => setForm(f => ({ ...f, amountStr: fmtInput(e.target.value) }))}
                 placeholder="0"
-                className="w-full rounded-xl bg-[var(--color-surface-sub)] border border-[var(--color-border)] px-4 py-3 text-right text-[18px] font-bold text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+                className="tds-field text-right !text-[18px] font-bold"
               />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--color-text-sub)] text-sm">원</span>
             </div>
@@ -284,7 +284,7 @@ export default function RecurringPage() {
               value={form.content}
               onChange={e => setForm(f => ({ ...f, content: e.target.value }))}
               placeholder="반복 거래 내용"
-              className="w-full rounded-xl bg-[var(--color-surface-sub)] border border-[var(--color-border)] px-4 py-3 text-[15px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+              className="tds-field"
             />
           </div>
 
@@ -298,7 +298,7 @@ export default function RecurringPage() {
                 max={31}
                 value={form.day_of_month}
                 onChange={e => setForm(f => ({ ...f, day_of_month: Math.min(31, Math.max(1, Number(e.target.value))) }))}
-                className="w-24 rounded-xl bg-[var(--color-surface-sub)] border border-[var(--color-border)] px-4 py-3 text-[15px] text-[var(--color-text)] text-center outline-none focus:border-[var(--color-primary)]"
+                className="tds-field w-24 text-center !text-[16px]"
               />
               <span className="text-[15px] text-[var(--color-text-sub)]">일</span>
             </div>
@@ -311,7 +311,7 @@ export default function RecurringPage() {
               <select
                 value={form.asset_id}
                 onChange={e => setForm(f => ({ ...f, asset_id: e.target.value }))}
-                className="w-full rounded-xl bg-[var(--color-surface-sub)] border border-[var(--color-border)] px-4 py-3 text-[15px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+                className="tds-field"
               >
                 <option value="">자산 선택</option>
                 {assets.filter(a => a.visible).map(a => (
@@ -329,7 +329,7 @@ export default function RecurringPage() {
                 <select
                   value={form.from_asset_id}
                   onChange={e => setForm(f => ({ ...f, from_asset_id: e.target.value }))}
-                  className="w-full rounded-xl bg-[var(--color-surface-sub)] border border-[var(--color-border)] px-4 py-3 text-[15px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+                  className="tds-field"
                 >
                   <option value="">자산 선택</option>
                   {assets.filter(a => a.visible).map(a => (
@@ -342,7 +342,7 @@ export default function RecurringPage() {
                 <select
                   value={form.to_asset_id}
                   onChange={e => setForm(f => ({ ...f, to_asset_id: e.target.value }))}
-                  className="w-full rounded-xl bg-[var(--color-surface-sub)] border border-[var(--color-border)] px-4 py-3 text-[15px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+                  className="tds-field"
                 >
                   <option value="">자산 선택</option>
                   {assets.filter(a => a.visible).map(a => (
@@ -360,7 +360,7 @@ export default function RecurringPage() {
               <select
                 value={form.category_id}
                 onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
-                className="w-full rounded-xl bg-[var(--color-surface-sub)] border border-[var(--color-border)] px-4 py-3 text-[15px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+                className="tds-field"
               >
                 <option value="">분류 선택</option>
                 {visibleCategories.map(c => (
@@ -378,7 +378,7 @@ export default function RecurringPage() {
               value={form.note}
               onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
               placeholder=""
-              className="w-full rounded-xl bg-[var(--color-surface-sub)] border border-[var(--color-border)] px-4 py-3 text-[15px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+              className="tds-field"
             />
           </div>
 
