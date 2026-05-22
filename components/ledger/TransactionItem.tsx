@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { MoreHorizontal } from 'lucide-react'
 import type { Transaction, Category, Asset } from '@/lib/types'
 import { formatAmount } from '@/lib/utils'
-import { categoryColor } from '@/lib/colors'
+import CatIcon from '@/components/ui/CatIcon'
 
 interface Props {
   tx: Transaction
@@ -45,11 +45,8 @@ export default function TransactionItem({ tx, categories, assets, onDelete, onEd
 
   const amountPrefix = tx.type === 'income' ? '+' : ''
 
-  // 카테고리 아이콘 아이콘 표시 (카테고리 없으면 거래 타입 fallback)
-  const iconEmoji = category?.icon || TYPE_ICON[tx.type] || '💰'
-  const iconBg = category
-    ? categoryColor(category.id) + '22'
-    : 'var(--color-surface-sub)'
+  const iconKey = category?.icon || TYPE_ICON[tx.type] || '💰'
+  const iconId = category?.id ?? ''
 
   // 서브 레이블: 카테고리명 · 자산명
   const subLabel = [category?.name, assetLabel].filter(Boolean).join(' · ')
@@ -78,12 +75,7 @@ export default function TransactionItem({ tx, categories, assets, onDelete, onEd
       onClick={() => onEdit ? onEdit(tx) : router.push(`/transaction/${tx.id}`)}
     >
       {/* 카테고리 아이콘 */}
-      <div
-        className="w-9 h-9 rounded-[11px] flex items-center justify-center shrink-0 text-[18px]"
-        style={{ backgroundColor: iconBg }}
-      >
-        {iconEmoji}
-      </div>
+      <CatIcon icon={iconKey} id={iconId} size={36} />
 
       {/* 내용 */}
       <div className="flex-1 min-w-0">
