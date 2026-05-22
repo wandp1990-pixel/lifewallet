@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "(레이아웃|모바일|화면|컴포넌트|스타일|색상|탭|버튼|카드|폼|디자인|UI|CSS|Tailwind|반응형|헤더|네비|바텀|모달|시트|페이지|배포|빌드|구현|추가|수정|변경|만들어|만들줘|고쳐|개선|layout|mobile|component|style|design|frontend|page|deploy|build)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat '/mnt/d/99. ZiReE/ZiReE/01. Projects/코딩/LifeWallet/FRONTEND.md'",
+            "statusMessage": "📱 프론트엔드 원칙 로드 중..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '\\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\\n📦 LifeWallet 배포 체크\\n코드를 수정했다면 반드시 배포하세요:\\n  cd lifewallet && vercel --prod\\n확인: https://lifewallet-eight.vercel.app\\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'",
+            "statusMessage": "배포 체크..."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -9,6 +9,7 @@ import { formatAmount } from '@/lib/utils'
 import { getMonthStartDay, getMonthRange } from '@/lib/monthStart'
 import ListTab from '@/components/ledger/ListTab'
 import CalendarTab from '@/components/ledger/CalendarTab'
+import MonthlyTab from '@/components/ledger/MonthlyTab'
 
 type ViewType = 'list' | 'calendar' | 'monthly' | 'summary' | 'memo'
 type FilterType = 'all' | 'income' | 'expense' | 'transfer' | 'loan_repayment' | 'loan_received'
@@ -27,7 +28,6 @@ const TABS: { id: ViewType; label: string }[] = [
   { id: 'memo', label: '메모' },
 ]
 
-const DAY_NAMES_FULL = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일']
 
 export default function LedgerPage() {
   const { categories, assets } = useStore()
@@ -47,6 +47,11 @@ export default function LedgerPage() {
   const [loading, setLoading] = useState(true)
   const [recurringList, setRecurringList] = useState<RecurringTransaction[]>([])
   const [applyingId, setApplyingId] = useState<string | null>(null)
+
+  // 월별 탭 전용: 연도 단위 탐색 + 연간 거래 데이터
+  const [yearlyYear, setYearlyYear] = useState(now.getFullYear())
+  const [yearlyTransactions, setYearlyTransactions] = useState<Transaction[]>([])
+  const [yearlyLoading, setYearlyLoading] = useState(false)
 
   useEffect(() => { setMonthStartDay(getMonthStartDay()) }, [])
 
@@ -72,6 +77,19 @@ export default function LedgerPage() {
       .then((data: RecurringTransaction[]) => setRecurringList(Array.isArray(data) ? data : []))
       .catch(() => {})
   }, [])
+
+  // 월별 탭 활성 시 연간 거래 데이터 fetch
+  useEffect(() => {
+    if (view !== 'monthly') return
+    const { from: yearFrom } = getMonthRange(yearlyYear, 1, monthStartDay)
+    const { to: yearTo } = getMonthRange(yearlyYear, 12, monthStartDay)
+    setYearlyLoading(true)
+    fetch(`/api/transactions?from=${yearFrom}&to=${yearTo}`)
+      .then(r => r.json())
+      .then(data => setYearlyTransactions(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setYearlyLoading(false))
+  }, [view, yearlyYear, monthStartDay])
 
   const currentMonthKey = `${year}-${String(month).padStart(2, '0')}`
   const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1
@@ -103,6 +121,8 @@ export default function LedgerPage() {
     if (month === 12) { setYear(y => y + 1); setMonth(1) }
     else setMonth(m => m + 1)
   }
+  function prevYear() { setYearlyYear(y => y - 1) }
+  function nextYear() { setYearlyYear(y => y + 1) }
 
   function isLoanReceived(t: Transaction) {
     return t.type === 'transfer' && loanAssetIds.has(t.from_asset_id)
@@ -163,14 +183,6 @@ export default function LedgerPage() {
   const usedAssetIds = new Set(visible.flatMap(t => [t.asset_id, t.from_asset_id, t.to_asset_id].filter(Boolean)))
   const filterableAssets = assets.filter(a => usedAssetIds.has(a.id))
   const filterableCategories = categories.filter(c => visible.some(t => t.category_id === c.id))
-
-  // 월별 탭 집계
-  const monthlyGrouped: Record<string, { income: number; expense: number }> = {}
-  for (const t of visible) {
-    if (!monthlyGrouped[t.date]) monthlyGrouped[t.date] = { income: 0, expense: 0 }
-    if (t.type === 'income') monthlyGrouped[t.date].income += t.amount
-    if (t.type === 'expense') monthlyGrouped[t.date].expense += t.amount
-  }
 
   // 요약 탭 - 카테고리별 지출
   const catExpense: Record<string, number> = {}
@@ -233,13 +245,21 @@ export default function LedgerPage() {
           </div>
         )}
 
-        {/* 월 이동 */}
+        {/* 월/연도 이동 — 월별 탭은 연도 단위 */}
         <div className="flex items-center justify-center gap-4 py-2">
-          <button onClick={prevMonth} className="p-1.5 rounded-xl hover:bg-[var(--color-surface-sub)] transition-colors">
+          <button
+            onClick={view === 'monthly' ? prevYear : prevMonth}
+            className="p-1.5 rounded-xl hover:bg-[var(--color-surface-sub)] transition-colors"
+          >
             <ChevronLeft size={20} className="text-[var(--color-text-sub)]" />
           </button>
-          <span className="text-[17px] font-semibold text-[var(--color-text)]">{year}년 {month}월</span>
-          <button onClick={nextMonth} className="p-1.5 rounded-xl hover:bg-[var(--color-surface-sub)] transition-colors">
+          <span className="text-[17px] font-semibold text-[var(--color-text)]">
+            {view === 'monthly' ? `${yearlyYear}년` : `${year}년 ${month}월`}
+          </span>
+          <button
+            onClick={view === 'monthly' ? nextYear : nextMonth}
+            className="p-1.5 rounded-xl hover:bg-[var(--color-surface-sub)] transition-colors"
+          >
             <ChevronRight size={20} className="text-[var(--color-text-sub)]" />
           </button>
         </div>
@@ -261,8 +281,8 @@ export default function LedgerPage() {
           ))}
         </div>
 
-        {/* 타입 필터 탭 — 일일·월별에서만 */}
-        {(view === 'list' || view === 'monthly') && (
+        {/* 타입 필터 탭 — 일일에서만 */}
+        {view === 'list' && (
           <div className="flex gap-1.5 px-4 py-2 overflow-x-auto border-t border-[var(--color-border)]">
             {(Object.keys(FILTER_LABELS) as FilterType[]).map(f => {
               const count = countByFilter(f)
@@ -288,8 +308,8 @@ export default function LedgerPage() {
         )}
       </div>
 
-      {/* 요약 카드 */}
-      <div className="mx-4 mt-3 mb-2 bg-[var(--color-surface)] rounded-2xl px-4 py-3 border border-[var(--color-border)] shadow-[0px_1px_6px_rgba(0,0,0,0.06)]">
+      {/* 요약 카드 — 월별 탭은 MonthlyTab 내부에서 자체 렌더 */}
+      {view !== 'monthly' && <div className="mx-4 mt-3 mb-2 bg-[var(--color-surface)] rounded-2xl px-4 py-3 border border-[var(--color-border)] shadow-[0px_1px_6px_rgba(0,0,0,0.06)]">
         <div className="flex items-baseline justify-between mb-2">
           <p className={`text-[22px] font-bold tabular-nums leading-tight ${netFlow >= 0 ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]'}`}>
             {netFlow >= 0 ? '+' : ''}{new Intl.NumberFormat('ko-KR').format(netFlow)}원
@@ -315,7 +335,7 @@ export default function LedgerPage() {
             ■ 지출 <span className="font-semibold text-[var(--color-expense)]">{formatAmount(expense)}원</span>
           </span>
         </div>
-      </div>
+      </div>}
 
       {/* 반복 거래 배너 */}
       {view === 'list' && isCurrentMonth && pendingRecurring.length > 0 && (
@@ -352,35 +372,7 @@ export default function LedgerPage() {
       ) : view === 'calendar' ? (
         <CalendarTab year={year} month={month} transactions={transactions} onSelectDate={() => setView('list')} />
       ) : view === 'monthly' ? (
-        <div className="divide-y divide-[var(--color-border)]">
-          {Object.keys(monthlyGrouped).length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-[var(--color-text-sub)]">
-              <p className="text-[15px]">거래 내역이 없습니다</p>
-            </div>
-          ) : (
-            Object.keys(monthlyGrouped).sort().reverse().map(date => {
-              const { income: inc, expense: exp } = monthlyGrouped[date]
-              const net = inc - exp
-              const d = new Date(date + 'T00:00:00')
-              const dow = d.getDay()
-              return (
-                <div key={date} className="flex items-center px-4 py-3 gap-3">
-                  <span className={`text-[18px] font-bold w-7 shrink-0 ${dow === 0 ? 'text-[var(--color-expense)]' : dow === 6 ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]'}`}>
-                    {d.getDate()}
-                  </span>
-                  <span className="text-[11px] text-[var(--color-text-sub)] w-14 shrink-0">{DAY_NAMES_FULL[dow]}</span>
-                  <div className="flex-1 flex gap-2 text-[13px] font-medium">
-                    {inc > 0 && <span className="text-[var(--color-income)]">+{formatAmount(inc)}</span>}
-                    {exp > 0 && <span className="text-[var(--color-expense)]">-{formatAmount(exp)}</span>}
-                  </div>
-                  <span className={`text-[14px] font-semibold tabular-nums shrink-0 ${net >= 0 ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]'}`}>
-                    {net >= 0 ? '+' : ''}{new Intl.NumberFormat('ko-KR').format(net)}원
-                  </span>
-                </div>
-              )
-            })
-          )}
-        </div>
+        <MonthlyTab year={yearlyYear} transactions={yearlyTransactions} monthStartDay={monthStartDay} loading={yearlyLoading} />
       ) : view === 'summary' ? (
         <div className="p-4 space-y-3">
           <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
