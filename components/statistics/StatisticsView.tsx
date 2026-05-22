@@ -8,6 +8,7 @@ import { useStore } from '@/lib/store'
 import type { Transaction, Category, Budget } from '@/lib/types'
 import { categoryColor } from '@/lib/colors'
 import { formatAmount } from '@/lib/utils'
+import CatIcon from '@/components/ui/CatIcon'
 import { getMonthStartDay, getMonthRange } from '@/lib/monthStart'
 
 type StatView = 'category' | 'budget' | 'content'
@@ -117,6 +118,8 @@ export default function StatisticsView() {
       return {
         categoryId,
         name: cat ? `${cat.icon} ${cat.name}` : '미분류',
+        icon: cat?.icon ?? '📦',
+        catName: cat?.name ?? '미분류',
         amount,
         pct: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
         color: categoryColor(categoryId),
@@ -259,6 +262,8 @@ export default function StatisticsView() {
 interface CategoryStat {
   categoryId: string
   name: string
+  icon: string
+  catName: string
   amount: number
   pct: number
   color: string
@@ -309,8 +314,8 @@ function CategoryView({ stats, total }: { stats: CategoryStat[]; total: number }
       <div className="space-y-0">
         {stats.map(s => (
           <div key={s.categoryId} className="flex items-center gap-3 py-3 border-b border-[var(--color-border)] last:border-0">
-            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
-            <span className="flex-1 text-[14px] text-[var(--color-text)] truncate">{s.name}</span>
+            <CatIcon icon={s.icon} id={s.categoryId} size={32} />
+            <span className="flex-1 text-[14px] text-[var(--color-text)] truncate">{s.catName}</span>
             <span className="text-[13px] text-[var(--color-text-sub)] w-10 text-right tabular-nums">
               {s.pct.toFixed(1)}%
             </span>
@@ -395,8 +400,8 @@ function BudgetView({
           <div key={cat.id} className="px-4 py-3">
             <div className="flex items-center justify-between mb-1.5">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: categoryColor(cat.id) }} />
-                <span className="text-[14px] text-[var(--color-text)]">{cat.icon} {cat.name}</span>
+                <CatIcon icon={cat.icon || '📦'} id={cat.id} size={28} />
+                <span className="text-[14px] text-[var(--color-text)]">{cat.name}</span>
                 {!isDirect && (
                   <span className="text-[10px] text-[var(--color-text-placeholder)] bg-[var(--color-surface-sub)] px-1.5 py-0.5 rounded">
                     이전 달 기준

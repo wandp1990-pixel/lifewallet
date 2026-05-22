@@ -5,6 +5,7 @@ import { ChevronUp, ChevronDown, Plus } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import type { Category } from '@/lib/types'
 import SlideUpSheet from '@/components/ui/SlideUpSheet'
+import CatIcon from '@/components/ui/CatIcon'
 import CategoryForm from './CategoryForm'
 
 type CategoryType = 'income' | 'expense'
@@ -173,7 +174,7 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
                 onClick={() => openEdit(cat)}
                 className="flex-1 flex items-center gap-2 py-2 text-left"
               >
-                <span className="text-lg w-7 text-center">{cat.icon || '•'}</span>
+                <CatIcon icon={cat.icon || '📦'} id={cat.id} size={36} />
                 <span className="text-[15px] text-[var(--color-text)]">{cat.name}</span>
               </button>
               <button
