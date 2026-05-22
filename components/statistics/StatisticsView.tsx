@@ -8,6 +8,7 @@ import { useStore } from '@/lib/store'
 import type { Transaction, Category, Budget } from '@/lib/types'
 import { categoryColor } from '@/lib/colors'
 import { formatAmount } from '@/lib/utils'
+import { getMonthStartDay, getMonthRange } from '@/lib/monthStart'
 
 type StatView = 'category' | 'budget' | 'content'
 type ContentType = 'expense' | 'income'
@@ -54,11 +55,16 @@ export default function StatisticsView() {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
+  const [monthStartDay, setMonthStartDay] = useState(1)
   const [view, setView] = useState<StatView>('category')
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [contentType, setContentType] = useState<ContentType>('expense')
   const [contentPeriod, setContentPeriod] = useState<ContentPeriod>('month')
+
+  useEffect(() => {
+    setMonthStartDay(getMonthStartDay())
+  }, [])
 
   function prevMonth() {
     if (month === 1) { setYear(y => y - 1); setMonth(12) }
@@ -69,10 +75,11 @@ export default function StatisticsView() {
     else setMonth(m => m + 1)
   }
 
-  const fetchTransactions = useCallback(async (y: number, m: number) => {
+  const fetchTransactions = useCallback(async (y: number, m: number, startDay: number) => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/transactions?year=${y}&month=${m}`)
+      const { from, to } = getMonthRange(y, m, startDay)
+      const res = await fetch(`/api/transactions?from=${from}&to=${to}`)
       const data = await res.json()
       setTransactions(Array.isArray(data) ? data : [])
     } finally {
@@ -80,7 +87,7 @@ export default function StatisticsView() {
     }
   }, [])
 
-  useEffect(() => { fetchTransactions(year, month) }, [year, month, fetchTransactions])
+  useEffect(() => { fetchTransactions(year, month, monthStartDay) }, [year, month, monthStartDay, fetchTransactions])
 
   const expenseCategories = useMemo(
     () => categories.filter(c => c.type === 'expense').sort((a, b) => a.order - b.order),

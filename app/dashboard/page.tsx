@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Plus, TrendingUp, TrendingDown, Wallet, PiggyBank } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { formatAmount } from '@/lib/utils'
+import { getMonthStartDay, getMonthRange } from '@/lib/monthStart'
 import type { Transaction, AssetGroupType } from '@/lib/types'
 import KpiCard from '@/components/dashboard/KpiCard'
 import TrendChart from '@/components/dashboard/TrendChart'
@@ -33,8 +34,13 @@ export default function DashboardPage() {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
+  const [monthStartDay, setMonthStartDay] = useState(1)
   const [txMap, setTxMap] = useState<Record<string, Transaction[]>>({})
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setMonthStartDay(getMonthStartDay())
+  }, [])
 
   const monthKey = `${year}-${String(month).padStart(2, '0')}`
 
@@ -45,11 +51,12 @@ export default function DashboardPage() {
     if (needed.length === 0) { setLoading(false); return }
 
     setLoading(true)
-    Promise.all(needed.map(m =>
-      fetch(`/api/transactions?year=${m.year}&month=${m.month}`)
+    Promise.all(needed.map(m => {
+      const { from, to } = getMonthRange(m.year, m.month, monthStartDay)
+      return fetch(`/api/transactions?from=${from}&to=${to}`)
         .then(r => r.json())
         .then((txs: Transaction[]) => ({ key: `${m.year}-${String(m.month).padStart(2, '0')}`, txs }))
-    )).then(results => {
+    })).then(results => {
       setTxMap(prev => {
         const next = { ...prev }
         for (const { key, txs } of results) next[key] = txs
@@ -57,7 +64,7 @@ export default function DashboardPage() {
       })
       setLoading(false)
     })
-  }, [year, month, ready])
+  }, [year, month, monthStartDay, ready])
 
   function navMonth(dir: -1 | 1) {
     setMonth(prev => {

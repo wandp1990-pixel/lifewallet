@@ -18,15 +18,19 @@ export async function GET(req: NextRequest) {
             ORDER BY date DESC, created_at DESC`,
       args: [assetId, assetId, assetId],
     })
-  } else if (year && month) {
-    const from = `${year}-${String(month).padStart(2, '0')}-01`
-    const to = `${year}-${String(month).padStart(2, '0')}-31`
-    rows = await db.execute({
-      sql: 'SELECT * FROM transactions WHERE date >= ? AND date <= ? ORDER BY date DESC, created_at DESC',
-      args: [from, to],
-    })
   } else {
-    rows = await db.execute('SELECT * FROM transactions ORDER BY date DESC, created_at DESC')
+    const fromParam = searchParams.get('from')
+    const toParam = searchParams.get('to')
+    const from = fromParam ?? (year && month ? `${year}-${String(month).padStart(2, '0')}-01` : null)
+    const to = toParam ?? (year && month ? `${year}-${String(month).padStart(2, '0')}-31` : null)
+    if (from && to) {
+      rows = await db.execute({
+        sql: 'SELECT * FROM transactions WHERE date >= ? AND date <= ? ORDER BY date DESC, created_at DESC',
+        args: [from, to],
+      })
+    } else {
+      rows = await db.execute('SELECT * FROM transactions ORDER BY date DESC, created_at DESC')
+    }
   }
 
   return NextResponse.json(rows.rows, { headers: { 'Cache-Control': 'no-store' } })

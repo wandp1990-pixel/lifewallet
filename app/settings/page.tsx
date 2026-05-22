@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
+import MonthStartSetting from '@/components/settings/MonthStartSetting'
 
 const MORE_ITEMS = [
   { href: '/dashboard', label: '대시보드' },
@@ -55,7 +56,20 @@ export default function SettingsPage() {
       {/* 가계부 */}
       <section className="flex flex-col gap-2">
         <p className="text-xs font-semibold text-[var(--color-text-sub)] px-1">가계부</p>
-        <MenuList items={LEDGER_ITEMS} />
+        <ul className="rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] overflow-hidden">
+          {LEDGER_ITEMS.map(item => (
+            <li key={item.href} className="border-b border-[var(--color-border)] last:border-b-0">
+              <Link
+                href={item.href}
+                className="flex items-center justify-between px-4 py-3.5 hover:bg-[var(--color-surface-sub)] transition-colors"
+              >
+                <span className="text-[15px] text-[var(--color-text)]">{item.label}</span>
+                <ChevronRight size={18} className="text-[var(--color-text-sub)]" />
+              </Link>
+            </li>
+          ))}
+          <MonthStartSetting />
+        </ul>
       </section>
     </div>
   )
