@@ -5,12 +5,19 @@ import { useRouter } from 'next/navigation'
 import { MoreHorizontal } from 'lucide-react'
 import type { Transaction, Category, Asset } from '@/lib/types'
 import { formatAmount } from '@/lib/utils'
+import { categoryColor } from '@/lib/colors'
 
 interface Props {
   tx: Transaction
   categories: Category[]
   assets: Asset[]
   onDelete: (id: string) => void
+}
+
+const TYPE_ICON: Record<string, string> = {
+  transfer: '↔',
+  loan_repayment: '🏦',
+  loan_received: '💳',
 }
 
 export default function TransactionItem({ tx, categories, assets, onDelete }: Props) {
@@ -35,9 +42,16 @@ export default function TransactionItem({ tx, categories, assets, onDelete }: Pr
     tx.type === 'expense' || tx.type === 'loan_repayment' ? 'text-[var(--color-expense)]' :
     'text-[var(--color-text)]'
 
-  const amountPrefix =
-    tx.type === 'income' ? '+' :
-    tx.type === 'expense' || tx.type === 'loan_repayment' ? '-' : ''
+  const amountPrefix = tx.type === 'income' ? '+' : ''
+
+  // 카테고리 아이콘 아이콘 표시 (카테고리 없으면 거래 타입 fallback)
+  const iconEmoji = category?.icon || TYPE_ICON[tx.type] || '💰'
+  const iconBg = category
+    ? categoryColor(category.id) + '22'
+    : 'var(--color-surface-sub)'
+
+  // 서브 레이블: 카테고리명 · 자산명
+  const subLabel = [category?.name, assetLabel].filter(Boolean).join(' · ')
 
   useEffect(() => {
     function handleOutside(e: MouseEvent) {
@@ -59,34 +73,36 @@ export default function TransactionItem({ tx, categories, assets, onDelete }: Pr
 
   return (
     <div
-      className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-[var(--color-surface-sub)] transition-colors"
+      className="flex items-center gap-3 px-4 py-4 cursor-pointer hover:bg-[var(--color-surface-sub)] transition-colors"
       onClick={() => router.push(`/transaction/${tx.id}`)}
     >
+      {/* 카테고리 아이콘 */}
+      <div
+        className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-[20px]"
+        style={{ backgroundColor: iconBg }}
+      >
+        {iconEmoji}
+      </div>
+
+      {/* 내용 */}
       <div className="flex-1 min-w-0">
-        {(category?.name || category?.icon) && (
-          <p className="text-xs text-[var(--color-text-sub)] mb-0.5">
-            {category.icon} {category.name}
-          </p>
-        )}
-        <p className="text-[15px] text-[var(--color-text)] truncate">{tx.content || '(내용 없음)'}</p>
-        {assetLabel && (
-          <p className="text-xs text-[var(--color-text-sub)] mt-0.5">{assetLabel}</p>
+        <p className="text-[15px] font-medium text-[var(--color-text)] truncate">{tx.content || '(내용 없음)'}</p>
+        {subLabel && (
+          <p className="text-[12px] text-[var(--color-text-sub)] mt-0.5 truncate">{subLabel}</p>
         )}
         {tx.note && (
-          <p className="text-xs text-[var(--color-text-sub)] mt-0.5 italic truncate">{tx.note}</p>
+          <p className="text-[11px] text-[var(--color-text-sub)] mt-0.5 italic truncate">{tx.note}</p>
         )}
       </div>
 
-      <div className="flex items-center gap-1 shrink-0">
-        <span className={`text-[15px] font-semibold ${amountColor}`}>
-          {amountPrefix}{formatAmount(tx.amount)}원
-        </span>
+      {/* 금액 + 메뉴 */}
+      <div className="flex items-center shrink-0">
         <div className="relative" ref={menuRef}>
           <button
             onClick={e => { e.stopPropagation(); setMenuOpen(v => !v) }}
             className="p-1.5 rounded-lg hover:bg-[var(--color-border)] transition-colors"
           >
-            <MoreHorizontal size={16} className="text-[var(--color-text-sub)]" />
+            <MoreHorizontal size={15} className="text-[var(--color-text-sub)]" />
           </button>
           {menuOpen && (
             <div className="absolute right-0 top-8 z-50 min-w-[100px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-lg overflow-hidden">
@@ -111,6 +127,9 @@ export default function TransactionItem({ tx, categories, assets, onDelete }: Pr
             </div>
           )}
         </div>
+        <span className={`text-[15px] font-semibold tabular-nums ${amountColor}`}>
+          {amountPrefix}{formatAmount(tx.amount)}원
+        </span>
       </div>
     </div>
   )
