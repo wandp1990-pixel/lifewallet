@@ -9,11 +9,12 @@ interface Props {
   categories: Category[]
   assets: Asset[]
   onDelete: (id: string) => void
+  onEdit?: (tx: Transaction) => void
 }
 
 const DAY_NAMES = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일']
 
-export default function ListTab({ transactions, categories, assets, onDelete }: Props) {
+export default function ListTab({ transactions, categories, assets, onDelete, onEdit }: Props) {
   if (transactions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-[var(--color-text-sub)]">
@@ -75,6 +76,7 @@ export default function ListTab({ transactions, categories, assets, onDelete }: 
                   categories={categories}
                   assets={assets}
                   onDelete={onDelete}
+                  onEdit={onEdit}
                 />
               ))}
             </div>

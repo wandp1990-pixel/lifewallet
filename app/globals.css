@@ -62,6 +62,11 @@ body {
   to   { transform: translateY(0);    opacity: 1; }
 }
 
+@keyframes sheet-slide-up {
+  from { transform: translateY(20px); opacity: 0.5; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
 @keyframes tds-fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }

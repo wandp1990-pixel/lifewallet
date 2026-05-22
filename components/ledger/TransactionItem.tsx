@@ -12,6 +12,7 @@ interface Props {
   categories: Category[]
   assets: Asset[]
   onDelete: (id: string) => void
+  onEdit?: (tx: Transaction) => void
 }
 
 const TYPE_ICON: Record<string, string> = {
@@ -20,7 +21,7 @@ const TYPE_ICON: Record<string, string> = {
   loan_received: '💳',
 }
 
-export default function TransactionItem({ tx, categories, assets, onDelete }: Props) {
+export default function TransactionItem({ tx, categories, assets, onDelete, onEdit }: Props) {
   const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -74,7 +75,7 @@ export default function TransactionItem({ tx, categories, assets, onDelete }: Pr
   return (
     <div
       className="flex items-center gap-3 px-4 py-[8px] cursor-pointer active:bg-[var(--color-surface-sub)] transition-colors"
-      onClick={() => router.push(`/transaction/${tx.id}`)}
+      onClick={() => onEdit ? onEdit(tx) : router.push(`/transaction/${tx.id}`)}
     >
       {/* 카테고리 아이콘 */}
       <div
@@ -107,7 +108,7 @@ export default function TransactionItem({ tx, categories, assets, onDelete }: Pr
           {menuOpen && (
             <div className="absolute right-0 top-8 z-50 min-w-[100px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-lg overflow-hidden">
               <button
-                onClick={e => { e.stopPropagation(); setMenuOpen(false); router.push(`/transaction/${tx.id}`) }}
+                onClick={e => { e.stopPropagation(); setMenuOpen(false); onEdit ? onEdit(tx) : router.push(`/transaction/${tx.id}`) }}
                 className="w-full text-left px-4 py-2.5 text-sm text-[var(--color-text)] hover:bg-[var(--color-surface-sub)]"
               >
                 수정

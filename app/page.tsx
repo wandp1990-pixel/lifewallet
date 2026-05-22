@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import Link from 'next/link'
 import { ChevronLeft, ChevronRight, ArrowUpDown, Repeat, Search, Plus } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import type { Transaction, RecurringTransaction } from '@/lib/types'
@@ -11,6 +10,7 @@ import ListTab from '@/components/ledger/ListTab'
 import CalendarTab from '@/components/ledger/CalendarTab'
 import MonthlyTab from '@/components/ledger/MonthlyTab'
 import { SkeletonCard, SkeletonSummaryCard } from '@/components/ui/Skeleton'
+import AddTransactionSheet from '@/components/transaction/AddTransactionSheet'
 
 type ViewType = 'list' | 'calendar' | 'monthly' | 'summary' | 'memo'
 type FilterType = 'all' | 'income' | 'expense' | 'transfer' | 'loan_repayment' | 'loan_received'
@@ -44,6 +44,8 @@ export default function LedgerPage() {
   const [categoryFilter, setCategoryFilter] = useState('')
   const [sort, setSort] = useState<SortType>('newest')
   const [searchOpen, setSearchOpen] = useState(false)
+  const [addSheetOpen, setAddSheetOpen] = useState(false)
+  const [editSheetTx, setEditSheetTx] = useState<Transaction | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [recurringList, setRecurringList] = useState<RecurringTransaction[]>([])
@@ -381,7 +383,7 @@ export default function LedgerPage() {
           <SkeletonCard rows={3} />
         </div>
       ) : view === 'list' ? (
-        <ListTab transactions={filtered} categories={categories} assets={assets} onDelete={handleDelete} />
+        <ListTab transactions={filtered} categories={categories} assets={assets} onDelete={handleDelete} onEdit={tx => setEditSheetTx(tx)} />
       ) : view === 'calendar' ? (
         <CalendarTab year={year} month={month} transactions={transactions} onSelectDate={() => setView('list')} />
       ) : view === 'monthly' ? (
@@ -437,13 +439,22 @@ export default function LedgerPage() {
 
       {/* FAB — 바텀 탭(60px) + safe area + 여백(16px) */}
       <div className="fixed right-4 z-40 md:hidden" style={{ bottom: 'calc(var(--bottom-nav-total) + 16px)' }}>
-        <Link
-          href="/transaction/new"
+        <button
+          onClick={() => setAddSheetOpen(true)}
           className="w-12 h-12 rounded-full bg-[var(--color-primary)] flex items-center justify-center shadow-[0px_4px_16px_rgba(49,130,246,0.4)] active:scale-95 transition-transform"
         >
           <Plus size={20} className="text-white" />
-        </Link>
+        </button>
       </div>
+
+      <AddTransactionSheet
+        open={addSheetOpen || !!editSheetTx}
+        mode={editSheetTx ? 'edit' : 'new'}
+        initial={editSheetTx ?? undefined}
+        transactionId={editSheetTx?.id}
+        onClose={() => { setAddSheetOpen(false); setEditSheetTx(null) }}
+        onSaved={() => { setEditSheetTx(null); fetchTransactions(year, month, monthStartDay) }}
+      />
     </div>
   )
 }
