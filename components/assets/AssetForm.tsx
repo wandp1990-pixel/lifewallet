@@ -91,6 +91,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
   const [form, setForm] = useState<FormState>(editing ? assetToForm(editing) : DEFAULT_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   // form reset when sheet opens
   const [prevOpen, setPrevOpen] = useState(open)
@@ -99,6 +100,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
     if (open) {
       setForm(editing ? assetToForm(editing) : DEFAULT_FORM)
       setError('')
+      setShowDeleteConfirm(false)
     }
   }
 
@@ -183,7 +185,6 @@ export default function AssetForm({ open, onClose, editing }: Props) {
 
   async function handleDelete() {
     if (!editing) return
-    if (!confirm(`'${editing.name}' 자산을 삭제하시겠습니까?\n연결된 거래가 있으면 해당 자산 정보가 제거됩니다.`)) return
     const res = await fetch(`/api/assets/${editing.id}`, { method: 'DELETE' })
     if (res.ok) {
       deleteAsset(editing.id)
@@ -194,7 +195,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
   const deleteBtn = editing ? (
     <button
       type="button"
-      onClick={handleDelete}
+      onClick={() => setShowDeleteConfirm(true)}
       className="p-1.5 rounded-lg hover:bg-[var(--color-surface-sub)] transition-colors"
       aria-label="삭제"
     >
@@ -203,6 +204,31 @@ export default function AssetForm({ open, onClose, editing }: Props) {
   ) : undefined
 
   return (
+    <>
+    {showDeleteConfirm && editing && (
+      <div className="fixed inset-0 z-[200] flex items-center justify-center bg-[rgba(2,9,19,0.5)]">
+        <div className="tds-slide-up bg-[var(--color-surface)] rounded-2xl p-6 mx-4 max-w-sm w-full shadow-[0px_8px_24px_rgba(0,0,0,0.16)]">
+          <p className="text-[16px] font-semibold text-[var(--color-text)] mb-2">자산을 삭제할까요?</p>
+          <p className="text-sm text-[var(--color-text-sub)] mb-6">
+            &ldquo;{editing.name}&rdquo;을 삭제합니다. 연결된 거래가 있으면 해당 자산 정보가 제거됩니다.
+          </p>
+          <div className="flex gap-3">
+            <button
+              className="flex-1 h-12 rounded-xl border border-[var(--color-border)] text-[var(--color-text)] text-[15px] font-medium"
+              onClick={() => setShowDeleteConfirm(false)}
+            >
+              취소
+            </button>
+            <button
+              className="flex-1 h-12 rounded-xl bg-[var(--color-expense)] text-white text-[15px] font-semibold"
+              onClick={handleDelete}
+            >
+              삭제
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     <SlideUpSheet
       open={open}
       onClose={onClose}
@@ -306,7 +332,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
                   type="date"
                   value={form.start_date}
                   onChange={e => set('start_date', e.target.value)}
-                  className="tds-field !py-2.5 !text-[14px] !px-3"
+                  className="tds-field !py-2.5 !text-[16px] !px-3"
                 />
               </div>
               <div className="min-w-0">
@@ -315,7 +341,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
                   type="date"
                   value={form.end_date}
                   onChange={e => set('end_date', e.target.value)}
-                  className="tds-field !py-2.5 !text-[14px] !px-3"
+                  className="tds-field !py-2.5 !text-[16px] !px-3"
                 />
               </div>
             </div>
@@ -327,9 +353,13 @@ export default function AssetForm({ open, onClose, editing }: Props) {
                   type="text"
                   inputMode="numeric"
                   value={form.payment_day}
-                  onChange={e => set('payment_day', e.target.value.replace(/\D/g, ''))}
+                  onChange={e => {
+                    const v = e.target.value.replace(/\D/g, '')
+                    const n = parseInt(v, 10)
+                    if (!v || (n >= 1 && n <= 31)) set('payment_day', v)
+                  }}
                   placeholder="25"
-                  className="tds-field !py-2.5 !text-[14px] !px-3"
+                  className="tds-field !py-2.5 !text-[16px] !px-3"
                 />
               </div>
               <div className="min-w-0">
@@ -393,11 +423,12 @@ export default function AssetForm({ open, onClose, editing }: Props) {
           type="button"
           onClick={handleSubmit}
           disabled={saving}
-          className="w-full py-3 rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold hover:bg-[var(--color-primary-hover)] transition-colors disabled:opacity-50"
+          className="w-full h-14 rounded-xl bg-[var(--color-primary)] text-white text-[15px] font-semibold hover:bg-[var(--color-primary-hover)] transition-colors disabled:opacity-50"
         >
           {saving ? '저장 중…' : '저장'}
         </button>
       </div>
     </SlideUpSheet>
+    </>
   )
 }
