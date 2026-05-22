@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { categoryColor } from '@/lib/colors'
 
 export type IconKey =
@@ -21,7 +22,7 @@ export const ICON_LABELS: Record<IconKey, string> = {
   stethoscope: '진료', bag: '쇼핑', coffee: '카페', swap: '이체', creditCard: '대출',
 }
 
-const PATHS: Record<IconKey, React.ReactNode> = {
+const PATHS: Record<IconKey, ReactNode> = {
   food: (
     <>
       <path d="M3 11h18" />
