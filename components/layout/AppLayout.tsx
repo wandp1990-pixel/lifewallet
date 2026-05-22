@@ -12,9 +12,20 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <SideNav />
       </aside>
 
-      {/* 메인 콘텐츠 — pb는 바텀 탭(60px) + safe area(iPhone 홈 인디케이터) 합산 */}
-      <main className="flex-1 overflow-y-auto pb-[var(--bottom-nav-total)] md:pb-0">
-        {children}
+      {/* 메인 콘텐츠 */}
+      {/* main: overflow-hidden → 스크롤 불가, rubber-band 원천 차단 */}
+      {/* pt: safe-area-inset-top + bg-surface → 상태바 영역 흰색 통일 */}
+      <main
+        className="flex-1 overflow-hidden bg-[var(--color-surface)]"
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      >
+        {/* 실제 스크롤 컨테이너 — 설정 등 자체 스크롤 없는 페이지의 폴백 */}
+        <div
+          className="h-full overflow-y-auto pb-[var(--bottom-nav-total)] md:pb-0"
+          style={{ overscrollBehavior: 'none' }}
+        >
+          {children}
+        </div>
       </main>
 
       {/* 모바일 바텀 네비 — md 미만에서만 표시 */}

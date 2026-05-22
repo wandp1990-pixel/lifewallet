@@ -73,7 +73,7 @@ export default function TransactionItem({ tx, categories, assets, onDelete }: Pr
 
   return (
     <div
-      className="flex items-center gap-3 px-4 py-[11px] cursor-pointer active:bg-[var(--color-surface-sub)] transition-colors"
+      className="flex items-center gap-3 px-4 py-[8px] cursor-pointer active:bg-[var(--color-surface-sub)] transition-colors"
       onClick={() => router.push(`/transaction/${tx.id}`)}
     >
       {/* 카테고리 아이콘 */}

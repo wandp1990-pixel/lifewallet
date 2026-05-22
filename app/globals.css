@@ -43,11 +43,16 @@
   --bottom-nav-total: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
 }
 
+html {
+  background-color: var(--color-surface);
+}
+
 body {
-  background-color: var(--color-bg);
+  background-color: var(--color-surface);
   color: var(--color-text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
 }
 
 /* ─── TDS Motion ─────────────────────────────────────────────────────────── */
