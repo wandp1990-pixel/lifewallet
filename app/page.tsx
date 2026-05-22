@@ -193,7 +193,7 @@ export default function LedgerPage() {
   return (
     <div className="flex flex-col min-h-full">
       {/* 고정 헤더 */}
-      <div className="sticky top-0 z-10 bg-[var(--color-surface)] border-b border-[var(--color-border)]">
+      <div className="sticky top-0 z-10 bg-[var(--color-surface)]">
 
         {/* 타이틀 바 */}
         <div className="flex items-center justify-between px-4 pt-3 pb-2">
@@ -306,10 +306,9 @@ export default function LedgerPage() {
             })}
           </div>
         )}
-      </div>
 
-      {/* 요약 카드 — 월별 탭은 MonthlyTab 내부에서 자체 렌더 */}
-      {view !== 'monthly' && <div className="mx-4 mt-3 mb-2 bg-[var(--color-surface)] rounded-2xl px-4 py-3 border border-[var(--color-border)] shadow-[0px_1px_6px_rgba(0,0,0,0.06)]">
+        {/* 요약 카드 — 월별 탭은 MonthlyTab 내부에서 자체 렌더 */}
+        {view !== 'monthly' && <div className="mx-4 mt-2 mb-2 bg-[var(--color-surface)] rounded-2xl px-4 py-3 border border-[var(--color-border)] shadow-[0px_1px_6px_rgba(0,0,0,0.06)]">
         <div className="flex items-baseline justify-between mb-2">
           <p className={`text-[22px] font-bold tabular-nums leading-tight ${netFlow >= 0 ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]'}`}>
             {netFlow >= 0 ? '+' : ''}{new Intl.NumberFormat('ko-KR').format(netFlow)}원
@@ -335,11 +334,11 @@ export default function LedgerPage() {
             ■ 지출 <span className="font-semibold text-[var(--color-expense)]">{formatAmount(expense)}원</span>
           </span>
         </div>
-      </div>}
+        </div>}
 
-      {/* 반복 거래 배너 */}
-      {view === 'list' && isCurrentMonth && pendingRecurring.length > 0 && (
-        <div className="mx-4 mb-2 rounded-2xl border border-[var(--color-primary)] bg-[var(--color-primary)]/5 p-3 space-y-2">
+        {/* 반복 거래 배너 */}
+        {view === 'list' && isCurrentMonth && pendingRecurring.length > 0 && (
+          <div className="mx-4 mt-0 mb-2 rounded-2xl border border-[var(--color-primary)] bg-[var(--color-primary)]/5 p-3 space-y-2">
           <div className="flex items-center gap-2">
             <Repeat size={14} className="text-[var(--color-primary)]" />
             <p className="text-[13px] font-semibold text-[var(--color-primary)]">이번 달 미적용 반복 거래 {pendingRecurring.length}건</p>
@@ -359,8 +358,9 @@ export default function LedgerPage() {
               </button>
             </div>
           ))}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
       {/* 탭 콘텐츠 */}
       {loading ? (

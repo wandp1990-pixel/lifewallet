@@ -18,7 +18,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       </main>
 
       {/* 모바일 바텀 네비 — md 미만에서만 표시 */}
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-[var(--color-border)] bg-[var(--color-surface)]">
+      <nav className="md:hidden fixed bottom-[-1px] inset-x-0 z-50 border-t border-[var(--color-border)] bg-[var(--color-surface)]">
         <BottomNav />
       </nav>
     </div>
