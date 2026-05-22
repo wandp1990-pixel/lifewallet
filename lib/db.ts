@@ -1,6 +1,25 @@
 import { createClient } from '@libsql/client'
 import type { Transaction, Asset } from './types'
 
+const DEFAULT_CATEGORIES = [
+  { id: 'cat_income_salary', type: 'income',  name: '급여',          icon: '💰', ord: 1 },
+  { id: 'cat_income_bonus',  type: 'income',  name: '상여금',         icon: '🤑', ord: 2 },
+  { id: 'cat_income_other',  type: 'income',  name: '기타',           icon: '📥', ord: 3 },
+  { id: 'cat_food',          type: 'expense', name: '식비',           icon: '🍜', ord: 1 },
+  { id: 'cat_transport',     type: 'expense', name: '교통비',         icon: '🚌', ord: 2 },
+  { id: 'cat_housing',       type: 'expense', name: '주거',           icon: '🏠', ord: 3 },
+  { id: 'cat_utility',       type: 'expense', name: '공과금',         icon: '💡', ord: 4 },
+  { id: 'cat_telecom',       type: 'expense', name: '통신비',         icon: '📞', ord: 5 },
+  { id: 'cat_supplies',      type: 'expense', name: '생필품',         icon: '🛒', ord: 6 },
+  { id: 'cat_subscription',  type: 'expense', name: '구독',           icon: '🖥️', ord: 7 },
+  { id: 'cat_hobby',         type: 'expense', name: '취미',           icon: '🎮', ord: 8 },
+  { id: 'cat_clothing',      type: 'expense', name: '의류&잡화',      icon: '👕', ord: 9 },
+  { id: 'cat_self_care',     type: 'expense', name: '자기관리&건강',  icon: '✂️', ord: 10 },
+  { id: 'cat_gift',          type: 'expense', name: '경조사/선물',    icon: '🎁', ord: 11 },
+  { id: 'cat_medical',       type: 'expense', name: '의료/건강',      icon: '❤️', ord: 12 },
+  { id: 'cat_other',         type: 'expense', name: '기타',           icon: '📦', ord: 13 },
+] as const
+
 const db = createClient({
   url: process.env.TURSO_DATABASE_URL!,
   authToken: process.env.TURSO_AUTH_TOKEN,
@@ -99,6 +118,13 @@ export async function initDb() {
       created_at         TEXT    NOT NULL DEFAULT (datetime('now'))
     );
   `)
+
+  for (const c of DEFAULT_CATEGORIES) {
+    await db.execute({
+      sql: 'INSERT OR IGNORE INTO categories (id,type,name,icon,ord) VALUES (?,?,?,?,?)',
+      args: [c.id, c.type, c.name, c.icon, c.ord],
+    })
+  }
 }
 
 export async function applyTransactionBalance(
