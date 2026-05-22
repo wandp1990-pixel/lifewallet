@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useStore } from '@/lib/store'
 import { todayStr } from '@/lib/utils'
 import type { Transaction } from '@/lib/types'
+import CatIcon from '@/components/ui/CatIcon'
 
 type TxType = 'expense' | 'income' | 'transfer' | 'loan_repayment'
 
@@ -314,7 +315,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
                         : 'bg-[var(--color-surface-sub)] text-[var(--color-text-body)] border-transparent'
                     }`}
                   >
-                    <span className="text-[15px] leading-none">{c.icon}</span>
+                    <CatIcon icon={c.icon || '📦'} id={c.id} size={22} />
                     {c.name}
                   </button>
                 ))}

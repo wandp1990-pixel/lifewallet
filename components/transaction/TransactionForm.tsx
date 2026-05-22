@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, Trash2 } from 'lucide-react'
 import { useStore } from '@/lib/store'
+import CatIcon from '@/components/ui/CatIcon'
 import { todayStr } from '@/lib/utils'
 import type { Transaction } from '@/lib/types'
 
@@ -364,7 +365,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
                         : 'bg-[var(--color-surface-sub)] text-[var(--color-text-body)] border-transparent hover:border-[var(--color-border-strong)]'
                     }`}
                   >
-                    <span className="text-[18px] leading-none">{c.icon}</span>
+                    <CatIcon icon={c.icon || '📦'} id={c.id} size={28} />
                     <span className="truncate w-full text-center leading-tight">{c.name}</span>
                   </button>
                 ))}
