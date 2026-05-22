@@ -73,12 +73,12 @@ export default function TransactionItem({ tx, categories, assets, onDelete }: Pr
 
   return (
     <div
-      className="flex items-center gap-3 px-4 py-4 cursor-pointer hover:bg-[var(--color-surface-sub)] transition-colors"
+      className="flex items-center gap-3 px-4 py-[11px] cursor-pointer active:bg-[var(--color-surface-sub)] transition-colors"
       onClick={() => router.push(`/transaction/${tx.id}`)}
     >
       {/* 카테고리 아이콘 */}
       <div
-        className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-[20px]"
+        className="w-9 h-9 rounded-[11px] flex items-center justify-center shrink-0 text-[18px]"
         style={{ backgroundColor: iconBg }}
       >
         {iconEmoji}
@@ -86,9 +86,9 @@ export default function TransactionItem({ tx, categories, assets, onDelete }: Pr
 
       {/* 내용 */}
       <div className="flex-1 min-w-0">
-        <p className="text-[15px] font-medium text-[var(--color-text)] truncate">{tx.content || '(내용 없음)'}</p>
+        <p className="text-[14px] font-medium text-[var(--color-text)] truncate leading-tight">{tx.content || '(내용 없음)'}</p>
         {subLabel && (
-          <p className="text-[12px] text-[var(--color-text-sub)] mt-0.5 truncate">{subLabel}</p>
+          <p className="text-[11.5px] text-[var(--color-text-sub)] mt-0.5 truncate leading-none">{subLabel}</p>
         )}
         {tx.note && (
           <p className="text-[11px] text-[var(--color-text-sub)] mt-0.5 italic truncate">{tx.note}</p>
@@ -127,7 +127,7 @@ export default function TransactionItem({ tx, categories, assets, onDelete }: Pr
             </div>
           )}
         </div>
-        <span className={`text-[15px] font-semibold tabular-nums ${amountColor}`}>
+        <span className={`text-[14px] font-semibold tabular-nums ${amountColor}`}>
           {amountPrefix}{formatAmount(tx.amount)}원
         </span>
       </div>

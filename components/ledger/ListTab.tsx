@@ -13,14 +13,6 @@ interface Props {
 
 const DAY_NAMES = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일']
 
-function getDayFlow(txs: Transaction[]): number {
-  return txs.reduce((sum, t) => {
-    if (t.type === 'income') return sum + t.amount
-    if (t.type === 'expense' || t.type === 'loan_repayment') return sum - t.amount
-    return sum
-  }, 0)
-}
-
 export default function ListTab({ transactions, categories, assets, onDelete }: Props) {
   if (transactions.length === 0) {
     return (
@@ -42,34 +34,36 @@ export default function ListTab({ transactions, categories, assets, onDelete }: 
     <div>
       {dates.map(date => {
         const dayTxs = grouped[date]
-        const flow = getDayFlow(dayTxs)
+        const dayIncome = dayTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+        const dayExpense = dayTxs.filter(t => t.type === 'expense' || t.type === 'loan_repayment').reduce((s, t) => s + t.amount, 0)
         const [y, m, d] = date.split('-').map(Number)
         const dateObj = new Date(y, m - 1, d)
         const dow = dateObj.getDay()
-        const dayName = DAY_NAMES[dow]
-        const isSunday = dow === 0
-        const isSaturday = dow === 6
+        const badgeBg = dow === 0 ? 'var(--color-expense)' : dow === 6 ? 'var(--color-primary)' : '#8b95a1'
 
         return (
           <div key={date}>
             {/* 날짜 헤더 */}
-            <div className="flex items-center gap-2 px-4 py-2.5 bg-[var(--color-bg)]">
-              <span className={`text-[24px] font-bold leading-none ${isSunday ? 'text-[var(--color-expense)]' : isSaturday ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]'}`}>
-                {d}
-              </span>
-              <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-md ${
-                isSunday
-                  ? 'bg-[#fff0f1] text-[var(--color-expense)]'
-                  : isSaturday
-                  ? 'bg-[var(--color-primary-subtle)] text-[var(--color-primary)]'
-                  : 'bg-[var(--color-surface-sub)] text-[var(--color-text-sub)]'
-              }`}>
-                {dayName}
-              </span>
-              <div className="flex-1" />
-              <span className={`text-[13px] font-semibold tabular-nums ${flow >= 0 ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]'}`}>
-                {flow > 0 ? '+' : ''}{formatAmount(Math.abs(flow))}원
-              </span>
+            <div className="flex items-center justify-between px-4 py-[10px] bg-[var(--color-surface)] border-b border-[var(--color-border)]">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[18px] font-bold tabular-nums leading-none text-[var(--color-text)]">
+                  {d}
+                </span>
+                <span
+                  className="text-[10px] font-semibold px-[7px] py-[2px] rounded text-white leading-tight"
+                  style={{ background: badgeBg }}
+                >
+                  {DAY_NAMES[dow]}
+                </span>
+              </div>
+              <div className="flex text-[12px] tabular-nums shrink-0">
+                <span className="w-[76px] text-right text-[var(--color-income)]">
+                  {dayIncome > 0 ? `${formatAmount(dayIncome)}원` : ''}
+                </span>
+                <span className="w-[76px] text-right text-[var(--color-expense)]">
+                  {dayExpense > 0 ? `${formatAmount(dayExpense)}원` : ''}
+                </span>
+              </div>
             </div>
 
             {/* 거래 목록 */}
