@@ -31,7 +31,7 @@ export default function ListTab({ transactions, categories, assets, onDelete }: 
   const dates = Object.keys(grouped).sort((a, b) => b.localeCompare(a))
 
   return (
-    <div>
+    <div className="bg-[var(--color-surface-sub)] min-h-full pb-4">
       {dates.map(date => {
         const dayTxs = grouped[date]
         const dayIncome = dayTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
@@ -42,7 +42,7 @@ export default function ListTab({ transactions, categories, assets, onDelete }: 
         const badgeBg = dow === 0 ? 'var(--color-expense)' : dow === 6 ? 'var(--color-primary)' : '#8b95a1'
 
         return (
-          <div key={date}>
+          <div key={date} className="mb-2">
             {/* 날짜 헤더 */}
             <div className="flex items-center justify-between px-4 py-[10px] bg-[var(--color-surface)] border-b border-[var(--color-border)]">
               <div className="flex items-center gap-1.5">

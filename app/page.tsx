@@ -282,9 +282,9 @@ export default function LedgerPage() {
           ))}
         </div>
 
-        {/* 타입 필터 탭 — 일일에서만 */}
+        {/* 타입 필터 탭 — 일일에서만 / PC 전용 */}
         {view === 'list' && (
-          <div className="flex gap-1.5 px-4 py-1 overflow-x-auto border-t border-[var(--color-border)]">
+          <div className="hidden md:flex gap-1.5 px-4 py-1 overflow-x-auto border-t border-[var(--color-border)]">
             {(Object.keys(FILTER_LABELS) as FilterType[]).map(f => {
               const count = countByFilter(f)
               if (f !== 'all' && count === 0) return null
@@ -439,9 +439,9 @@ export default function LedgerPage() {
       <div className="fixed right-4 z-40 md:hidden" style={{ bottom: 'calc(var(--bottom-nav-total) + 16px)' }}>
         <Link
           href="/transaction/new"
-          className="w-14 h-14 rounded-full bg-[var(--color-primary)] flex items-center justify-center shadow-[0px_4px_16px_rgba(49,130,246,0.4)] active:scale-95 transition-transform"
+          className="w-12 h-12 rounded-full bg-[var(--color-primary)] flex items-center justify-center shadow-[0px_4px_16px_rgba(49,130,246,0.4)] active:scale-95 transition-transform"
         >
-          <Plus size={24} className="text-white" />
+          <Plus size={20} className="text-white" />
         </Link>
       </div>
     </div>
