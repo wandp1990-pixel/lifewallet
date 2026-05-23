@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import db, { rowToAsset } from '@/lib/db'
+import db, { initDb, rowToAsset } from '@/lib/db'
 import { getDebtBalance, isDebtAssetType, normalizeAssetBalance } from '@/lib/finance'
 import { generateId } from '@/lib/utils'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  await initDb()
   const { id } = await params
   const body = await req.json()
 
@@ -94,6 +95,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  await initDb()
   const { id } = await params
   const existing = await db.execute({ sql: 'SELECT * FROM assets WHERE id = ?', args: [id] })
   if (!existing.rows[0]) return NextResponse.json({ error: '해당 자산을 찾을 수 없습니다' }, { status: 404 })

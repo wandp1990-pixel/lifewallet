@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import db, { rowToAsset } from '@/lib/db'
+import db, { initDb, rowToAsset } from '@/lib/db'
 import { normalizeAssetBalance } from '@/lib/finance'
 import { generateId, todayStr } from '@/lib/utils'
 import type { Asset } from '@/lib/types'
@@ -7,11 +7,13 @@ import type { Asset } from '@/lib/types'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
+  await initDb()
   const rows = await db.execute('SELECT * FROM assets ORDER BY ord ASC')
   return NextResponse.json(rows.rows.map(rowToAsset), { headers: { 'Cache-Control': 'no-store' } })
 }
 
 export async function POST(req: NextRequest) {
+  await initDb()
   const body = await req.json()
   if (!body.name) return NextResponse.json({ error: '자산 이름을 입력해주세요' }, { status: 400 })
 

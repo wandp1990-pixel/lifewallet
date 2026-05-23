@@ -152,6 +152,7 @@ export async function initDb() {
 export async function applyTransactionBalance(
   tx: Pick<Transaction, 'date' | 'type' | 'amount' | 'fee' | 'asset_id' | 'from_asset_id' | 'to_asset_id'>
 ) {
+  await initDb()
   const { date, type, amount, fee, asset_id, from_asset_id, to_asset_id } = tx
   if (type === 'income') {
     await updateAssetBalance(asset_id, amount, date)
