@@ -391,16 +391,16 @@ export default function AssetForm({ open, onClose, editing }: Props) {
 
         <div className="h-px bg-[var(--color-border)]" />
 
-        {/* 표시 토글 */}
+        {/* 집계 토글 */}
         <div className="flex items-center justify-between py-0.5">
           <div>
-            <p className="text-sm font-medium text-[var(--color-text)]">자산 표시</p>
-            <p className="text-xs text-[var(--color-text-sub)]">OFF 시 가계부·대시보드 집계에서 제외</p>
+            <p className="text-sm font-medium text-[var(--color-text)]">집계 포함</p>
+            <p className="text-xs text-[var(--color-text-sub)]">OFF 시 합계·대시보드에서만 제외</p>
           </div>
           <ToggleSwitch
             checked={form.visible}
             onClick={() => set('visible', !form.visible)}
-            label="자산 표시"
+            label="집계 포함"
           />
         </div>
 

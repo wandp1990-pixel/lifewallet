@@ -9,7 +9,7 @@ import { formatAmount } from '@/lib/utils'
 import AssetForm from '@/components/assets/AssetForm'
 import type { Asset, AssetGroupType } from '@/lib/types'
 
-type MenuAction = 'edit' | 'toggle-visible' | 'delete'
+type MenuAction = 'edit' | 'toggle-included' | 'delete'
 
 const GROUP_ORDER: AssetGroupType[] = [
   'cash', 'bank', 'card', 'check_card', 'prepaid_card',
@@ -36,25 +36,19 @@ export default function AssetsPage() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<Asset | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
-  const [showHidden, setShowHidden] = useState(false)
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Asset | null>(null)
 
-  const visibleAssets = useMemo(
-    () => assets.filter(a => showHidden || a.visible),
-    [assets, showHidden]
-  )
-
   const groups = useMemo(() => {
     const map = new Map<AssetGroupType, Asset[]>()
-    for (const a of visibleAssets) {
+    for (const a of assets) {
       if (!map.has(a.group_type)) map.set(a.group_type, [])
       map.get(a.group_type)!.push(a)
     }
     return GROUP_ORDER
       .filter(g => map.has(g))
       .map(g => ({ type: g, items: map.get(g)!.sort((a, b) => a.order - b.order) }))
-  }, [visibleAssets])
+  }, [assets])
 
   const totalAssets = useMemo(
     () => assets.filter(a => a.visible && !isDebtAssetType(a.group_type)).reduce((s, a) => s + a.balance, 0),
@@ -103,7 +97,7 @@ export default function AssetsPage() {
     setMenuOpen(null)
     if (action === 'edit') {
       openEdit(asset)
-    } else if (action === 'toggle-visible') {
+    } else if (action === 'toggle-included') {
       const res = await fetch(`/api/assets/${asset.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -207,7 +201,9 @@ export default function AssetsPage() {
             groups.map(({ type, items }) => {
               const isCollapsed = collapsed.has(type)
               const isDebt = isDebtAssetType(type)
-              const groupTotal = items.reduce((s, a) => s + (isDebt ? getDebtBalance(a.balance) : a.balance), 0)
+              const groupTotal = items
+                .filter(a => a.visible)
+                .reduce((s, a) => s + (isDebt ? getDebtBalance(a.balance) : a.balance), 0)
               return (
                 <div key={type} className="bg-[var(--color-surface-sub)] rounded-2xl overflow-hidden">
                   {/* 섹션 헤더 */}
@@ -236,11 +232,18 @@ export default function AssetsPage() {
                             className="flex-1 flex items-center justify-between text-left"
                             onClick={() => handleAssetClick(asset)}
                           >
-                            <span className={`text-sm text-[var(--color-text-body)] ${!asset.visible ? 'opacity-40' : ''}`}>
-                              {asset.name}
+                            <span className="flex min-w-0 items-center gap-2">
+                              <span className={`truncate text-sm text-[var(--color-text-body)] ${!asset.visible ? 'opacity-55' : ''}`}>
+                                {asset.name}
+                              </span>
+                              {!asset.visible && (
+                                <span className="shrink-0 rounded bg-[var(--color-border)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-text-sub)]">
+                                  집계 제외
+                                </span>
+                              )}
                             </span>
-                            <span className={`text-sm font-semibold ${isDebt ? 'text-[var(--color-expense)]' : 'text-[var(--color-text)]'}`}>
-                              {formatAmount(isDebt ? getDebtBalance(asset.balance) : asset.balance)}원
+                            <span className={`shrink-0 text-sm font-semibold ${!asset.visible ? 'text-[var(--color-text-placeholder)]' : isDebt ? 'text-[var(--color-expense)]' : 'text-[var(--color-text)]'}`}>
+                              {!asset.visible ? '집계 제외' : `${formatAmount(isDebt ? getDebtBalance(asset.balance) : asset.balance)}원`}
                             </span>
                           </button>
                           <button
@@ -262,10 +265,10 @@ export default function AssetsPage() {
                                   수정
                                 </button>
                                 <button
-                                  onClick={() => handleMenuAction(asset, 'toggle-visible')}
+                                  onClick={() => handleMenuAction(asset, 'toggle-included')}
                                   className="w-full px-4 py-2.5 text-sm text-left text-[var(--color-text)] hover:bg-[var(--color-surface-sub)] transition-colors"
                                 >
-                                  {asset.visible ? '숨기기' : '보이기'}
+                                  {asset.visible ? '집계 제외' : '집계 포함'}
                                 </button>
                                 <button
                                   onClick={() => handleMenuAction(asset, 'delete')}
@@ -283,16 +286,6 @@ export default function AssetsPage() {
                 </div>
               )
             })
-          )}
-
-          {/* 숨긴 자산 보기 토글 */}
-          {assets.some(a => !a.visible) && (
-            <button
-              onClick={() => setShowHidden(h => !h)}
-              className="w-full py-2.5 text-sm text-[var(--color-text-sub)] hover:text-[var(--color-text)] transition-colors"
-            >
-              {showHidden ? '숨긴 자산 숨기기' : '숨긴 자산 보기'}
-            </button>
           )}
         </div>
       </div>
