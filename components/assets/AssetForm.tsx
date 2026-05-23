@@ -80,6 +80,38 @@ const DEFAULT_FORM: FormState = {
   monthly_payment: '',
 }
 
+function ToggleSwitch({
+  checked,
+  onClick,
+  disabled = false,
+  label,
+}: {
+  checked: boolean
+  onClick: () => void
+  disabled?: boolean
+  label: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+        checked ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border-strong)]'
+      } disabled:cursor-not-allowed`}
+      aria-checked={checked}
+      aria-label={label}
+      role="switch"
+    >
+      <span
+        className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+          checked ? 'translate-x-5' : 'translate-x-0'
+        }`}
+      />
+    </button>
+  )
+}
+
 interface Props {
   open: boolean
   onClose: () => void
@@ -359,21 +391,17 @@ export default function AssetForm({ open, onClose, editing }: Props) {
 
         <div className="h-px bg-[var(--color-border)]" />
 
-        {/* 숨기기 토글 */}
+        {/* 표시 토글 */}
         <div className="flex items-center justify-between py-0.5">
           <div>
-            <p className="text-sm font-medium text-[var(--color-text)]">숨기기</p>
-            <p className="text-xs text-[var(--color-text-sub)]">가계부·대시보드 집계에서 제외</p>
+            <p className="text-sm font-medium text-[var(--color-text)]">자산 표시</p>
+            <p className="text-xs text-[var(--color-text-sub)]">OFF 시 가계부·대시보드 집계에서 제외</p>
           </div>
-          <button
-            type="button"
+          <ToggleSwitch
+            checked={form.visible}
             onClick={() => set('visible', !form.visible)}
-            className={`relative w-11 h-6 rounded-full transition-colors ${!form.visible ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border-strong)]'}`}
-            aria-checked={!form.visible}
-            role="switch"
-          >
-            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${!form.visible ? 'translate-x-5' : 'translate-x-0.5'}`} />
-          </button>
+            label="자산 표시"
+          />
         </div>
 
         {/* 상세 추적 토글 (loan/savings는 강제 ON) */}
@@ -382,16 +410,12 @@ export default function AssetForm({ open, onClose, editing }: Props) {
             <p className="text-sm font-medium text-[var(--color-text)]">상세 추적</p>
             <p className="text-xs text-[var(--color-text-sub)]">ON 시 목록 클릭이 상세 페이지로 이동</p>
           </div>
-          <button
-            type="button"
+          <ToggleSwitch
+            checked={forceTrackDetail || form.track_detail}
             onClick={() => !forceTrackDetail && set('track_detail', !form.track_detail)}
             disabled={forceTrackDetail}
-            className={`relative w-11 h-6 rounded-full transition-colors ${(forceTrackDetail || form.track_detail) ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border-strong)]'}`}
-            aria-checked={forceTrackDetail || form.track_detail}
-            role="switch"
-          >
-            <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${(forceTrackDetail || form.track_detail) ? 'translate-x-5' : 'translate-x-0.5'}`} />
-          </button>
+            label="상세 추적"
+          />
         </div>
 
         {error && <p className="text-sm text-[var(--color-expense)] font-medium">{error}</p>}
