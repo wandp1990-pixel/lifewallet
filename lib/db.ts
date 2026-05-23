@@ -2,25 +2,6 @@ import { createClient } from '@libsql/client'
 import type { Transaction, Asset } from './types'
 import { getLoanRepaymentPrincipal } from './finance'
 
-const DEFAULT_CATEGORIES = [
-  { id: 'cat_income_salary', type: 'income',  name: '급여',          icon: 'arrowDown',   ord: 1 },
-  { id: 'cat_income_bonus',  type: 'income',  name: '상여금',         icon: 'sparkle',     ord: 2 },
-  { id: 'cat_income_other',  type: 'income',  name: '기타',           icon: 'wallet',      ord: 3 },
-  { id: 'cat_food',          type: 'expense', name: '식비',           icon: 'food',        ord: 1 },
-  { id: 'cat_transport',     type: 'expense', name: '교통비',         icon: 'car',         ord: 2 },
-  { id: 'cat_housing',       type: 'expense', name: '주거',           icon: 'home2',       ord: 3 },
-  { id: 'cat_utility',       type: 'expense', name: '공과금',         icon: 'bulb',        ord: 4 },
-  { id: 'cat_telecom',       type: 'expense', name: '통신비',         icon: 'phone',       ord: 5 },
-  { id: 'cat_supplies',      type: 'expense', name: '생필품',         icon: 'cart',        ord: 6 },
-  { id: 'cat_subscription',  type: 'expense', name: '구독',           icon: 'tv',          ord: 7 },
-  { id: 'cat_hobby',         type: 'expense', name: '취미',           icon: 'gamepad',     ord: 8 },
-  { id: 'cat_clothing',      type: 'expense', name: '의류&잡화',      icon: 'shirt',       ord: 9 },
-  { id: 'cat_self_care',     type: 'expense', name: '자기관리&건강',  icon: 'stethoscope', ord: 10 },
-  { id: 'cat_gift',          type: 'expense', name: '경조사/선물',    icon: 'gift',        ord: 11 },
-  { id: 'cat_medical',       type: 'expense', name: '의료/건강',      icon: 'heart',       ord: 12 },
-  { id: 'cat_other',         type: 'expense', name: '기타',           icon: 'box',         ord: 13 },
-] as const
-
 const db = createClient({
   url: process.env.TURSO_DATABASE_URL!,
   authToken: process.env.TURSO_AUTH_TOKEN,
@@ -131,37 +112,12 @@ export async function initDb() {
     await db.execute('ALTER TABLE categories ADD COLUMN is_system INTEGER NOT NULL DEFAULT 0')
   }
 
-  for (const c of DEFAULT_CATEGORIES) {
-    await db.execute({
-      sql: 'INSERT OR IGNORE INTO categories (id,type,name,icon,ord,visible,is_system) VALUES (?,?,?,?,?,?,?)',
-      args: [c.id, c.type, c.name, c.icon, c.ord, 1, 1],
-    })
-  }
-
-  // 기존 이모지 아이콘 → SVG 키로 마이그레이션 (이미 키값이면 스킵)
-  const ICON_MIGRATIONS: Record<string, string> = {
-    cat_income_salary: 'arrowDown',
-    cat_income_bonus:  'sparkle',
-    cat_income_other:  'wallet',
-    cat_food:          'food',
-    cat_transport:     'car',
-    cat_housing:       'home2',
-    cat_utility:       'bulb',
-    cat_telecom:       'phone',
-    cat_supplies:      'cart',
-    cat_subscription:  'tv',
-    cat_hobby:         'gamepad',
-    cat_clothing:      'shirt',
-    cat_self_care:     'stethoscope',
-    cat_gift:          'gift',
-    cat_medical:       'heart',
-    cat_other:         'box',
-  }
-  for (const [id, iconKey] of Object.entries(ICON_MIGRATIONS)) {
-    await db.execute({
-      sql: 'UPDATE categories SET icon = ? WHERE id = ? AND icon != ?',
-      args: [iconKey, id, iconKey],
-    })
+  // 하드코딩 시스템 카테고리 제거 마이그레이션 (is_system=1 이면 삭제, 연결 거래는 미분류로)
+  const sysResult = await db.execute("SELECT COUNT(*) as cnt FROM categories WHERE is_system = 1")
+  if (Number((sysResult.rows[0] as Record<string, unknown>).cnt) > 0) {
+    await db.execute("DELETE FROM categories WHERE is_system = 1")
+    await db.execute("UPDATE transactions SET category_id = '' WHERE category_id != '' AND category_id NOT IN (SELECT id FROM categories)")
+    await db.execute("UPDATE recurring_transactions SET category_id = '' WHERE category_id != '' AND category_id NOT IN (SELECT id FROM categories)")
   }
 }
 

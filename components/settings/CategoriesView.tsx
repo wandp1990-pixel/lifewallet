@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronUp, ChevronDown, Plus } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import type { Category } from '@/lib/types'
@@ -8,132 +8,163 @@ import SlideUpSheet from '@/components/ui/SlideUpSheet'
 import CatIcon from '@/components/ui/CatIcon'
 import CategoryForm from './CategoryForm'
 
-type CategoryType = 'income' | 'expense'
+type CategoryType = 'income' | 'expense' | 'asset'
+type LocalCategory = Category & { _isNew?: boolean }
 
 interface CategoriesViewProps {
   type: CategoryType
 }
 
 export default function CategoriesView({ type }: CategoriesViewProps) {
-  const { categories, ready, addCategory, updateCategory, deleteCategory, reorderCategories } = useStore()
+  const { categories, ready, reorderCategories } = useStore()
+  const [localItems, setLocalItems] = useState<LocalCategory[]>([])
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [editing, setEditing] = useState<Category | null>(null)
+  const [editing, setEditing] = useState<LocalCategory | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [dirty, setDirty] = useState(false)
+  const initialized = useRef(false)
 
-  const items = useMemo(
-    () => categories
-      .filter(c => c.type === type)
-      .sort((a, b) => Number(b.is_system) - Number(a.is_system) || Number(b.visible) - Number(a.visible) || a.order - b.order),
-    [categories, type]
-  )
+  useEffect(() => {
+    if (!ready || initialized.current) return
+    initialized.current = true
+    setLocalItems(
+      categories
+        .filter(c => c.type === type)
+        .sort((a, b) => a.order - b.order)
+    )
+  }, [ready, categories, type])
 
   function openAdd() {
     setEditing(null)
     setSheetOpen(true)
   }
 
-  function openEdit(cat: Category) {
+  function openEdit(cat: LocalCategory) {
     setEditing(cat)
     setSheetOpen(true)
   }
 
-  async function handleSubmit(values: { name: string; icon: string }) {
+  function handleSubmit(values: { name: string; icon: string }) {
     if (editing) {
-      const res = await fetch(`/api/categories/${editing.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: '저장에 실패했습니다' }))
-        throw new Error(err.error ?? '저장에 실패했습니다')
-      }
-      const updated: Category = await res.json()
-      updateCategory(updated)
+      setLocalItems(prev => prev.map(item =>
+        item.id === editing.id ? { ...item, ...values } : item
+      ))
     } else {
-      const nextOrder = items.length > 0 ? Math.max(...items.map(i => i.order)) + 1 : 0
-      const res = await fetch('/api/categories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...values, type, order: nextOrder }),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: '저장에 실패했습니다' }))
-        throw new Error(err.error ?? '저장에 실패했습니다')
-      }
-      const created: Category = await res.json()
-      addCategory(created)
+      const nextOrder = localItems.length > 0
+        ? Math.max(...localItems.map(i => i.order)) + 1
+        : 0
+      setLocalItems(prev => [...prev, {
+        id: `_tmp_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        type,
+        name: values.name,
+        icon: values.icon,
+        order: nextOrder,
+        visible: true,
+        is_system: false,
+        _isNew: true,
+      }])
     }
+    setDirty(true)
     setSheetOpen(false)
   }
 
-  async function handlePrimaryAction(cat: Category) {
-    if (cat.is_system) {
-      const nextVisible = !cat.visible
-      const ok = confirm(`"${cat.name}" 카테고리를 ${nextVisible ? '복원' : '숨김'} 처리할까요?`)
-      if (!ok) return
-      const res = await fetch(`/api/categories/${cat.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ visible: nextVisible }),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: '변경에 실패했습니다' }))
-        alert(err.error ?? '변경에 실패했습니다')
-        return
-      }
-      const updated: Category = await res.json()
-      updateCategory(updated)
-      return
-    }
-
-    const ok = confirm(`"${cat.name}" 카테고리를 삭제할까요?\n\n이 카테고리를 사용 중인 거래가 있으면 해당 거래의 분류가 '미분류'로 변경됩니다.`)
-    if (!ok) return
-    const res = await fetch(`/api/categories/${cat.id}`, { method: 'DELETE' })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: '삭제에 실패했습니다' }))
-      alert(err.error ?? '삭제에 실패했습니다')
-      return
-    }
-    deleteCategory(cat.id)
+  function handleDelete(cat: LocalCategory) {
+    setLocalItems(prev => prev.filter(i => i.id !== cat.id))
+    if (!cat._isNew) setDeletedIds(prev => new Set([...prev, cat.id]))
+    setDirty(true)
   }
 
-  async function move(index: number, direction: -1 | 1) {
+  function move(index: number, direction: -1 | 1) {
     const target = index + direction
-    if (target < 0 || target >= items.length) return
-    const a = items[index]
-    const b = items[target]
-    const newAOrder = b.order
-    const newBOrder = a.order
-
-    const [resA, resB] = await Promise.all([
-      fetch(`/api/categories/${a.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order: newAOrder }),
-      }),
-      fetch(`/api/categories/${b.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ order: newBOrder }),
-      }),
-    ])
-    if (!resA.ok || !resB.ok) {
-      alert('순서 변경에 실패했습니다')
-      return
-    }
-    const updatedA: Category = await resA.json()
-    const updatedB: Category = await resB.json()
-    reorderCategories(
-      categories.map(c => c.id === updatedA.id ? updatedA : c.id === updatedB.id ? updatedB : c)
-    )
+    if (target < 0 || target >= localItems.length) return
+    setLocalItems(prev => {
+      const next = [...prev]
+      ;[next[index], next[target]] = [next[target], next[index]]
+      return next.map((item, i) => ({ ...item, order: i }))
+    })
+    setDirty(true)
   }
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      // 1. 삭제
+      await Promise.all([...deletedIds].map(id =>
+        fetch(`/api/categories/${id}`, { method: 'DELETE' })
+      ))
+
+      // 2. 위치 기반 order 재부여
+      const itemsWithOrder = localItems.map((item, i) => ({ ...item, order: i }))
+
+      // 3. 새 카테고리 생성 (순서대로, tempId → realId 매핑)
+      const newItems = itemsWithOrder.filter(i => i._isNew)
+      const tempToReal = new Map<string, Category>()
+      for (const item of newItems) {
+        const res = await fetch('/api/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: item.name, icon: item.icon, type, order: item.order }),
+        })
+        if (!res.ok) throw new Error('카테고리 추가에 실패했습니다')
+        tempToReal.set(item.id, await res.json())
+      }
+
+      // 4. 기존 카테고리 변경사항 업데이트
+      const origMap = new Map(categories.filter(c => c.type === type).map(c => [c.id, c]))
+      await Promise.all(
+        itemsWithOrder
+          .filter(item => {
+            if (item._isNew) return false
+            const orig = origMap.get(item.id)
+            return orig && (orig.name !== item.name || orig.icon !== item.icon || orig.order !== item.order)
+          })
+          .map(item =>
+            fetch(`/api/categories/${item.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: item.name, icon: item.icon, order: item.order }),
+            })
+          )
+      )
+
+      // 5. tempId를 실제 ID로 교체한 최종 목록 생성
+      const savedItems: Category[] = itemsWithOrder.map(item => {
+        if (item._isNew) {
+          const real = tempToReal.get(item.id)
+          return real ?? ({ ...item, _isNew: undefined } as Category)
+        }
+        const { _isNew: _, ...rest } = item
+        return rest as Category
+      })
+
+      // 6. store 전체 categories 교체 (다른 타입 보존)
+      const otherTypeCategories = categories.filter(c => c.type !== type)
+      reorderCategories([...otherTypeCategories, ...savedItems])
+
+      setLocalItems(savedItems)
+      setDeletedIds(new Set())
+      setDirty(false)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '저장에 실패했습니다')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const title =
+    type === 'income' ? '수입 카테고리' :
+    type === 'expense' ? '지출 카테고리' : '자산 카테고리'
+
+  const emptyMsg =
+    type === 'asset'
+      ? '자산 그룹 이름을 추가하면 자산 등록 시 선택할 수 있어요'
+      : `${type === 'income' ? '수입' : '지출'} 카테고리를 추가하면 거래에서 분류할 수 있어요`
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-[var(--color-text)]">
-          {type === 'income' ? '수입 카테고리' : '지출 카테고리'}
-        </h1>
+        <h1 className="text-xl font-bold text-[var(--color-text)]">{title}</h1>
         <button
           type="button"
           onClick={openAdd}
@@ -148,11 +179,9 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
         <p className="text-sm text-[var(--color-text-sub)]">불러오는 중…</p>
       )}
 
-      {ready && items.length === 0 && (
+      {ready && localItems.length === 0 && (
         <div className="rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] p-6 text-center">
-          <p className="text-sm text-[var(--color-text-body)] mb-3">
-            {type === 'income' ? '수입' : '지출'} 카테고리를 추가하면 거래에서 분류할 수 있어요
-          </p>
+          <p className="text-sm text-[var(--color-text-body)] mb-3">{emptyMsg}</p>
           <button
             type="button"
             onClick={openAdd}
@@ -163,12 +192,12 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
         </div>
       )}
 
-      {ready && items.length > 0 && (
+      {ready && localItems.length > 0 && (
         <ul className="rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] overflow-hidden">
-          {items.map((cat, index) => (
+          {localItems.map((cat, index) => (
             <li
               key={cat.id}
-              className={`flex items-center gap-2 px-3 py-2 border-b border-[var(--color-border)] last:border-b-0 ${!cat.visible ? 'opacity-50' : ''}`}
+              className="flex items-center gap-2 px-3 py-2 border-b border-[var(--color-border)] last:border-b-0"
             >
               <div className="flex flex-col">
                 <button
@@ -183,7 +212,7 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
                 <button
                   type="button"
                   onClick={() => move(index, 1)}
-                  disabled={index === items.length - 1}
+                  disabled={index === localItems.length - 1}
                   className="w-7 h-6 flex items-center justify-center text-[var(--color-text-sub)] disabled:opacity-30 hover:text-[var(--color-text)]"
                   aria-label="아래로"
                 >
@@ -195,22 +224,30 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
                 onClick={() => openEdit(cat)}
                 className="flex-1 flex items-center gap-2 py-2 text-left"
               >
-                <CatIcon icon={cat.icon || '📦'} id={cat.id} size={36} />
-                <div className="flex flex-col min-w-0">
-                  <span className="text-[15px] text-[var(--color-text)] truncate">{cat.name}</span>
-                  {!cat.visible && <span className="text-[11px] text-[var(--color-text-sub)]">숨김</span>}
-                </div>
+                <CatIcon icon={cat.icon || 'box'} id={cat.id} size={36} />
+                <span className="text-[15px] text-[var(--color-text)] truncate">{cat.name}</span>
               </button>
               <button
                 type="button"
-                onClick={() => handlePrimaryAction(cat)}
-                className={`text-sm px-2 py-1 hover:opacity-80 ${cat.is_system ? 'text-[var(--color-primary)]' : 'text-[var(--color-expense)]'}`}
+                onClick={() => handleDelete(cat)}
+                className="text-sm px-2 py-1 text-[var(--color-expense)] hover:opacity-80"
               >
-                {cat.is_system ? (cat.visible ? '숨김' : '복원') : '삭제'}
+                삭제
               </button>
             </li>
           ))}
         </ul>
+      )}
+
+      {dirty && (
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="w-full h-12 rounded-xl bg-[var(--color-primary)] text-white text-base font-semibold disabled:opacity-50 hover:bg-[var(--color-primary-hover)] transition-colors"
+        >
+          {saving ? '저장 중…' : '저장하기'}
+        </button>
       )}
 
       <SlideUpSheet

@@ -87,7 +87,8 @@ interface Props {
 }
 
 export default function AssetForm({ open, onClose, editing }: Props) {
-  const { addAsset, updateAsset } = useStore()
+  const { addAsset, updateAsset, categories } = useStore()
+  const assetCategories = categories.filter(c => c.type === 'asset' && c.visible)
   const [form, setForm] = useState<FormState>(editing ? assetToForm(editing) : DEFAULT_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -239,9 +240,15 @@ export default function AssetForm({ open, onClose, editing }: Props) {
             type="text"
             value={form.group_name}
             onChange={e => set('group_name', e.target.value)}
+            list={assetCategories.length > 0 ? 'asset-category-names' : undefined}
             placeholder="예: 국민은행"
             className="tds-field"
           />
+          {assetCategories.length > 0 && (
+            <datalist id="asset-category-names">
+              {assetCategories.map(c => <option key={c.id} value={c.name} />)}
+            </datalist>
+          )}
         </div>
 
         {/* 잔액 */}

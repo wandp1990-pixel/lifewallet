@@ -23,16 +23,9 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   const existing = await db.execute({ sql: 'SELECT * FROM categories WHERE id = ?', args: [id] })
   if (!existing.rows[0]) return NextResponse.json({ error: '해당 카테고리를 찾을 수 없습니다' }, { status: 404 })
 
-  const row = existing.rows[0] as Record<string, unknown>
-  const isSystem = Boolean(row.is_system)
-
-  if (isSystem) {
-    await db.execute({ sql: 'UPDATE categories SET visible = 0 WHERE id = ?', args: [id] })
-    return NextResponse.json({ ok: true, hidden: true })
-  }
-
-  // 사용자 카테고리는 실제 삭제. 연결 거래는 보존하고 분류만 비움.
+  // 연결 거래·반복거래 분류 비우기 후 삭제
   await db.execute({ sql: "UPDATE transactions SET category_id = '' WHERE category_id = ?", args: [id] })
+  await db.execute({ sql: "UPDATE recurring_transactions SET category_id = '' WHERE category_id = ?", args: [id] })
   await db.execute({ sql: 'DELETE FROM categories WHERE id = ?', args: [id] })
-  return NextResponse.json({ ok: true, deleted: true })
+  return NextResponse.json({ ok: true })
 }

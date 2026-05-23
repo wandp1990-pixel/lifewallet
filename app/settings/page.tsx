@@ -11,6 +11,7 @@ const MORE_ITEMS = [
 const CATEGORY_ITEMS = [
   { href: '/settings/categories/income', label: '수입 카테고리 관리' },
   { href: '/settings/categories/expense', label: '지출 카테고리 관리' },
+  { href: '/settings/categories/asset', label: '자산 카테고리 관리' },
   { href: '/statistics/budget-settings', label: '예산 설정' },
 ]
 

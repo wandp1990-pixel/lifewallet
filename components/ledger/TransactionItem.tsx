@@ -17,9 +17,9 @@ interface Props {
 }
 
 const TYPE_ICON: Record<string, string> = {
-  transfer: '↔',
-  loan_repayment: '🏦',
-  loan_received: '💳',
+  transfer: 'swap',
+  loan_repayment: 'creditCard',
+  loan_received: 'creditCard',
 }
 
 export default function TransactionItem({ tx, categories, assets, onDelete, onEdit }: Props) {

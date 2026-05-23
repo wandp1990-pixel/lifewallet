@@ -7,7 +7,7 @@ export default async function CategoriesByTypePage({
   params: Promise<{ type: string }>
 }) {
   const { type } = await params
-  if (type !== 'income' && type !== 'expense') notFound()
+  if (type !== 'income' && type !== 'expense' && type !== 'asset') notFound()
 
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto">

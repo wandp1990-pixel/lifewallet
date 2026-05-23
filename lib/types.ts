@@ -26,7 +26,7 @@ export interface Transaction {
 
 export interface Category {
   id: string
-  type: 'income' | 'expense'
+  type: 'income' | 'expense' | 'asset'
   name: string
   icon: string
   order: number
