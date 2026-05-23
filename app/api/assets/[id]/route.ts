@@ -12,6 +12,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const currentGroupType = existing.rows[0].group_type as string
   const currentBalance = existing.rows[0].balance as number
+  const currentBalanceDate = String(existing.rows[0].balance_date ?? '')
   const nextGroupType = (body.group_type ?? currentGroupType) as Parameters<typeof normalizeAssetBalance>[0]
   const groupTypeChanged = body.group_type !== undefined && body.group_type !== currentGroupType
 
@@ -49,7 +50,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   await db.execute({
     sql: `UPDATE assets SET group_type=COALESCE(?,group_type), group_name=COALESCE(?,group_name), name=COALESCE(?,name),
-          balance=COALESCE(?,balance), ord=COALESCE(?,ord), visible=COALESCE(?,visible),
+          balance=COALESCE(?,balance), balance_date=COALESCE(?,balance_date), ord=COALESCE(?,ord), visible=COALESCE(?,visible),
           track_detail=CASE WHEN ? THEN 1 ELSE COALESCE(?,track_detail) END,
           principal=COALESCE(?,principal), interest_rate=COALESCE(?,interest_rate),
           start_date=COALESCE(?,start_date), end_date=COALESCE(?,end_date),
@@ -57,7 +58,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           WHERE id=?`,
     args: [
       body.group_type ?? null, body.group_name ?? null, body.name ?? null,
-      nextBalance, body.order ?? null, body.visible != null ? (body.visible ? 1 : 0) : null,
+      nextBalance, body.balance_date ?? null, body.order ?? null, body.visible != null ? (body.visible ? 1 : 0) : null,
       forceTrackDetail, body.track_detail != null ? (body.track_detail ? 1 : 0) : null,
       body.principal ?? null, body.interest_rate ?? null,
       body.start_date ?? null, body.end_date ?? null,
@@ -66,13 +67,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     ],
   })
 
+  const balanceDate = body.balance_date ?? currentBalanceDate ?? new Date().toISOString().slice(0, 10)
   if (body.balance !== undefined && !groupTypeChanged && nextBalance !== null && nextBalance !== currentBalance) {
     await db.execute({
       sql: `INSERT INTO transactions (id,date,type,amount,category_id,asset_id,content,note,from_asset_id,to_asset_id,fee,created_at)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
       args: [
         generateId('txn'),
-        new Date().toISOString().slice(0, 10),
+        balanceDate,
         'asset',
         nextBalance - currentBalance,
         '',

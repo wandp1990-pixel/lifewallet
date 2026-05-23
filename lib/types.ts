@@ -40,6 +40,7 @@ export interface Asset {
   group_name: string
   name: string
   balance: number
+  balance_date: string
   order: number
   visible: boolean
   track_detail: boolean

@@ -15,10 +15,13 @@ function signedBalanceSql(column = 'balance') {
   return `CASE WHEN group_type IN (${debtTypesSql}) AND ${column} > 0 THEN -${column} ELSE ${column} END`
 }
 
-async function updateAssetBalance(assetId: string, delta: number) {
+async function updateAssetBalance(assetId: string, delta: number, txDate: string) {
   await db.execute({
-    sql: `UPDATE assets SET balance = ${signedBalanceSql()} + ? WHERE id = ?`,
-    args: [...DEBT_TYPES, delta, assetId],
+    sql: `UPDATE assets
+          SET balance = ${signedBalanceSql()} + ?
+          WHERE id = ?
+            AND (balance_date = '' OR ? > balance_date)`,
+    args: [...DEBT_TYPES, delta, assetId, txDate],
   })
 }
 
@@ -64,6 +67,7 @@ export async function initDb() {
       group_name      TEXT    NOT NULL DEFAULT '',
       name            TEXT    NOT NULL,
       balance         INTEGER NOT NULL DEFAULT 0,
+      balance_date    TEXT    NOT NULL DEFAULT '',
       ord             INTEGER NOT NULL DEFAULT 0,
       visible         INTEGER NOT NULL DEFAULT 1,
       track_detail    INTEGER NOT NULL DEFAULT 0,
@@ -125,6 +129,12 @@ export async function initDb() {
     await db.execute('ALTER TABLE categories ADD COLUMN is_system INTEGER NOT NULL DEFAULT 0')
   }
 
+  const assetColumns = await db.execute('PRAGMA table_info(assets)')
+  const assetColumnNames = new Set(assetColumns.rows.map(row => String((row as Record<string, unknown>).name ?? '')))
+  if (!assetColumnNames.has('balance_date')) {
+    await db.execute("ALTER TABLE assets ADD COLUMN balance_date TEXT NOT NULL DEFAULT ''")
+  }
+
   // 하드코딩 시스템 카테고리 제거 마이그레이션 (is_system=1 이면 삭제, 연결 거래는 미분류로)
   const sysResult = await db.execute("SELECT COUNT(*) as cnt FROM categories WHERE is_system = 1")
   if (Number((sysResult.rows[0] as Record<string, unknown>).cnt) > 0) {
@@ -140,27 +150,27 @@ export async function initDb() {
 }
 
 export async function applyTransactionBalance(
-  tx: Pick<Transaction, 'type' | 'amount' | 'fee' | 'asset_id' | 'from_asset_id' | 'to_asset_id'>
+  tx: Pick<Transaction, 'date' | 'type' | 'amount' | 'fee' | 'asset_id' | 'from_asset_id' | 'to_asset_id'>
 ) {
-  const { type, amount, fee, asset_id, from_asset_id, to_asset_id } = tx
+  const { date, type, amount, fee, asset_id, from_asset_id, to_asset_id } = tx
   if (type === 'income') {
-    await updateAssetBalance(asset_id, amount)
+    await updateAssetBalance(asset_id, amount, date)
   } else if (type === 'expense') {
-    await updateAssetBalance(asset_id, -amount)
+    await updateAssetBalance(asset_id, -amount, date)
   } else if (type === 'transfer') {
-    await updateAssetBalance(from_asset_id, -(amount + (fee ?? 0)))
-    await updateAssetBalance(to_asset_id, amount)
+    await updateAssetBalance(from_asset_id, -(amount + (fee ?? 0)), date)
+    await updateAssetBalance(to_asset_id, amount, date)
   } else if (type === 'loan_repayment') {
     const principalAmount = getLoanRepaymentPrincipal(tx as Pick<Transaction, 'type' | 'amount' | 'fee'>)
-    await updateAssetBalance(from_asset_id, -amount)
-    await updateAssetBalance(to_asset_id, principalAmount)
+    await updateAssetBalance(from_asset_id, -amount, date)
+    await updateAssetBalance(to_asset_id, principalAmount, date)
   } else if (type === 'asset') {
-    await updateAssetBalance(asset_id, amount)
+    await updateAssetBalance(asset_id, amount, date)
   }
 }
 
 export async function reverseTransactionBalance(
-  tx: Pick<Transaction, 'type' | 'amount' | 'fee' | 'asset_id' | 'from_asset_id' | 'to_asset_id'>
+  tx: Pick<Transaction, 'date' | 'type' | 'amount' | 'fee' | 'asset_id' | 'from_asset_id' | 'to_asset_id'>
 ) {
   const reversed = { ...tx, amount: -tx.amount, fee: -(tx.fee ?? 0) }
   await applyTransactionBalance(reversed as typeof tx)
@@ -175,6 +185,7 @@ export function rowToAsset(row: Record<string, unknown>): Asset {
     group_name: row.group_name as string,
     name: row.name as string,
     balance,
+    balance_date: row.balance_date as string,
     order: row.ord as number,
     visible: Boolean(row.visible),
     track_detail: Boolean(row.track_detail),

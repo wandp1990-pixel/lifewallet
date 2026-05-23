@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import db, { rowToAsset } from '@/lib/db'
 import { normalizeAssetBalance } from '@/lib/finance'
-import { generateId } from '@/lib/utils'
+import { generateId, todayStr } from '@/lib/utils'
 import type { Asset } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
     group_name: body.group_name ?? '',
     name: body.name,
     balance: normalizeAssetBalance(body.group_type, body.balance ?? 0),
+    balance_date: body.balance_date ?? todayStr(),
     order: body.order ?? 0,
     visible: body.visible ?? true,
     track_detail: forceTrackDetail || (body.track_detail ?? false),
@@ -35,9 +36,9 @@ export async function POST(req: NextRequest) {
   }
 
   await db.execute({
-    sql: `INSERT INTO assets (id,group_type,group_name,name,balance,ord,visible,track_detail,principal,interest_rate,start_date,end_date,payment_day,monthly_payment)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    args: [a.id, a.group_type, a.group_name, a.name, a.balance, a.order, a.visible ? 1 : 0, a.track_detail ? 1 : 0, a.principal ?? 0, a.interest_rate ?? 0, a.start_date ?? '', a.end_date ?? '', a.payment_day ?? 0, a.monthly_payment ?? 0],
+    sql: `INSERT INTO assets (id,group_type,group_name,name,balance,balance_date,ord,visible,track_detail,principal,interest_rate,start_date,end_date,payment_day,monthly_payment)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    args: [a.id, a.group_type, a.group_name, a.name, a.balance, a.balance_date, a.order, a.visible ? 1 : 0, a.track_detail ? 1 : 0, a.principal ?? 0, a.interest_rate ?? 0, a.start_date ?? '', a.end_date ?? '', a.payment_day ?? 0, a.monthly_payment ?? 0],
   })
 
   return NextResponse.json(a, { status: 201 })

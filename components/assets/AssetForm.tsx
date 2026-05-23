@@ -5,7 +5,7 @@ import { Trash2 } from 'lucide-react'
 import SlideUpSheet from '@/components/ui/SlideUpSheet'
 import { getDebtBalance, isDebtAssetType } from '@/lib/finance'
 import { useStore } from '@/lib/store'
-import { formatAmount } from '@/lib/utils'
+import { formatAmount, todayStr } from '@/lib/utils'
 import type { Asset, AssetGroupType } from '@/lib/types'
 
 const GROUP_TYPES: { value: AssetGroupType; label: string }[] = [
@@ -37,6 +37,7 @@ interface FormState {
   group_type: AssetGroupType
   group_name: string
   balance: string
+  balance_date: string
   visible: boolean
   track_detail: boolean
   principal: string
@@ -54,6 +55,7 @@ function assetToForm(asset: Asset): FormState {
     group_type: asset.group_type,
     group_name: asset.group_name,
     balance: displayBalance !== 0 ? formatAmount(displayBalance) : '',
+    balance_date: asset.balance_date ?? '',
     visible: asset.visible,
     track_detail: asset.track_detail,
     principal: asset.principal ? formatAmount(asset.principal) : '',
@@ -70,6 +72,7 @@ const DEFAULT_FORM: FormState = {
   group_type: 'bank',
   group_name: '',
   balance: '',
+  balance_date: todayStr(),
   visible: true,
   track_detail: false,
   principal: '',
@@ -144,6 +147,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
       group_type: form.group_type,
       group_name: form.group_name.trim(),
       balance: parseNum(form.balance),
+      balance_date: form.balance_date,
       visible: form.visible,
       track_detail: forceTrackDetail || form.track_detail,
       ...(isLoan && {
@@ -299,6 +303,18 @@ export default function AssetForm({ open, onClose, editing }: Props) {
             />
             <span className="text-base font-bold text-[var(--color-text-sub)] shrink-0">원</span>
           </div>
+        </div>
+
+        {/* 잔액 기준일 */}
+        <div>
+          <label className="text-xs font-medium text-[var(--color-text-sub)] mb-1.5 block">잔액 기준일</label>
+          <input
+            type="date"
+            value={form.balance_date}
+            onChange={e => set('balance_date', e.target.value)}
+            className="tds-field"
+          />
+          <p className="mt-1 text-[11px] text-[var(--color-text-sub)]">이 날짜 이후 입력한 내역만 현재 잔액에 반영됩니다</p>
         </div>
 
         {/* 대출 추가 필드 */}
