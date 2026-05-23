@@ -60,7 +60,7 @@ export default function SavingsGoalForm({ open, onClose, editing, defaultAssetId
     onClose()
   }
 
-  const inputCls = 'w-full border border-[var(--color-border)] rounded-xl px-4 py-3 text-[15px] text-[var(--color-text)] bg-[var(--color-surface)] focus:outline-none focus:border-[var(--color-primary)]'
+  const inputCls = 'w-full border border-[var(--color-border)] rounded-xl px-4 py-3 text-[16px] text-[var(--color-text)] bg-[var(--color-surface)] focus:outline-none focus:border-[var(--color-primary)]'
   const labelCls = 'block text-sm font-medium text-[var(--color-text-sub)] mb-1'
 
   return (

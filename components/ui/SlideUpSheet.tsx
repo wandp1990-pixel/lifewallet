@@ -28,19 +28,19 @@ export default function SlideUpSheet({ open, onClose, title, children, rightActi
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center">
+    <div className="fixed inset-0 z-[100] flex touch-none items-end justify-center md:items-center">
       <div
         className="tds-fade-in absolute inset-0 bg-[rgba(2,9,19,0.5)]"
         onClick={onClose}
         aria-hidden
       />
       <div
-        className="tds-slide-up relative w-full md:max-w-[480px] bg-[var(--color-surface)] rounded-t-2xl md:rounded-2xl shadow-[0px_8px_24px_rgba(0,0,0,0.16)] max-h-[90vh] flex flex-col"
+        className="tds-slide-up relative flex max-h-[90vh] w-full touch-pan-y flex-col rounded-t-2xl bg-[var(--color-surface)] shadow-[0px_8px_24px_rgba(0,0,0,0.16)] md:max-w-[480px] md:rounded-2xl"
         role="dialog"
         aria-modal="true"
         aria-label={title}
       >
-        <header className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-[var(--color-border)]">
+        <header className="flex touch-none items-center justify-between border-b border-[var(--color-border)] px-5 pb-3 pt-5">
           <h2 className="text-lg font-bold text-[var(--color-text)]">{title}</h2>
           <div className="flex items-center gap-2">
             {rightAction}
@@ -54,7 +54,7 @@ export default function SlideUpSheet({ open, onClose, title, children, rightActi
             </button>
           </div>
         </header>
-        <div className="overflow-y-auto px-5 py-4">{children}</div>
+        <div className="overflow-y-auto overscroll-contain px-5 py-4 touch-pan-y">{children}</div>
       </div>
     </div>
   )

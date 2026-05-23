@@ -244,7 +244,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-[59]"
+        className="fixed inset-0 z-[59] touch-none"
         style={{
           background: 'rgba(2,9,19,0.5)',
           animation: 'tds-fade-in 180ms ease-out both',
@@ -254,7 +254,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
 
       {/* Sheet */}
       <div
-        className="fixed inset-x-0 bottom-0 z-[60] flex flex-col bg-[var(--color-surface)] rounded-t-[18px]"
+        className="fixed inset-x-0 bottom-0 z-[60] flex touch-pan-y flex-col rounded-t-[18px] bg-[var(--color-surface)]"
         style={{
           height: '92%',
           boxShadow: '0 -8px 28px rgba(0,0,0,0.18)',
@@ -262,12 +262,12 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
         }}
       >
         {/* Handle */}
-        <div className="flex justify-center pt-2.5 pb-1 shrink-0">
+        <div className="flex shrink-0 touch-none justify-center pb-1 pt-2.5">
           <div className="w-10 h-1 rounded-full bg-[var(--color-border-strong)]" />
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-2.5 shrink-0">
+        <div className="flex shrink-0 touch-none items-center justify-between px-4 py-2.5">
           <button
             onClick={onClose}
             className="text-[14px] text-[var(--color-text-sub)] min-w-[44px]"
@@ -344,7 +344,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto min-h-0 px-4 pt-3 pb-2 space-y-4">
+        <div className="min-h-0 flex-1 touch-pan-y space-y-4 overflow-y-auto overscroll-contain px-4 pb-2 pt-3">
 
           {/* Category */}
           {showCategory && (
@@ -449,7 +449,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
                     value={feeStr}
                     onChange={e => setFeeStr(fmtInput(e.target.value))}
                     placeholder="0"
-                    className="tds-field !py-2.5 !text-[15px] text-right"
+                    className="tds-field !py-2.5 !text-[16px] text-right"
                   />
                 </div>
               )}
@@ -464,7 +464,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
                 type="date"
                 value={date}
                 onChange={e => setDate(e.target.value)}
-                className="tds-field flex-1 min-w-0 !py-2.5 !text-[15px]"
+                className="tds-field flex-1 min-w-0 !py-2.5 !text-[16px]"
               />
               <button
                 onClick={() => setDate(todayStr())}
@@ -486,7 +486,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
                 type === 'loan_repayment' ? '예: 대출 상환' :
                 '예: 점심 식사'
               }
-              className="tds-field !py-2.5 !text-[15px]"
+              className="tds-field !py-2.5 !text-[16px]"
             />
           </div>
 
@@ -498,7 +498,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
               value={note}
               onChange={e => setNote(e.target.value)}
               placeholder="메모를 입력하세요"
-              className="tds-field !py-2.5 !text-[15px]"
+              className="tds-field !py-2.5 !text-[16px]"
             />
           </div>
         </div>
