@@ -58,7 +58,7 @@ export default function AssetsPage() {
     () => assets.filter(a => a.visible && isDebtAssetType(a.group_type)).reduce((s, a) => s + getDebtBalance(a.balance), 0),
     [assets]
   )
-  const netAssets = totalAssets - totalDebt
+  const managedBalance = totalAssets - totalDebt
 
   const trackDetailAssets = useMemo(
     () => assets.filter(a => a.visible && a.track_detail),
@@ -146,21 +146,21 @@ export default function AssetsPage() {
         </div>
 
         <div className="p-4 space-y-4">
-          {/* 순자산 카드 */}
+          {/* 관리 잔액 카드 */}
           <div className="bg-[var(--color-surface-sub)] rounded-2xl p-4 space-y-3">
             <div>
-              <p className="text-xs text-[var(--color-text-sub)] mb-0.5">순자산</p>
-              <p className={`text-3xl font-bold ${netAssets >= 0 ? 'text-[var(--color-text)]' : 'text-[var(--color-expense)]'}`}>
-                {netAssets < 0 ? '-' : ''}{formatAmount(netAssets)}원
+              <p className="text-xs text-[var(--color-text-sub)] mb-0.5">관리 잔액</p>
+              <p className={`text-3xl font-bold ${managedBalance >= 0 ? 'text-[var(--color-text)]' : 'text-[var(--color-expense)]'}`}>
+                {managedBalance < 0 ? '-' : ''}{formatAmount(managedBalance)}원
               </p>
             </div>
             <div className="flex gap-4 text-sm">
               <div>
-                <p className="text-xs text-[var(--color-text-sub)]">자산 합계</p>
+                <p className="text-xs text-[var(--color-text-sub)]">관리 자산</p>
                 <p className="font-semibold text-[var(--color-text)]">{formatAmount(totalAssets)}원</p>
               </div>
               <div>
-                <p className="text-xs text-[var(--color-text-sub)]">부채 합계</p>
+                <p className="text-xs text-[var(--color-text-sub)]">관리 부채</p>
                 <p className="font-semibold text-[var(--color-expense)]">{formatAmount(totalDebt)}원</p>
               </div>
             </div>

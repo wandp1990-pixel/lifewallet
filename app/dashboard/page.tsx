@@ -94,7 +94,7 @@ export default function DashboardPage() {
   const visibleAssets = assets.filter(a => a.visible)
   const totalAssetValue = visibleAssets.filter(a => !isDebtAssetType(a.group_type)).reduce((s, a) => s + a.balance, 0)
   const totalDebt = visibleAssets.filter(a => isDebtAssetType(a.group_type)).reduce((s, a) => s + getDebtBalance(a.balance), 0)
-  const netWorth = totalAssetValue - totalDebt
+  const managedBalance = totalAssetValue - totalDebt
 
   const totalBudget = categories
     .filter(c => c.type === 'expense' && c.visible)
@@ -123,7 +123,7 @@ export default function DashboardPage() {
     const exp = getOutflowAmount(txMap[key ?? ''] ?? [])
     return { value: inc - exp, isActive: i === 5 }
   })
-  const sparkNetWorth = keys.map((_, i) => ({ value: netWorth, isActive: i === 5 }))
+  const sparkManagedBalance = keys.map((_, i) => ({ value: managedBalance, isActive: i === 5 }))
 
   const trendData = months6.map((m, i) => {
     const txs = txMap[keys[i] ?? ''] ?? []
@@ -183,11 +183,11 @@ export default function DashboardPage() {
       {/* KPI 카드 4개 */}
       <div className="grid grid-cols-2 gap-3">
         <KpiCard
-          label="순자산"
-          amount={netWorth}
-          badge={`부채 ${formatAmount(totalDebt)}원`}
+          label="관리 잔액"
+          amount={managedBalance}
+          badge={`관리 부채 ${formatAmount(totalDebt)}원`}
           icon={<Wallet size={18} />}
-          sparks={sparkNetWorth}
+          sparks={sparkManagedBalance}
         />
         <KpiCard
           label="이번 달 수입"

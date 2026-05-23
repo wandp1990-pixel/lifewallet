@@ -12,7 +12,7 @@ export default function AssetSummary({ assets }: Props) {
   const visible = assets.filter(a => a.visible)
   const totalAssets = visible.filter(a => !isDebtAssetType(a.group_type)).reduce((s, a) => s + a.balance, 0)
   const totalDebts = visible.filter(a => isDebtAssetType(a.group_type)).reduce((s, a) => s + getDebtBalance(a.balance), 0)
-  const netWorth = totalAssets - totalDebts
+  const managedBalance = totalAssets - totalDebts
 
   const tracked = visible.filter(a => a.track_detail)
 
@@ -20,9 +20,9 @@ export default function AssetSummary({ assets }: Props) {
     <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4">
       <p className="text-sm font-semibold text-[var(--color-text)] mb-3">자산 현황</p>
       <p className="text-2xl font-bold text-[var(--color-text)] tabular-nums mb-1">
-        {formatAmount(netWorth)}원
+        {formatAmount(managedBalance)}원
       </p>
-      <p className="text-xs text-[var(--color-text-sub)] mb-3">순자산 (자산 {formatAmount(totalAssets)}원 − 부채 {formatAmount(totalDebts)}원)</p>
+      <p className="text-xs text-[var(--color-text-sub)] mb-3">관리 잔액 (관리 자산 {formatAmount(totalAssets)}원 − 관리 부채 {formatAmount(totalDebts)}원)</p>
       {tracked.length > 0 && (
         <div className="space-y-1.5">
           {tracked.map(a => (
