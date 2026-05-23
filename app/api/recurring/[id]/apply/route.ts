@@ -3,7 +3,7 @@ import db, { applyTransactionBalance } from '@/lib/db'
 import { validateTransactionInput } from '@/lib/finance'
 import { getDateInDisplayMonth } from '@/lib/monthStart'
 import { generateId } from '@/lib/utils'
-import type { Asset, Transaction } from '@/lib/types'
+import type { Asset, Category, Transaction } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,7 +44,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const assets = (await db.execute({ sql: 'SELECT id, group_type, visible, balance FROM assets' })).rows as unknown as Pick<Asset, 'id' | 'group_type' | 'visible' | 'balance'>[]
-  const validationError = validateTransactionInput(t, assets)
+  const categories = (await db.execute({ sql: 'SELECT id, type, visible FROM categories' })).rows as unknown as Pick<Category, 'id' | 'type' | 'visible'>[]
+  const validationError = validateTransactionInput(t, assets, categories, [String(r.category_id ?? '')])
   if (validationError) {
     return NextResponse.json({ error: validationError }, { status: 400 })
   }

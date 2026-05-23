@@ -51,7 +51,9 @@ export async function initDb() {
       type TEXT    NOT NULL,
       name TEXT    NOT NULL,
       icon TEXT    NOT NULL DEFAULT '',
-      ord  INTEGER NOT NULL DEFAULT 0
+      ord  INTEGER NOT NULL DEFAULT 0,
+      visible   INTEGER NOT NULL DEFAULT 1,
+      is_system INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS budgets (
@@ -120,10 +122,19 @@ export async function initDb() {
     );
   `)
 
+  const categoryColumns = await db.execute('PRAGMA table_info(categories)')
+  const columnNames = new Set(categoryColumns.rows.map(row => String((row as Record<string, unknown>).name ?? '')))
+  if (!columnNames.has('visible')) {
+    await db.execute('ALTER TABLE categories ADD COLUMN visible INTEGER NOT NULL DEFAULT 1')
+  }
+  if (!columnNames.has('is_system')) {
+    await db.execute('ALTER TABLE categories ADD COLUMN is_system INTEGER NOT NULL DEFAULT 0')
+  }
+
   for (const c of DEFAULT_CATEGORIES) {
     await db.execute({
-      sql: 'INSERT OR IGNORE INTO categories (id,type,name,icon,ord) VALUES (?,?,?,?,?)',
-      args: [c.id, c.type, c.name, c.icon, c.ord],
+      sql: 'INSERT OR IGNORE INTO categories (id,type,name,icon,ord,visible,is_system) VALUES (?,?,?,?,?,?,?)',
+      args: [c.id, c.type, c.name, c.icon, c.ord, 1, 1],
     })
   }
 

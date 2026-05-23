@@ -3,7 +3,7 @@ import db from '@/lib/db'
 import { validateTransactionInput } from '@/lib/finance'
 import type { RecurringTransaction, TransactionType } from '@/lib/types'
 import type { InValue } from '@libsql/client'
-import type { Asset } from '@/lib/types'
+import type { Asset, Category } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,10 +12,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json()
   const existing = await db.execute({ sql: 'SELECT * FROM recurring_transactions WHERE id=?', args: [id] })
   if (!existing.rows[0]) return NextResponse.json({ error: 'not found' }, { status: 404 })
+  const existingRow = existing.rows[0] as Record<string, unknown>
 
-  const nextValue = { ...(existing.rows[0] as Record<string, unknown>), ...body, id } as unknown as RecurringTransaction
+  const nextValue = { ...existingRow, ...body, id } as unknown as RecurringTransaction
   const assets = (await db.execute({ sql: 'SELECT id, group_type, visible, balance FROM assets' })).rows as unknown as Pick<Asset, 'id' | 'group_type' | 'visible' | 'balance'>[]
-  const validationError = validateTransactionInput(nextValue, assets)
+  const categories = (await db.execute({ sql: 'SELECT id, type, visible FROM categories' })).rows as unknown as Pick<Category, 'id' | 'type' | 'visible'>[]
+  const validationError = validateTransactionInput(nextValue, assets, categories, [String(existingRow.category_id ?? '')])
   if (validationError) {
     return NextResponse.json({ error: validationError }, { status: 400 })
   }

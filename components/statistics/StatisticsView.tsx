@@ -78,7 +78,7 @@ export default function StatisticsView() {
   const { data: yearlyTransactions = [], isLoading: yearlyLoading } = useSWR<Transaction[]>(yearlyUrl, fetcher)
 
   const expenseCategories = useMemo(
-    () => categories.filter(c => c.type === 'expense').sort((a, b) => a.order - b.order),
+    () => categories.filter(c => c.type === 'expense' && c.visible).sort((a, b) => a.order - b.order),
     [categories]
   )
 

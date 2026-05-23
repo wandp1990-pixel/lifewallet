@@ -20,7 +20,9 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
   const [editing, setEditing] = useState<Category | null>(null)
 
   const items = useMemo(
-    () => categories.filter(c => c.type === type).sort((a, b) => a.order - b.order),
+    () => categories
+      .filter(c => c.type === type)
+      .sort((a, b) => Number(b.is_system) - Number(a.is_system) || Number(b.visible) - Number(a.visible) || a.order - b.order),
     [categories, type]
   )
 
@@ -64,7 +66,26 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
     setSheetOpen(false)
   }
 
-  async function handleDelete(cat: Category) {
+  async function handlePrimaryAction(cat: Category) {
+    if (cat.is_system) {
+      const nextVisible = !cat.visible
+      const ok = confirm(`"${cat.name}" 카테고리를 ${nextVisible ? '복원' : '숨김'} 처리할까요?`)
+      if (!ok) return
+      const res = await fetch(`/api/categories/${cat.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visible: nextVisible }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: '변경에 실패했습니다' }))
+        alert(err.error ?? '변경에 실패했습니다')
+        return
+      }
+      const updated: Category = await res.json()
+      updateCategory(updated)
+      return
+    }
+
     const ok = confirm(`"${cat.name}" 카테고리를 삭제할까요?\n\n이 카테고리를 사용 중인 거래가 있으면 해당 거래의 분류가 '미분류'로 변경됩니다.`)
     if (!ok) return
     const res = await fetch(`/api/categories/${cat.id}`, { method: 'DELETE' })
@@ -147,7 +168,7 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
           {items.map((cat, index) => (
             <li
               key={cat.id}
-              className="flex items-center gap-2 px-3 py-2 border-b border-[var(--color-border)] last:border-b-0"
+              className={`flex items-center gap-2 px-3 py-2 border-b border-[var(--color-border)] last:border-b-0 ${!cat.visible ? 'opacity-50' : ''}`}
             >
               <div className="flex flex-col">
                 <button
@@ -175,14 +196,17 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
                 className="flex-1 flex items-center gap-2 py-2 text-left"
               >
                 <CatIcon icon={cat.icon || '📦'} id={cat.id} size={36} />
-                <span className="text-[15px] text-[var(--color-text)]">{cat.name}</span>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-[15px] text-[var(--color-text)] truncate">{cat.name}</span>
+                  {!cat.visible && <span className="text-[11px] text-[var(--color-text-sub)]">숨김</span>}
+                </div>
               </button>
               <button
                 type="button"
-                onClick={() => handleDelete(cat)}
-                className="text-sm text-[var(--color-expense)] px-2 py-1 hover:opacity-80"
+                onClick={() => handlePrimaryAction(cat)}
+                className={`text-sm px-2 py-1 hover:opacity-80 ${cat.is_system ? 'text-[var(--color-primary)]' : 'text-[var(--color-expense)]'}`}
               >
-                삭제
+                {cat.is_system ? (cat.visible ? '숨김' : '복원') : '삭제'}
               </button>
             </li>
           ))}

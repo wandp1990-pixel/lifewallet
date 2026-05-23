@@ -179,7 +179,7 @@ export default function LedgerPage() {
 
   const usedAssetIds = new Set(visible.flatMap(t => [t.asset_id, t.from_asset_id, t.to_asset_id].filter(Boolean)))
   const filterableAssets = assets.filter(a => usedAssetIds.has(a.id))
-  const filterableCategories = categories.filter(c => visible.some(t => t.category_id === c.id))
+  const filterableCategories = categories.filter(c => c.visible && visible.some(t => t.category_id === c.id))
 
   // 요약 탭 - 소비 카테고리별 지출
   const catExpense: Record<string, number> = {}
@@ -317,10 +317,17 @@ export default function LedgerPage() {
                 </p>
                 <p className="text-[13px] text-[var(--color-text-sub)] -mt-0.5">{month}월 합계</p>
               </div>
-              {(income + outflow) > 0 ? (
+              {(income + expense + loanRepayment) > 0 ? (
                 <div className="h-[7px] rounded-full overflow-hidden flex mb-[5px]">
-                  <div style={{ width: `${Math.round(income / (income + outflow) * 100)}%` }} className="bg-[var(--color-income)]" />
-                  <div className="flex-1 bg-[var(--color-expense)]" />
+                  <div style={{ width: `${Math.round(income / (income + expense + loanRepayment) * 100)}%` }} className="bg-[var(--color-income)]" />
+                  {loanRepayment > 0 ? (
+                    <>
+                      <div style={{ width: `${Math.round(expense / (income + expense + loanRepayment) * 100)}%` }} className="bg-[var(--color-expense)]" />
+                      <div className="flex-1 bg-[var(--color-warning)]" />
+                    </>
+                  ) : (
+                    <div className="flex-1 bg-[var(--color-expense)]" />
+                  )}
                 </div>
               ) : (
                 <div className="h-[7px] rounded-full bg-[var(--color-surface-sub)] mb-[5px]" />
@@ -333,9 +340,16 @@ export default function LedgerPage() {
                 </div>
                 <div className="flex items-center gap-1">
                   <div className="w-1.5 h-1.5 rounded-[1px] bg-[var(--color-expense)]" />
-                  <span className="text-[10px] text-[var(--color-text-sub)]">유출</span>
-                  <span className="text-[11px] font-semibold tabular-nums text-[var(--color-expense)]">{formatAmount(outflow)}원</span>
+                  <span className="text-[10px] text-[var(--color-text-sub)]">지출</span>
+                  <span className="text-[11px] font-semibold tabular-nums text-[var(--color-expense)]">{formatAmount(expense)}원</span>
                 </div>
+                {loanRepayment > 0 && (
+                  <div className="flex items-center gap-1">
+                    <div className="w-1.5 h-1.5 rounded-[1px] bg-[var(--color-warning)]" />
+                    <span className="text-[10px] text-[var(--color-text-sub)]">상환</span>
+                    <span className="text-[11px] font-semibold tabular-nums text-[var(--color-warning)]">{formatAmount(loanRepayment)}원</span>
+                  </div>
+                )}
               </div>
             </div>
             )}

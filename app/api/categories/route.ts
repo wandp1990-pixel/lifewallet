@@ -6,9 +6,14 @@ import type { Category } from '@/lib/types'
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const rows = await db.execute('SELECT * FROM categories ORDER BY type, ord ASC')
+  const rows = await db.execute('SELECT * FROM categories ORDER BY type, is_system DESC, ord ASC')
   return NextResponse.json(
-    rows.rows.map(r => ({ ...r, order: r.ord })),
+    rows.rows.map(r => ({
+      ...r,
+      order: r.ord,
+      visible: Boolean(r.visible),
+      is_system: Boolean(r.is_system),
+    })),
     { headers: { 'Cache-Control': 'no-store' } }
   )
 }
@@ -23,11 +28,13 @@ export async function POST(req: NextRequest) {
     name: body.name,
     icon: body.icon ?? '',
     order: body.order ?? 0,
+    visible: true,
+    is_system: false,
   }
 
   await db.execute({
-    sql: 'INSERT INTO categories (id,type,name,icon,ord) VALUES (?,?,?,?,?)',
-    args: [c.id, c.type, c.name, c.icon, c.order],
+    sql: 'INSERT INTO categories (id,type,name,icon,ord,visible,is_system) VALUES (?,?,?,?,?,?,?)',
+    args: [c.id, c.type, c.name, c.icon, c.order, 1, 0],
   })
 
   return NextResponse.json(c, { status: 201 })

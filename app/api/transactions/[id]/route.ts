@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import db, { applyTransactionBalance, reverseTransactionBalance } from '@/lib/db'
 import { validateTransactionInput } from '@/lib/finance'
-import type { Asset, Transaction } from '@/lib/types'
+import type { Asset, Category, Transaction } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,7 +22,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const old = existing.rows[0] as unknown as Transaction
   const updated: Transaction = { ...old, ...body, id }
   const assets = (await db.execute({ sql: 'SELECT id, group_type, visible, balance FROM assets' })).rows as unknown as Pick<Asset, 'id' | 'group_type' | 'visible' | 'balance'>[]
-  const validationError = validateTransactionInput(updated, assets)
+  const categories = (await db.execute({ sql: 'SELECT id, type, visible FROM categories' })).rows as unknown as Pick<Category, 'id' | 'type' | 'visible'>[]
+  const validationError = validateTransactionInput(updated, assets, categories, [old.category_id])
   if (validationError) {
     return NextResponse.json({ error: validationError }, { status: 400 })
   }

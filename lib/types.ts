@@ -30,6 +30,8 @@ export interface Category {
   name: string
   icon: string
   order: number
+  visible: boolean
+  is_system: boolean
 }
 
 export interface Asset {

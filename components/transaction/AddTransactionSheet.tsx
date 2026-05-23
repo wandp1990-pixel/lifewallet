@@ -38,6 +38,15 @@ function withSelectedAssets<T extends { id: string }>(base: T[], all: T[], selec
   return Array.from(map.values())
 }
 
+function withSelectedCategories<T extends { id: string }>(base: T[], all: T[], selectedIds: string[]): T[] {
+  const map = new Map(base.map(category => [category.id, category]))
+  for (const id of selectedIds.filter(Boolean)) {
+    const selected = all.find(category => category.id === id)
+    if (selected && !map.has(id)) map.set(id, selected)
+  }
+  return Array.from(map.values())
+}
+
 function fmtKorean(n: number): string {
   if (!n) return ''
   const eok = Math.floor(n / 100000000)
@@ -81,7 +90,11 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
   const loanAssets = visibleAssets.filter(a => a.group_type === 'loan')
   const repaymentFromAssets = visibleAssets.filter(a => !isDebtAssetType(a.group_type))
   const singleAssetOptions = withSelectedAssets(visibleAssets, assets, [assetId])
-  const currentCats = categories.filter(c => c.type === (type === 'income' ? 'income' : 'expense'))
+  const currentCats = withSelectedCategories(
+    categories.filter(c => c.type === (type === 'income' ? 'income' : 'expense') && c.visible),
+    categories,
+    [catId]
+  )
 
   const showCategory = type === 'expense' || type === 'income'
   const showFromTo = type === 'transfer' || type === 'loan_repayment'
@@ -94,7 +107,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
     from_asset_id: showFromTo ? fromAssetId : '',
     to_asset_id: showFromTo ? toAssetId : '',
     fee: type === 'loan_repayment' ? fee : 0,
-  }, assets) === null
+  }, assets, categories, showCategory ? [catId] : []) === null
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {

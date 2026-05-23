@@ -97,7 +97,7 @@ export default function DashboardPage() {
   const netWorth = totalAssetValue - totalDebt
 
   const totalBudget = categories
-    .filter(c => c.type === 'expense')
+    .filter(c => c.type === 'expense' && c.visible)
     .reduce((sum, cat) => sum + getBudgetForMonth(budgets, cat.id, year, month), 0)
   const budgetPct = totalBudget > 0 ? Math.round((spending / totalBudget) * 100) : 0
 

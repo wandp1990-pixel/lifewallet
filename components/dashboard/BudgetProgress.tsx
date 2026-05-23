@@ -15,7 +15,7 @@ interface Props {
 }
 
 export default function BudgetProgress({ transactions, categories, budgets, year, month }: Props) {
-  const expenseCategories = categories.filter(c => c.type === 'expense')
+  const expenseCategories = categories.filter(c => c.type === 'expense' && c.visible)
   const expenses = transactions.filter(t => t.type === 'expense')
 
   const rows = expenseCategories.map(cat => {

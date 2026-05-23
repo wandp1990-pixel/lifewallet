@@ -62,6 +62,15 @@ function withSelectedAssets<T extends { id: string }>(base: T[], all: T[], selec
   return Array.from(map.values())
 }
 
+function withSelectedCategories<T extends { id: string }>(base: T[], all: T[], selectedIds: string[]): T[] {
+  const map = new Map(base.map(category => [category.id, category]))
+  for (const id of selectedIds.filter(Boolean)) {
+    const selected = all.find(category => category.id === id)
+    if (selected && !map.has(id)) map.set(id, selected)
+  }
+  return Array.from(map.values())
+}
+
 function txToForm(tx: Partial<Transaction>): FormState {
   const rawType = tx.type
   const type: TxType =
@@ -121,7 +130,11 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
   const visibleLoanAssets = visibleAssets.filter(a => a.group_type === 'loan')
   const repaymentFromAssets = visibleAssets.filter(a => !isDebtAssetType(a.group_type))
   const singleAssetOptions = withSelectedAssets(visibleAssets, assets, [form.assetId])
-  const currentCategories = categories.filter(c => c.type === form.type)
+  const currentCategories = withSelectedCategories(
+    categories.filter(c => c.type === form.type && c.visible),
+    categories,
+    [form.categoryId]
+  )
   const showSingleAsset = form.type === 'income' || form.type === 'expense'
   const showFromTo = form.type === 'transfer' || form.type === 'loan_repayment'
   const showFee = form.type === 'transfer' || form.type === 'loan_repayment'
@@ -145,7 +158,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
       from_asset_id: form.fromAssetId,
       to_asset_id: form.toAssetId,
       fee: parseNum(form.fee),
-    }, assets) ?? ''
+    }, assets, categories, form.type === 'income' || form.type === 'expense' ? [form.categoryId] : []) ?? ''
   }
 
   async function submit(continueAfter: boolean) {

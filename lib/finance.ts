@@ -1,4 +1,4 @@
-import type { Asset, AssetGroupType, Transaction, TransactionType } from './types'
+import type { Asset, AssetGroupType, Category, Transaction, TransactionType } from './types'
 
 export const DEBT_TYPES: AssetGroupType[] = ['card', 'minus_account', 'loan', 'insurance']
 
@@ -23,6 +23,7 @@ export function isExpenseLikeType(type: TransactionType | string): boolean {
 }
 
 type ValidationAsset = Pick<Asset, 'id' | 'group_type'> & { visible?: boolean | number; balance?: number }
+type ValidationCategory = Pick<Category, 'id' | 'type'> & { visible?: boolean | number }
 
 function findAssetType(assetId: string, assets: Pick<Asset, 'id' | 'group_type'>[]): AssetGroupType | null {
   return assets.find(asset => asset.id === assetId)?.group_type ?? null
@@ -34,6 +35,14 @@ function findAsset(assetId: string, assets: ValidationAsset[]): ValidationAsset 
 
 function isHiddenAsset(asset: ValidationAsset): boolean {
   return asset.visible === false || asset.visible === 0
+}
+
+function findCategory(categoryId: string, categories: ValidationCategory[]): ValidationCategory | null {
+  return categories.find(category => category.id === categoryId) ?? null
+}
+
+function isHiddenCategory(category: ValidationCategory): boolean {
+  return category.visible === false || category.visible === 0
 }
 
 export function getExpenseAmount(transactions: Pick<Transaction, 'type' | 'amount'>[]): number {
@@ -65,7 +74,9 @@ export function getOutflowAmount(transactions: (Pick<Transaction, 'type' | 'amou
 
 export function validateTransactionInput(
   tx: Pick<Transaction, 'type' | 'amount' | 'asset_id' | 'from_asset_id' | 'to_asset_id' | 'category_id'> & { fee?: number },
-  assets: ValidationAsset[]
+  assets: ValidationAsset[],
+  categories: ValidationCategory[] = [],
+  allowedHiddenCategoryIds: string[] = []
 ) {
   if (!tx.amount || tx.amount <= 0) return '금액은 0보다 커야 합니다'
   if ((tx.fee ?? 0) < 0) return '수수료는 0 이상이어야 합니다'
@@ -116,6 +127,15 @@ export function validateTransactionInput(
 
   if ((tx.type === 'income' || tx.type === 'expense') && !tx.category_id) {
     return '분류를 선택해주세요'
+  }
+
+  if (tx.type === 'income' || tx.type === 'expense') {
+    const category = findCategory(tx.category_id, categories)
+    if (!category) return '선택한 분류를 찾을 수 없습니다'
+    if (category.type !== tx.type) return '분류 유형이 맞지 않습니다'
+    if (isHiddenCategory(category) && !allowedHiddenCategoryIds.includes(category.id)) {
+      return '숨긴 분류에는 새 거래를 입력할 수 없습니다'
+    }
   }
 
   return null

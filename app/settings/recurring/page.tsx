@@ -39,6 +39,15 @@ function parseAmount(s: string): number {
   return Number(s.replace(/,/g, '')) || 0
 }
 
+function withSelectedCategories<T extends { id: string }>(base: T[], all: T[], selectedIds: string[]): T[] {
+  const map = new Map(base.map(category => [category.id, category]))
+  for (const id of selectedIds.filter(Boolean)) {
+    const selected = all.find(category => category.id === id)
+    if (selected && !map.has(id)) map.set(id, selected)
+  }
+  return Array.from(map.values())
+}
+
 interface FormState {
   type: TransactionType
   amountStr: string
@@ -164,7 +173,11 @@ export default function RecurringPage() {
 
   const needsAsset = form.type === 'income' || form.type === 'expense'
   const needsFromTo = form.type === 'transfer' || form.type === 'loan_repayment'
-  const visibleCategories = categories.filter(c => c.type === (form.type === 'income' ? 'income' : 'expense'))
+  const visibleCategories = withSelectedCategories(
+    categories.filter(c => c.type === (form.type === 'income' ? 'income' : 'expense') && c.visible),
+    categories,
+    [form.category_id]
+  )
   const visibleAssets = assets.filter(a => a.visible)
   const loanAssets = visibleAssets.filter(a => a.group_type === 'loan')
   const repaymentFromAssets = visibleAssets.filter(a => !isDebtAssetType(a.group_type))
@@ -181,7 +194,7 @@ export default function RecurringPage() {
     from_asset_id: needsFromTo ? form.from_asset_id : '',
     to_asset_id: needsFromTo ? form.to_asset_id : '',
     fee: form.type === 'loan_repayment' ? parseAmount(form.feeStr) : 0,
-  }, assets)
+  }, assets, categories, needsAsset ? [form.category_id] : [])
   const isValid = form.content.trim() !== '' && validationError === null
 
   return (
