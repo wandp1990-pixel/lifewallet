@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, ChevronDown, ChevronUp, MoreHorizontal } from 'lucide-react'
 import { useStore } from '@/lib/store'
+import { getDebtBalance, isDebtAssetType } from '@/lib/finance'
 import { formatAmount } from '@/lib/utils'
 import AssetForm from '@/components/assets/AssetForm'
 import type { Asset, AssetGroupType } from '@/lib/types'
@@ -29,11 +30,9 @@ const GROUP_LABELS: Record<AssetGroupType, string> = {
   other: '기타',
 }
 
-const DEBT_TYPES: AssetGroupType[] = ['card', 'minus_account', 'loan', 'insurance']
-
 export default function AssetsPage() {
   const router = useRouter()
-  const { assets, ready, updateAsset, deleteAsset } = useStore()
+  const { assets, ready, updateAsset } = useStore()
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<Asset | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
@@ -58,11 +57,11 @@ export default function AssetsPage() {
   }, [visibleAssets])
 
   const totalAssets = useMemo(
-    () => assets.filter(a => a.visible && !DEBT_TYPES.includes(a.group_type)).reduce((s, a) => s + a.balance, 0),
+    () => assets.filter(a => a.visible && !isDebtAssetType(a.group_type)).reduce((s, a) => s + a.balance, 0),
     [assets]
   )
   const totalDebt = useMemo(
-    () => assets.filter(a => a.visible && DEBT_TYPES.includes(a.group_type)).reduce((s, a) => s + a.balance, 0),
+    () => assets.filter(a => a.visible && isDebtAssetType(a.group_type)).reduce((s, a) => s + getDebtBalance(a.balance), 0),
     [assets]
   )
   const netAssets = totalAssets - totalDebt
@@ -123,7 +122,8 @@ export default function AssetsPage() {
     if (!deleteTarget) return
     const res = await fetch(`/api/assets/${deleteTarget.id}`, { method: 'DELETE' })
     if (res.ok) {
-      deleteAsset(deleteTarget.id)
+      const updated = await res.json()
+      updateAsset(updated)
     }
     setDeleteTarget(null)
   }
@@ -175,7 +175,8 @@ export default function AssetsPage() {
             {trackDetailAssets.length > 0 && (
               <div className="border-t border-[var(--color-border)] pt-3 space-y-1.5">
                 {trackDetailAssets.map(a => {
-                  const pct = totalAssets > 0 ? Math.round((a.balance / totalAssets) * 100) : 0
+                  const assetBasis = isDebtAssetType(a.group_type) ? getDebtBalance(a.balance) : a.balance
+                  const pct = totalAssets > 0 ? Math.round((assetBasis / totalAssets) * 100) : 0
                   return (
                     <button
                       key={a.id}
@@ -205,8 +206,8 @@ export default function AssetsPage() {
           ) : (
             groups.map(({ type, items }) => {
               const isCollapsed = collapsed.has(type)
-              const groupTotal = items.reduce((s, a) => s + a.balance, 0)
-              const isDebt = DEBT_TYPES.includes(type)
+              const isDebt = isDebtAssetType(type)
+              const groupTotal = items.reduce((s, a) => s + (isDebt ? getDebtBalance(a.balance) : a.balance), 0)
               return (
                 <div key={type} className="bg-[var(--color-surface-sub)] rounded-2xl overflow-hidden">
                   {/* 섹션 헤더 */}
@@ -239,7 +240,7 @@ export default function AssetsPage() {
                               {asset.name}
                             </span>
                             <span className={`text-sm font-semibold ${isDebt ? 'text-[var(--color-expense)]' : 'text-[var(--color-text)]'}`}>
-                              {formatAmount(asset.balance)}원
+                              {formatAmount(isDebt ? getDebtBalance(asset.balance) : asset.balance)}원
                             </span>
                           </button>
                           <button
@@ -308,9 +309,9 @@ export default function AssetsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-[var(--color-surface)] rounded-2xl p-6 mx-4 max-w-sm w-full shadow-[0px_8px_24px_rgba(0,0,0,0.16)]">
             <p className="text-[16px] font-semibold text-[var(--color-text)] mb-2">자산을 삭제할까요?</p>
-            <p className="text-sm text-[var(--color-text-sub)] mb-6">
-              &ldquo;{deleteTarget.name}&rdquo;을 삭제합니다. 연결된 거래가 있으면 해당 자산 정보가 제거됩니다.
-            </p>
+              <p className="text-sm text-[var(--color-text-sub)] mb-6">
+                &ldquo;{deleteTarget.name}&rdquo;은 목록에서 숨겨지고 연결된 거래는 그대로 유지됩니다.
+              </p>
             <div className="flex gap-3">
               <button
                 className="flex-1 h-12 rounded-xl border border-[var(--color-border)] text-[var(--color-text)] text-[15px] font-medium"

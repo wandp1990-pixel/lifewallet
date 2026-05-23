@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import db, { applyTransactionBalance } from '@/lib/db'
+import { validateTransactionInput } from '@/lib/finance'
+import { getDateInDisplayMonth } from '@/lib/monthStart'
 import { generateId } from '@/lib/utils'
-import type { Transaction } from '@/lib/types'
+import type { Asset, Transaction } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,6 +11,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
   const body = await req.json()
   const targetMonth: string = body.month // "2026-05"
+  const monthStartDay = Number(body.month_start_day ?? body.monthStartDay ?? 1)
 
   const result = await db.execute({ sql: 'SELECT * FROM recurring_transactions WHERE id=?', args: [id] })
   if (!result.rows.length) return NextResponse.json({ error: 'not found' }, { status: 404 })
@@ -20,12 +23,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: '이미 이번 달에 적용되었습니다' }, { status: 400 })
   }
 
-  // 적용일: 해당 월의 day_of_month (없으면 오늘)
+  // 적용일: 화면의 회계월 안에 들어오는 day_of_month
   const dayOfMonth = r.day_of_month as number
   const [yyyy, mm] = targetMonth.split('-')
-  const maxDay = new Date(Number(yyyy), Number(mm), 0).getDate()
-  const appliedDay = Math.min(dayOfMonth, maxDay)
-  const appliedDate = `${yyyy}-${mm}-${String(appliedDay).padStart(2, '0')}`
+  const appliedDate = getDateInDisplayMonth(Number(yyyy), Number(mm), dayOfMonth, monthStartDay)
 
   const t: Transaction = {
     id: generateId('txn'),
@@ -40,6 +41,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     to_asset_id: r.to_asset_id as string,
     fee: r.fee as number,
     created_at: new Date().toISOString(),
+  }
+
+  const assets = (await db.execute({ sql: 'SELECT id, group_type, visible, balance FROM assets' })).rows as unknown as Pick<Asset, 'id' | 'group_type' | 'visible' | 'balance'>[]
+  const validationError = validateTransactionInput(t, assets)
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 400 })
   }
 
   await db.execute({

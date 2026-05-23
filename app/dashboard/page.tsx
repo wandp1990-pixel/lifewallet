@@ -1,12 +1,16 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import useSWR from 'swr'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Plus, TrendingUp, TrendingDown, Wallet, PiggyBank } from 'lucide-react'
 import { useStore } from '@/lib/store'
+import { getBudgetForMonth } from '@/lib/budget'
+import { getDebtBalance, getExpenseAmount, getOutflowAmount, isDebtAssetType } from '@/lib/finance'
 import { formatAmount } from '@/lib/utils'
-import { getMonthStartDay, getMonthRange } from '@/lib/monthStart'
-import type { Transaction, AssetGroupType } from '@/lib/types'
+import { getDisplayMonth, getMonthStartDay, getMonthRange } from '@/lib/monthStart'
+import { fetcher } from '@/lib/fetcher'
+import type { Transaction } from '@/lib/types'
 import KpiCard from '@/components/dashboard/KpiCard'
 import TrendChart from '@/components/dashboard/TrendChart'
 import CategoryChart from '@/components/dashboard/CategoryChart'
@@ -15,8 +19,6 @@ import RecentList from '@/components/dashboard/RecentList'
 import AssetSummary from '@/components/dashboard/AssetSummary'
 import MonthlyInsights from '@/components/dashboard/MonthlyInsights'
 import Link from 'next/link'
-
-const DEBT_TYPES: AssetGroupType[] = ['card', 'minus_account', 'loan', 'insurance']
 
 function prevMonths(year: number, month: number, count: number): { year: number; month: number }[] {
   const result = []
@@ -34,37 +36,41 @@ export default function DashboardPage() {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
-  const [monthStartDay, setMonthStartDay] = useState(1)
-  const [txMap, setTxMap] = useState<Record<string, Transaction[]>>({})
-  const [loading, setLoading] = useState(true)
+  const [monthStartDay, setMonthStartDay] = useState<number | null>(null)
 
   useEffect(() => {
-    setMonthStartDay(getMonthStartDay())
+    const startDay = getMonthStartDay()
+    const displayMonth = getDisplayMonth(new Date(), startDay)
+    setMonthStartDay(startDay)
+    setYear(displayMonth.year)
+    setMonth(displayMonth.month)
   }, [])
 
-  const monthKey = `${year}-${String(month).padStart(2, '0')}`
+  const months6 = useMemo(() => prevMonths(year, month, 6), [year, month])
 
-  useEffect(() => {
-    if (!ready) return
-    const months = prevMonths(year, month, 6)
-    const needed = months.filter(m => !txMap[`${m.year}-${String(m.month).padStart(2, '0')}`])
-    if (needed.length === 0) { setLoading(false); return }
+  // 6개월치 SWR 키 (훅 규칙 준수: 항상 6개 호출)
+  const keys = useMemo(() => months6.map(m => {
+    if (monthStartDay === null) return null
+    const { from, to } = getMonthRange(m.year, m.month, monthStartDay)
+    return ready ? `/api/transactions?from=${from}&to=${to}` : null
+  }), [months6, monthStartDay, ready])
 
-    setLoading(true)
-    Promise.all(needed.map(m => {
-      const { from, to } = getMonthRange(m.year, m.month, monthStartDay)
-      return fetch(`/api/transactions?from=${from}&to=${to}`)
-        .then(r => r.json())
-        .then((txs: Transaction[]) => ({ key: `${m.year}-${String(m.month).padStart(2, '0')}`, txs }))
-    })).then(results => {
-      setTxMap(prev => {
-        const next = { ...prev }
-        for (const { key, txs } of results) next[key] = txs
-        return next
-      })
-      setLoading(false)
-    })
-  }, [year, month, monthStartDay, ready])
+  const r0 = useSWR<Transaction[]>(keys[0], fetcher)
+  const r1 = useSWR<Transaction[]>(keys[1], fetcher)
+  const r2 = useSWR<Transaction[]>(keys[2], fetcher)
+  const r3 = useSWR<Transaction[]>(keys[3], fetcher)
+  const r4 = useSWR<Transaction[]>(keys[4], fetcher)
+  const r5 = useSWR<Transaction[]>(keys[5], fetcher)
+
+  const swrResults = [r0, r1, r2, r3, r4, r5]
+  const txMap = useMemo(() => {
+    const map: Record<string, Transaction[]> = {}
+    keys.forEach((key, i) => { if (key && swrResults[i].data) map[key] = swrResults[i].data! })
+    return map
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keys, r0.data, r1.data, r2.data, r3.data, r4.data, r5.data])
+
+  const loading = swrResults.some((r, i) => keys[i] !== null && !r.data && r.isLoading)
 
   function navMonth(dir: -1 | 1) {
     setMonth(prev => {
@@ -76,62 +82,55 @@ export default function DashboardPage() {
     })
   }
 
-  const currentTxs = txMap[monthKey] ?? []
-  const prevKey = (() => {
-    let y = year, m = month - 1
-    if (m <= 0) { m = 12; y-- }
-    return `${y}-${String(m).padStart(2, '0')}`
-  })()
-  const prevTxs = txMap[prevKey] ?? []
+  const currentTxs = txMap[keys[5] ?? ''] ?? []
+  const prevTxs = txMap[keys[4] ?? ''] ?? []
 
   const income = currentTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-  const expense = currentTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+  const spending = getExpenseAmount(currentTxs)
+  const outflow = getOutflowAmount(currentTxs)
   const prevIncome = prevTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-  const prevExpense = prevTxs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+  const prevExpense = getOutflowAmount(prevTxs)
 
   const visibleAssets = assets.filter(a => a.visible)
-  const totalAssetValue = visibleAssets.filter(a => !DEBT_TYPES.includes(a.group_type)).reduce((s, a) => s + a.balance, 0)
-  const totalDebt = visibleAssets.filter(a => DEBT_TYPES.includes(a.group_type)).reduce((s, a) => s + Math.abs(a.balance), 0)
+  const totalAssetValue = visibleAssets.filter(a => !isDebtAssetType(a.group_type)).reduce((s, a) => s + a.balance, 0)
+  const totalDebt = visibleAssets.filter(a => isDebtAssetType(a.group_type)).reduce((s, a) => s + getDebtBalance(a.balance), 0)
   const netWorth = totalAssetValue - totalDebt
 
-  const totalBudget = budgets.filter(b => b.year === year && b.month === month).reduce((s, b) => s + b.amount, 0)
-  const budgetPct = totalBudget > 0 ? Math.round((expense / totalBudget) * 100) : 0
+  const totalBudget = categories
+    .filter(c => c.type === 'expense')
+    .reduce((sum, cat) => sum + getBudgetForMonth(budgets, cat.id, year, month), 0)
+  const budgetPct = totalBudget > 0 ? Math.round((spending / totalBudget) * 100) : 0
 
   const incomeChangePct = prevIncome > 0 ? Math.round(((income - prevIncome) / prevIncome) * 100) : null
-  const expenseChangePct = prevExpense > 0 ? Math.round(((expense - prevExpense) / prevExpense) * 100) : null
+  const expenseChangePct = prevExpense > 0 ? Math.round(((outflow - prevExpense) / prevExpense) * 100) : null
   const savingsChangePct = (() => {
-    const s = income - expense
+    const s = income - outflow
     const ps = prevIncome - prevExpense
     if (ps <= 0) return null
     return Math.round(((s - ps) / Math.abs(ps)) * 100)
   })()
 
-  const months6 = prevMonths(year, month, 6)
-  const sparkIncomes = months6.map((m, i) => ({
-    value: txMap[`${m.year}-${String(m.month).padStart(2, '0')}`]?.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0) ?? 0,
+  const sparkIncomes = keys.map((key, i) => ({
+    value: txMap[key ?? '']?.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0) ?? 0,
     isActive: i === 5,
   }))
-  const sparkExpenses = months6.map((m, i) => ({
-    value: txMap[`${m.year}-${String(m.month).padStart(2, '0')}`]?.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0) ?? 0,
+  const sparkExpenses = keys.map((key, i) => ({
+    value: getOutflowAmount(txMap[key ?? ''] ?? []),
     isActive: i === 5,
   }))
-  const sparkSavings = months6.map((m, i) => {
-    const inc = txMap[`${m.year}-${String(m.month).padStart(2, '0')}`]?.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0) ?? 0
-    const exp = txMap[`${m.year}-${String(m.month).padStart(2, '0')}`]?.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0) ?? 0
+  const sparkSavings = keys.map((key, i) => {
+    const inc = txMap[key ?? '']?.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0) ?? 0
+    const exp = getOutflowAmount(txMap[key ?? ''] ?? [])
     return { value: inc - exp, isActive: i === 5 }
   })
-  const sparkNetWorth = months6.map((m, i) => ({
-    value: netWorth,
-    isActive: i === 5,
-  }))
+  const sparkNetWorth = keys.map((_, i) => ({ value: netWorth, isActive: i === 5 }))
 
-  const trendData = months6.map(m => {
-    const key = `${m.year}-${String(m.month).padStart(2, '0')}`
-    const txs = txMap[key] ?? []
+  const trendData = months6.map((m, i) => {
+    const txs = txMap[keys[i] ?? ''] ?? []
     return {
       label: `${m.month}월`,
       income: txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0),
-      expense: txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
+      expense: getOutflowAmount(txs),
     }
   })
 
@@ -140,7 +139,7 @@ export default function DashboardPage() {
     .sort((a, b) => a.target_date.localeCompare(b.target_date))
     .slice(0, 3)
 
-  if (!ready) {
+  if (!ready || monthStartDay === null) {
     return (
       <div className="flex items-center justify-center py-16 text-[var(--color-text-sub)]">
         <p className="text-sm">불러오는 중…</p>
@@ -200,17 +199,17 @@ export default function DashboardPage() {
           amountColor="text-[var(--color-income)]"
         />
         <KpiCard
-          label="이번 달 지출"
-          amount={expense}
-          badge={expenseChangePct !== null ? `${expenseChangePct >= 0 ? '↑' : '↓'}${Math.abs(expenseChangePct)}% 예산 ${budgetPct}% 소진` : totalBudget > 0 ? `예산 ${budgetPct}% 소진` : undefined}
+          label="이번 달 유출"
+          amount={outflow}
+          badge={expenseChangePct !== null ? `${expenseChangePct >= 0 ? '↑' : '↓'}${Math.abs(expenseChangePct)}% 소비 예산 ${budgetPct}% 소진` : totalBudget > 0 ? `소비 예산 ${budgetPct}% 소진` : undefined}
           icon={<TrendingDown size={18} />}
           sparks={sparkExpenses}
           amountColor="text-[var(--color-expense)]"
         />
         <KpiCard
           label="저축 가능액"
-          amount={Math.max(0, income - expense)}
-          badge={savingsChangePct !== null ? `${savingsChangePct >= 0 ? '↑' : '↓'}${Math.abs(savingsChangePct)}% 지출률 ${income > 0 ? Math.round((expense / income) * 100) : 0}%` : undefined}
+          amount={Math.max(0, income - outflow)}
+          badge={savingsChangePct !== null ? `${savingsChangePct >= 0 ? '↑' : '↓'}${Math.abs(savingsChangePct)}% 유출률 ${income > 0 ? Math.round((outflow / income) * 100) : 0}%` : undefined}
           badgePositive={savingsChangePct !== null && savingsChangePct > 0}
           icon={<PiggyBank size={18} />}
           sparks={sparkSavings}

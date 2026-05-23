@@ -30,7 +30,7 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 export default function TrendChart({ data }: Props) {
   return (
     <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4">
-      <p className="text-sm font-semibold text-[var(--color-text)] mb-1">월별 수입·지출 추이</p>
+      <p className="text-sm font-semibold text-[var(--color-text)] mb-1">월별 수입·유출 추이</p>
       <p className="text-xs text-[var(--color-text-sub)] mb-4">최근 {data.length}개월</p>
       <ResponsiveContainer width="100%" height={180}>
         <LineChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -20 }}>
@@ -39,7 +39,7 @@ export default function TrendChart({ data }: Props) {
           <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-sub)' }} tickFormatter={v => `${Math.round(v / 10000)}만`} axisLine={false} tickLine={false} />
           <Tooltip content={<CustomTooltip />} />
           <Line type="monotone" dataKey="income" stroke="var(--color-income)" strokeWidth={2} dot={false} name="수입" />
-          <Line type="monotone" dataKey="expense" stroke="var(--color-expense)" strokeWidth={2} dot={false} name="지출" />
+          <Line type="monotone" dataKey="expense" stroke="var(--color-expense)" strokeWidth={2} dot={false} name="유출" />
         </LineChart>
       </ResponsiveContainer>
     </div>

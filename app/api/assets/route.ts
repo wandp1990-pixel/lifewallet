@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import db, { rowToAsset } from '@/lib/db'
+import { normalizeAssetBalance } from '@/lib/finance'
 import { generateId } from '@/lib/utils'
 import type { Asset } from '@/lib/types'
 
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
     group_type: body.group_type,
     group_name: body.group_name ?? '',
     name: body.name,
-    balance: body.balance ?? 0,
+    balance: normalizeAssetBalance(body.group_type, body.balance ?? 0),
     order: body.order ?? 0,
     visible: body.visible ?? true,
     track_detail: forceTrackDetail || (body.track_detail ?? false),

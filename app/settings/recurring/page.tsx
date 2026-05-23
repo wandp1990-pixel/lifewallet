@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Plus, MoreHorizontal, Repeat } from 'lucide-react'
 import SlideUpSheet from '@/components/ui/SlideUpSheet'
 import { useStore } from '@/lib/store'
+import { isDebtAssetType, validateTransactionInput } from '@/lib/finance'
 import { formatAmount } from '@/lib/utils'
 import type { RecurringTransaction, TransactionType } from '@/lib/types'
 
@@ -41,6 +42,7 @@ function parseAmount(s: string): number {
 interface FormState {
   type: TransactionType
   amountStr: string
+  feeStr: string
   category_id: string
   asset_id: string
   from_asset_id: string
@@ -53,6 +55,7 @@ interface FormState {
 const defaultForm = (): FormState => ({
   type: 'expense',
   amountStr: '',
+  feeStr: '',
   category_id: '',
   asset_id: '',
   from_asset_id: '',
@@ -91,6 +94,7 @@ export default function RecurringPage() {
     setForm({
       type: r.type,
       amountStr: r.amount > 0 ? r.amount.toLocaleString('ko-KR') : '',
+      feeStr: r.fee > 0 ? r.fee.toLocaleString('ko-KR') : '',
       category_id: r.category_id,
       asset_id: r.asset_id,
       from_asset_id: r.from_asset_id,
@@ -125,6 +129,7 @@ export default function RecurringPage() {
 
   async function handleSave() {
     const amount = parseAmount(form.amountStr)
+    const fee = parseAmount(form.feeStr)
     if (amount <= 0) return
     if (!form.content.trim()) return
 
@@ -134,7 +139,7 @@ export default function RecurringPage() {
         const res = await fetch(`/api/recurring/${editing.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...form, amount }),
+          body: JSON.stringify({ ...form, amount, fee }),
         })
         if (res.ok) {
           const updated: RecurringTransaction = await res.json()
@@ -144,7 +149,7 @@ export default function RecurringPage() {
         const res = await fetch('/api/recurring', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...form, amount }),
+          body: JSON.stringify({ ...form, amount, fee }),
         })
         if (res.ok) {
           const created: RecurringTransaction = await res.json()
@@ -160,6 +165,24 @@ export default function RecurringPage() {
   const needsAsset = form.type === 'income' || form.type === 'expense'
   const needsFromTo = form.type === 'transfer' || form.type === 'loan_repayment'
   const visibleCategories = categories.filter(c => c.type === (form.type === 'income' ? 'income' : 'expense'))
+  const visibleAssets = assets.filter(a => a.visible)
+  const loanAssets = visibleAssets.filter(a => a.group_type === 'loan')
+  const repaymentFromAssets = visibleAssets.filter(a => !isDebtAssetType(a.group_type))
+  const fromAssets = form.type === 'loan_repayment' ? repaymentFromAssets : visibleAssets
+  const toAssets = form.type === 'loan_repayment'
+    ? loanAssets.filter(a => a.id !== form.from_asset_id)
+    : visibleAssets.filter(a => a.id !== form.from_asset_id)
+
+  const validationError = validateTransactionInput({
+    type: form.type,
+    amount: parseAmount(form.amountStr),
+    category_id: needsAsset ? form.category_id : '',
+    asset_id: needsAsset ? form.asset_id : '',
+    from_asset_id: needsFromTo ? form.from_asset_id : '',
+    to_asset_id: needsFromTo ? form.to_asset_id : '',
+    fee: form.type === 'loan_repayment' ? parseAmount(form.feeStr) : 0,
+  }, assets)
+  const isValid = form.content.trim() !== '' && validationError === null
 
   return (
     <>
@@ -200,7 +223,9 @@ export default function RecurringPage() {
                       </span>
                       <span className="text-[14px] font-medium text-[var(--color-text)] truncate">{r.content}</span>
                     </div>
-                    <p className="text-[12px] text-[var(--color-text-sub)]">매월 {r.day_of_month}일</p>
+                    <p className="text-[12px] text-[var(--color-text-sub)]">
+                      매월 {r.day_of_month}일{r.type === 'loan_repayment' && r.fee > 0 ? ` · 이자 ${formatAmount(r.fee)}원` : ''}
+                    </p>
                   </div>
                   <span className={`text-[15px] font-semibold mr-2 tabular-nums ${TYPE_COLORS[r.type]}`}>
                     {TYPE_SIGN[r.type]}{formatAmount(r.amount)}원
@@ -252,7 +277,7 @@ export default function RecurringPage() {
             {(['expense', 'income', 'transfer', 'loan_repayment'] as TransactionType[]).map(t => (
               <button
                 key={t}
-                onClick={() => setForm(f => ({ ...f, type: t, category_id: '', asset_id: '', from_asset_id: '', to_asset_id: '' }))}
+                onClick={() => setForm(f => ({ ...f, type: t, category_id: '', asset_id: '', from_asset_id: '', to_asset_id: '', feeStr: '' }))}
                 className={`py-2 rounded-xl text-[13px] font-medium transition-colors ${form.type === t ? 'bg-[var(--color-primary)] text-white' : 'bg-[var(--color-surface-sub)] text-[var(--color-text-sub)]'}`}
               >
                 {TYPE_LABELS[t]}
@@ -314,7 +339,7 @@ export default function RecurringPage() {
                 className="tds-field"
               >
                 <option value="">자산 선택</option>
-                {assets.filter(a => a.visible).map(a => (
+                {visibleAssets.map(a => (
                   <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
               </select>
@@ -332,7 +357,7 @@ export default function RecurringPage() {
                   className="tds-field"
                 >
                   <option value="">자산 선택</option>
-                  {assets.filter(a => a.visible).map(a => (
+                  {fromAssets.map(a => (
                     <option key={a.id} value={a.id}>{a.name}</option>
                   ))}
                 </select>
@@ -345,11 +370,27 @@ export default function RecurringPage() {
                   className="tds-field"
                 >
                   <option value="">자산 선택</option>
-                  {assets.filter(a => a.visible).map(a => (
+                  {toAssets.map(a => (
                     <option key={a.id} value={a.id}>{a.name}</option>
                   ))}
                 </select>
               </div>
+              {form.type === 'loan_repayment' && (
+                <div>
+                  <p className="text-[12px] text-[var(--color-text-sub)] mb-1.5">이자 금액 (선택)</p>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={form.feeStr}
+                      onChange={e => setForm(f => ({ ...f, feeStr: fmtInput(e.target.value) }))}
+                      placeholder="0"
+                      className="tds-field text-right !text-[16px]"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--color-text-sub)] text-sm">원</span>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -384,7 +425,7 @@ export default function RecurringPage() {
 
           <button
             onClick={handleSave}
-            disabled={saving || parseAmount(form.amountStr) <= 0 || !form.content.trim()}
+            disabled={saving || !isValid}
             className="w-full h-14 rounded-2xl bg-[var(--color-primary)] text-white text-[16px] font-semibold disabled:opacity-40 transition-opacity"
           >
             {saving ? '저장 중…' : '저장'}

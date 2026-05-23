@@ -2,10 +2,13 @@
 
 import type { Transaction } from '@/lib/types'
 import { formatAmount } from '@/lib/utils'
+import { getMonthRange } from '@/lib/monthStart'
+import { getOutflowAmount } from '@/lib/finance'
 
 interface Props {
   year: number
   month: number
+  monthStartDay: number
   transactions: Transaction[]
   onSelectDate: (date: string) => void
 }
@@ -13,32 +16,38 @@ interface Props {
 const DAY_HEADERS = ['일', '월', '화', '수', '목', '금', '토']
 
 
-export default function CalendarTab({ year, month, transactions, onSelectDate }: Props) {
+function fmtDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+export default function CalendarTab({ year, month, monthStartDay, transactions, onSelectDate }: Props) {
   const now = new Date()
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
-  const firstDow = new Date(year, month - 1, 1).getDay() // 0=일
-  const lastDate = new Date(year, month, 0).getDate()
+  const { from, to } = getMonthRange(year, month, monthStartDay)
+  const rangeStart = new Date(`${from}T00:00:00`)
+  const rangeEnd = new Date(`${to}T00:00:00`)
+  const gridStart = addDays(rangeStart, -rangeStart.getDay())
+  const gridEnd = addDays(rangeEnd, 6 - rangeEnd.getDay())
 
-  const prevMonth = month === 1 ? 12 : month - 1
-  const prevYear  = month === 1 ? year - 1 : year
-  const prevLast  = new Date(prevYear, prevMonth, 0).getDate()
-  const nextMonth = month === 12 ? 1 : month + 1
-  const nextYear  = month === 12 ? year + 1 : year
-
-  // 셀 생성
-  type Cell = { type: 'prev' | 'cur' | 'next'; d: number; m: number; y: number }
+  type Cell = { date: string; d: number; m: number; y: number; isCurrentPeriod: boolean }
   const cells: Cell[] = []
 
-  for (let i = firstDow - 1; i >= 0; i--) {
-    cells.push({ type: 'prev', d: prevLast - i, m: prevMonth, y: prevYear })
-  }
-  for (let d = 1; d <= lastDate; d++) {
-    cells.push({ type: 'cur', d, m: month, y: year })
-  }
-  let nd = 1
-  while (cells.length % 7 !== 0) {
-    cells.push({ type: 'next', d: nd++, m: nextMonth, y: nextYear })
+  for (let cursor = gridStart; cursor <= gridEnd; cursor = addDays(cursor, 1)) {
+    const ds = fmtDate(cursor)
+    cells.push({
+      date: ds,
+      d: cursor.getDate(),
+      m: cursor.getMonth() + 1,
+      y: cursor.getFullYear(),
+      isCurrentPeriod: ds >= from && ds <= to,
+    })
   }
 
   // 날짜별 수입/지출 집계
@@ -47,11 +56,7 @@ export default function CalendarTab({ year, month, transactions, onSelectDate }:
     if (t.type === 'asset') continue
     if (!dailyMap[t.date]) dailyMap[t.date] = { income: 0, expense: 0 }
     if (t.type === 'income') dailyMap[t.date].income += t.amount
-    if (t.type === 'expense' || t.type === 'loan_repayment') dailyMap[t.date].expense += t.amount
-  }
-
-  function toDateStr(c: Cell) {
-    return `${c.y}-${String(c.m).padStart(2, '0')}-${String(c.d).padStart(2, '0')}`
+    dailyMap[t.date].expense += getOutflowAmount([t])
   }
 
   function dayLabel(c: Cell): string {
@@ -80,10 +85,10 @@ export default function CalendarTab({ year, month, transactions, onSelectDate }:
       <div className="grid grid-cols-7 gap-px bg-[var(--color-border)]">
         {cells.map((cell, i) => {
           const col = i % 7
-          const ds  = toDateStr(cell)
-          const data   = cell.type === 'cur' ? dailyMap[ds] : undefined
+          const ds  = cell.date
+          const data = cell.isCurrentPeriod ? dailyMap[ds] : undefined
           const isToday = ds === today
-          const isCur  = cell.type === 'cur'
+          const isCur = cell.isCurrentPeriod
 
           const numColor = isCur
             ? col === 0 ? 'text-[var(--color-expense)]'

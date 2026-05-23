@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import SlideUpSheet from '@/components/ui/SlideUpSheet'
+import { getDebtBalance, isDebtAssetType } from '@/lib/finance'
 import { useStore } from '@/lib/store'
 import { formatAmount } from '@/lib/utils'
 import type { Asset, AssetGroupType } from '@/lib/types'
@@ -20,8 +21,6 @@ const GROUP_TYPES: { value: AssetGroupType; label: string }[] = [
   { value: 'insurance', label: '보험' },
   { value: 'other', label: '기타' },
 ]
-
-const DEBT_TYPES: AssetGroupType[] = ['card', 'minus_account', 'loan', 'insurance']
 
 function fmtInput(s: string): string {
   const digits = s.replace(/\D/g, '')
@@ -49,11 +48,12 @@ interface FormState {
 }
 
 function assetToForm(asset: Asset): FormState {
+  const displayBalance = isDebtAssetType(asset.group_type) ? getDebtBalance(asset.balance) : asset.balance
   return {
     name: asset.name,
     group_type: asset.group_type,
     group_name: asset.group_name,
-    balance: asset.balance !== 0 ? formatAmount(asset.balance) : '',
+    balance: displayBalance !== 0 ? formatAmount(displayBalance) : '',
     visible: asset.visible,
     track_detail: asset.track_detail,
     principal: asset.principal ? formatAmount(asset.principal) : '',
@@ -87,7 +87,7 @@ interface Props {
 }
 
 export default function AssetForm({ open, onClose, editing }: Props) {
-  const { addAsset, updateAsset, deleteAsset } = useStore()
+  const { addAsset, updateAsset } = useStore()
   const [form, setForm] = useState<FormState>(editing ? assetToForm(editing) : DEFAULT_FORM)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -125,7 +125,6 @@ export default function AssetForm({ open, onClose, editing }: Props) {
 
     try {
       if (editing) {
-        const prevBalance = editing.balance
         const res = await fetch(`/api/assets/${editing.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -134,26 +133,6 @@ export default function AssetForm({ open, onClose, editing }: Props) {
         if (!res.ok) { const d = await res.json(); setError(d.error ?? '저장 실패'); return }
         const updated: Asset = await res.json()
         updateAsset(updated)
-
-        // 잔액이 변경됐으면 asset 타입 거래 자동 생성
-        if (updated.balance !== prevBalance) {
-          await fetch('/api/transactions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'asset',
-              amount: updated.balance - prevBalance,
-              date: new Date().toISOString().slice(0, 10),
-              asset_id: editing.id,
-              content: '잔액 조정',
-              category_id: '',
-              from_asset_id: '',
-              to_asset_id: '',
-              note: '',
-              fee: 0,
-            }),
-          })
-        }
       } else {
         const res = await fetch('/api/assets', {
           method: 'POST',
@@ -176,7 +155,9 @@ export default function AssetForm({ open, onClose, editing }: Props) {
     if (!editing) return
     const res = await fetch(`/api/assets/${editing.id}`, { method: 'DELETE' })
     if (res.ok) {
-      deleteAsset(editing.id)
+      const updated: Asset = await res.json()
+      updateAsset(updated)
+      setShowDeleteConfirm(false)
       onClose()
     }
   }
@@ -199,7 +180,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
         <div className="tds-slide-up bg-[var(--color-surface)] rounded-2xl p-6 mx-4 max-w-sm w-full shadow-[0px_8px_24px_rgba(0,0,0,0.16)]">
           <p className="text-[16px] font-semibold text-[var(--color-text)] mb-2">자산을 삭제할까요?</p>
           <p className="text-sm text-[var(--color-text-sub)] mb-6">
-            &ldquo;{editing.name}&rdquo;을 삭제합니다. 연결된 거래가 있으면 해당 자산 정보가 제거됩니다.
+            &ldquo;{editing.name}&rdquo;은 목록에서 숨겨지고 연결된 거래는 그대로 유지됩니다.
           </p>
           <div className="flex gap-3">
             <button
@@ -266,7 +247,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
         {/* 잔액 */}
         <div>
           <label className="text-xs font-medium text-[var(--color-text-sub)] mb-1.5 block">
-            {DEBT_TYPES.includes(form.group_type) ? '부채 금액' : '잔액'}
+            {isDebtAssetType(form.group_type) ? '부채 금액' : '잔액'}
           </label>
           <div className="flex items-center gap-2 rounded-xl px-4 overflow-hidden" style={{ background: "rgba(0,23,51,0.02)", border: "1px solid rgba(2,32,71,0.05)" }}>
             <input

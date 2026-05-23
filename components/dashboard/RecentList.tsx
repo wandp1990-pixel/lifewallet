@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { isLoanReceivedTransaction } from '@/lib/finance'
 import { formatAmount } from '@/lib/utils'
 import { categoryColor } from '@/lib/colors'
 import type { Transaction, Category, Asset } from '@/lib/types'
@@ -27,12 +28,29 @@ export default function RecentList({ transactions, categories, assets }: Props) 
         <div className="px-4 py-6 text-center text-sm text-[var(--color-text-sub)]">내역이 없습니다</div>
       ) : (
         recent.map(tx => {
+          const isLoanReceived = isLoanReceivedTransaction(tx, assets)
           const cat = categories.find(c => c.id === tx.category_id)
-          const asset = assets.find(a => a.id === (tx.asset_id || tx.from_asset_id))
+          const asset = assets.find(a => a.id === tx.asset_id)
+          const fromAsset = assets.find(a => a.id === tx.from_asset_id)
+          const toAsset = assets.find(a => a.id === tx.to_asset_id)
+          const assetLabel = tx.type === 'income' || tx.type === 'expense'
+            ? asset?.name
+            : [fromAsset?.name, toAsset?.name].filter(Boolean).join(' → ')
+          const costLabel = tx.type === 'transfer' && tx.fee > 0
+            ? `수수료 ${formatAmount(tx.fee)}원`
+            : tx.type === 'loan_repayment' && tx.fee > 0
+              ? `이자 ${formatAmount(tx.fee)}원`
+              : ''
           const isIncome = tx.type === 'income'
           const isExpense = tx.type === 'expense' || tx.type === 'loan_repayment'
-          const amountColor = isIncome ? 'text-[var(--color-income)]' : isExpense ? 'text-[var(--color-expense)]' : 'text-[var(--color-text-body)]'
-          const sign = isIncome ? '+' : isExpense ? '-' : ''
+          const amountColor = isIncome
+            ? 'text-[var(--color-income)]'
+            : isExpense
+              ? 'text-[var(--color-expense)]'
+              : isLoanReceived
+                ? 'text-[var(--color-primary)]'
+                : 'text-[var(--color-text-body)]'
+          const sign = isIncome || isLoanReceived ? '+' : isExpense ? '-' : ''
           const d = new Date(tx.date)
           const dateStr = `${d.getMonth() + 1}.${d.getDate()}(${['일', '월', '화', '수', '목', '금', '토'][d.getDay()]})`
 
@@ -49,8 +67,8 @@ export default function RecentList({ transactions, categories, assets }: Props) 
                 <div className="w-8 h-8 rounded-full bg-[var(--color-surface-sub)] flex-shrink-0" />
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-[var(--color-text)] truncate">{tx.content || (tx.type === 'transfer' ? '이체' : tx.type)}</p>
-                <p className="text-xs text-[var(--color-text-sub)]">{dateStr}{asset ? ` · ${asset.name}` : ''}</p>
+                <p className="text-sm text-[var(--color-text)] truncate">{tx.content || (isLoanReceived ? '대출 수령' : tx.type === 'transfer' ? '이체' : tx.type)}</p>
+                <p className="text-xs text-[var(--color-text-sub)]">{[dateStr, assetLabel, costLabel].filter(Boolean).join(' · ')}</p>
               </div>
               <span className={`text-sm font-semibold tabular-nums flex-shrink-0 ${amountColor}`}>
                 {sign}{formatAmount(tx.amount)}원

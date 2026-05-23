@@ -43,7 +43,7 @@ export default function CategoryChart({ transactions, categories, yearMonth }: P
   if (data.length === 0) {
     return (
       <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4">
-        <p className="text-sm font-semibold text-[var(--color-text)] mb-1">카테고리별 지출</p>
+        <p className="text-sm font-semibold text-[var(--color-text)] mb-1">소비 카테고리별 지출</p>
         <p className="text-xs text-[var(--color-text-sub)] mb-4">{yearMonth}</p>
         <p className="text-sm text-center text-[var(--color-text-sub)] py-8">지출 내역이 없습니다</p>
       </div>
@@ -52,7 +52,7 @@ export default function CategoryChart({ transactions, categories, yearMonth }: P
 
   return (
     <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4">
-      <p className="text-sm font-semibold text-[var(--color-text)] mb-1">카테고리별 지출</p>
+      <p className="text-sm font-semibold text-[var(--color-text)] mb-1">소비 카테고리별 지출</p>
       <p className="text-xs text-[var(--color-text-sub)] mb-4">{yearMonth}</p>
       <div className="flex gap-4 items-center">
         <div className="relative flex-shrink-0">

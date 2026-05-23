@@ -1,13 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import db from '@/lib/db'
+import { validateTransactionInput } from '@/lib/finance'
 import type { RecurringTransaction, TransactionType } from '@/lib/types'
 import type { InValue } from '@libsql/client'
+import type { Asset } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const body = await req.json()
+  const existing = await db.execute({ sql: 'SELECT * FROM recurring_transactions WHERE id=?', args: [id] })
+  if (!existing.rows[0]) return NextResponse.json({ error: 'not found' }, { status: 404 })
+
+  const nextValue = { ...(existing.rows[0] as Record<string, unknown>), ...body, id } as unknown as RecurringTransaction
+  const assets = (await db.execute({ sql: 'SELECT id, group_type, visible, balance FROM assets' })).rows as unknown as Pick<Asset, 'id' | 'group_type' | 'visible' | 'balance'>[]
+  const validationError = validateTransactionInput(nextValue, assets)
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 400 })
+  }
 
   const fields: string[] = []
   const args: InValue[] = []

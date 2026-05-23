@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import db, { applyTransactionBalance, reverseTransactionBalance } from '@/lib/db'
-import type { Transaction } from '@/lib/types'
+import { validateTransactionInput } from '@/lib/finance'
+import type { Asset, Transaction } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,9 +20,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!existing.rows[0]) return NextResponse.json({ error: '해당 거래를 찾을 수 없습니다' }, { status: 404 })
 
   const old = existing.rows[0] as unknown as Transaction
+  const updated: Transaction = { ...old, ...body, id }
+  const assets = (await db.execute({ sql: 'SELECT id, group_type, visible, balance FROM assets' })).rows as unknown as Pick<Asset, 'id' | 'group_type' | 'visible' | 'balance'>[]
+  const validationError = validateTransactionInput(updated, assets)
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 400 })
+  }
+
   await reverseTransactionBalance(old)
 
-  const updated: Transaction = { ...old, ...body, id }
   await db.execute({
     sql: `UPDATE transactions SET date=?,type=?,amount=?,category_id=?,asset_id=?,content=?,note=?,from_asset_id=?,to_asset_id=?,fee=? WHERE id=?`,
     args: [updated.date, updated.type, updated.amount, updated.category_id, updated.asset_id, updated.content, updated.note, updated.from_asset_id, updated.to_asset_id, updated.fee, id],

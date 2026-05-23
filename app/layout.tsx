@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { StoreProvider } from '@/lib/store'
 import AppLayout from '@/components/layout/AppLayout'
+import SWRProvider from '@/components/SWRProvider'
 
 export const metadata: Metadata = {
   title: 'LifeWallet',
@@ -23,9 +24,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@600;700&display=swap" />
       </head>
       <body className="h-full">
-        <StoreProvider>
-          <AppLayout>{children}</AppLayout>
-        </StoreProvider>
+        <SWRProvider>
+          <StoreProvider>
+            <AppLayout>{children}</AppLayout>
+          </StoreProvider>
+        </SWRProvider>
       </body>
     </html>
   )

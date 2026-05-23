@@ -1,15 +1,19 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import useSWR from 'swr'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
+import { getExpenseAmount, getOutflowAmount } from '@/lib/finance'
 import { useStore } from '@/lib/store'
-import type { Transaction, Category, Budget } from '@/lib/types'
+import type { Transaction, Category } from '@/lib/types'
+import { getBudgetForMonth, isDirectBudget } from '@/lib/budget'
 import { categoryColor } from '@/lib/colors'
 import { formatAmount } from '@/lib/utils'
 import CatIcon from '@/components/ui/CatIcon'
-import { getMonthStartDay, getMonthRange } from '@/lib/monthStart'
+import { getDisplayMonth, getMonthStartDay, getMonthRange } from '@/lib/monthStart'
+import { fetcher } from '@/lib/fetcher'
 
 type StatView = 'category' | 'budget' | 'content'
 type ContentType = 'expense' | 'income'
@@ -19,27 +23,6 @@ const VIEW_LABELS: Record<StatView, string> = {
   category: '카테고리별',
   budget: '예산',
   content: '내용별',
-}
-
-function getBudgetForMonth(budgets: Budget[], categoryId: string, year: number, month: number): number {
-  // 해당 월 직접 설정값 먼저
-  const direct = budgets.find(b => b.year === year && b.month === month && b.category_id === categoryId)
-  if (direct) return direct.amount
-
-  // 이전 달로 거슬러 올라가 최대 24개월
-  let y = year
-  let m = month - 1
-  for (let i = 0; i < 24; i++) {
-    if (m < 1) { m = 12; y-- }
-    const found = budgets.find(b => b.year === y && b.month === m && b.category_id === categoryId)
-    if (found) return found.amount
-    m--
-  }
-  return 0
-}
-
-function isDirectBudget(budgets: Budget[], categoryId: string, year: number, month: number): boolean {
-  return budgets.some(b => b.year === year && b.month === month && b.category_id === categoryId)
 }
 
 // 주 번호 계산 (해당 월 내 몇 번째 주)
@@ -56,15 +39,17 @@ export default function StatisticsView() {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
-  const [monthStartDay, setMonthStartDay] = useState(1)
+  const [monthStartDay, setMonthStartDay] = useState<number | null>(null)
   const [view, setView] = useState<StatView>('category')
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [loading, setLoading] = useState(true)
   const [contentType, setContentType] = useState<ContentType>('expense')
   const [contentPeriod, setContentPeriod] = useState<ContentPeriod>('month')
 
   useEffect(() => {
-    setMonthStartDay(getMonthStartDay())
+    const startDay = getMonthStartDay()
+    const displayMonth = getDisplayMonth(new Date(), startDay)
+    setMonthStartDay(startDay)
+    setYear(displayMonth.year)
+    setMonth(displayMonth.month)
   }, [])
 
   function prevMonth() {
@@ -76,19 +61,21 @@ export default function StatisticsView() {
     else setMonth(m => m + 1)
   }
 
-  const fetchTransactions = useCallback(async (y: number, m: number, startDay: number) => {
-    setLoading(true)
-    try {
-      const { from, to } = getMonthRange(y, m, startDay)
-      const res = await fetch(`/api/transactions?from=${from}&to=${to}`)
-      const data = await res.json()
-      setTransactions(Array.isArray(data) ? data : [])
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const txUrl = useMemo(() => {
+    if (monthStartDay === null) return null
+    const { from, to } = getMonthRange(year, month, monthStartDay)
+    return `/api/transactions?from=${from}&to=${to}`
+  }, [year, month, monthStartDay])
 
-  useEffect(() => { fetchTransactions(year, month, monthStartDay) }, [year, month, monthStartDay, fetchTransactions])
+  const yearlyUrl = useMemo(() => {
+    if (monthStartDay === null || contentPeriod !== 'year') return null
+    const { from } = getMonthRange(year, 1, monthStartDay)
+    const { to } = getMonthRange(year, 12, monthStartDay)
+    return `/api/transactions?from=${from}&to=${to}`
+  }, [year, monthStartDay, contentPeriod])
+
+  const { data: transactions = [], isLoading: loading } = useSWR<Transaction[]>(txUrl, fetcher)
+  const { data: yearlyTransactions = [], isLoading: yearlyLoading } = useSWR<Transaction[]>(yearlyUrl, fetcher)
 
   const expenseCategories = useMemo(
     () => categories.filter(c => c.type === 'expense').sort((a, b) => a.order - b.order),
@@ -100,7 +87,11 @@ export default function StatisticsView() {
     [transactions]
   )
   const totalExpense = useMemo(
-    () => transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
+    () => getExpenseAmount(transactions),
+    [transactions]
+  )
+  const totalOutflow = useMemo(
+    () => getOutflowAmount(transactions),
     [transactions]
   )
 
@@ -144,7 +135,8 @@ export default function StatisticsView() {
 
   // 내용별 집계
   const contentStats = useMemo(() => {
-    const filtered = transactions.filter(t => t.type === contentType)
+    const sourceTransactions = contentPeriod === 'year' ? yearlyTransactions : transactions
+    const filtered = sourceTransactions.filter(t => t.type === contentType)
     let grouped: Record<string, { key: string; label: string; transactions: Transaction[] }>
 
     if (contentPeriod === 'month') {
@@ -181,9 +173,9 @@ export default function StatisticsView() {
     return Object.values(grouped)
       .map(g => ({ label: g.label, count: g.transactions.length, total: g.transactions.reduce((s, t) => s + t.amount, 0) }))
       .sort((a, b) => b.total - a.total)
-  }, [transactions, contentType, contentPeriod])
+  }, [transactions, yearlyTransactions, contentType, contentPeriod])
 
-  if (!ready) return null
+  if (!ready || monthStartDay === null) return null
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
@@ -197,7 +189,7 @@ export default function StatisticsView() {
             <div className="text-[15px] font-semibold text-[var(--color-text)]">{year}년 {month}월</div>
             <div className="flex gap-4 mt-0.5 text-[12px]">
               <span className="text-[var(--color-income)]">수입 {formatAmount(totalIncome)}원</span>
-              <span className="text-[var(--color-expense)]">지출 {formatAmount(totalExpense)}원</span>
+              <span className="text-[var(--color-expense)]">유출 {formatAmount(totalOutflow)}원</span>
             </div>
           </div>
           <button onClick={nextMonth} className="p-1 text-[var(--color-text-sub)]">
@@ -224,7 +216,7 @@ export default function StatisticsView() {
       </div>
 
       <div className="max-w-2xl mx-auto pb-24">
-        {loading ? (
+        {loading || (contentPeriod === 'year' && yearlyLoading) ? (
           <div className="flex justify-center py-16 text-[var(--color-text-sub)] text-sm">
             불러오는 중…
           </div>
@@ -304,7 +296,7 @@ function CategoryView({ stats, total }: { stats: CategoryStat[]; total: number }
             </PieChart>
           </ResponsiveContainer>
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <p className="text-[11px] text-[var(--color-text-sub)]">총 지출</p>
+            <p className="text-[11px] text-[var(--color-text-sub)]">소비 지출</p>
             <p className="text-[15px] font-bold text-[var(--color-expense)] tabular-nums">{formatAmount(total)}원</p>
           </div>
         </div>
@@ -370,7 +362,7 @@ function BudgetView({
       <div className="bg-[var(--color-surface)] rounded-2xl p-4 shadow-[0px_2px_8px_rgba(0,0,0,0.08)]">
         <div className="flex justify-between text-[13px] text-[var(--color-text-sub)] mb-2">
           <span>총 예산 {formatAmount(totalBudget)}원</span>
-          <span>사용 {formatAmount(total)}원</span>
+          <span>소비 {formatAmount(total)}원</span>
         </div>
         <div className="h-2 bg-[var(--color-surface-sub)] rounded-full overflow-hidden">
           <div

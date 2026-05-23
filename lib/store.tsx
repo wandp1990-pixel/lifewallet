@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { getDisplayMonth, getMonthRange, getMonthStartDay } from './monthStart'
 import type { Transaction, Category, Asset, Budget, SavingsGoal, WishlistItem } from './types'
 
 interface StoreState {
@@ -62,8 +63,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const refresh = async () => {
     const now = new Date()
+    const monthStartDay = getMonthStartDay()
+    const { year, month } = getDisplayMonth(now, monthStartDay)
+    const { from, to } = getMonthRange(year, month, monthStartDay)
     const [transactions, categories, assets, budgets, savingsGoals, wishlist] = await Promise.all([
-      fetchJson<Transaction[]>(`/api/transactions?year=${now.getFullYear()}&month=${now.getMonth() + 1}`),
+      fetchJson<Transaction[]>(`/api/transactions?from=${from}&to=${to}`),
       fetchJson<Category[]>('/api/categories'),
       fetchJson<Asset[]>('/api/assets'),
       fetchJson<Budget[]>('/api/budget'),

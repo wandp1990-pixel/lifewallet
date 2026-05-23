@@ -1,5 +1,7 @@
 'use client'
 
+import { getOutflowAmount } from '@/lib/finance'
+import { getBudgetForMonth } from '@/lib/budget'
 import type { Transaction, Category, Budget } from '@/lib/types'
 
 interface Props {
@@ -22,8 +24,8 @@ export default function MonthlyInsights({ transactions, prevTransactions, catego
   const incomes = transactions.filter(t => t.type === 'income')
   const prevIncomes = prevTransactions.filter(t => t.type === 'income')
 
-  const totalExpense = expenses.reduce((s, t) => s + t.amount, 0)
-  const prevTotalExpense = prevExpenses.reduce((s, t) => s + t.amount, 0)
+  const totalOutflow = getOutflowAmount(transactions)
+  const prevTotalOutflow = getOutflowAmount(prevTransactions)
   const totalIncome = incomes.reduce((s, t) => s + t.amount, 0)
   const prevTotalIncome = prevIncomes.reduce((s, t) => s + t.amount, 0)
 
@@ -34,10 +36,13 @@ export default function MonthlyInsights({ transactions, prevTransactions, catego
     if (t.category_id) acc[t.category_id] = (acc[t.category_id] || 0) + t.amount
     return acc
   }, {})
-  const overBudgetCats = budgets
-    .filter(b => b.year === year && b.month === month && b.amount > 0)
-    .filter(b => (catExpenses[b.category_id] || 0) > b.amount)
-    .map(b => ({ cat: categories.find(c => c.id === b.category_id)?.name ?? '알 수 없음', over: (catExpenses[b.category_id] || 0) - b.amount }))
+  const overBudgetCats = categories
+    .filter(c => c.type === 'expense')
+    .map(cat => {
+      const budget = getBudgetForMonth(budgets, cat.id, year, month)
+      return { cat: cat.name, over: (catExpenses[cat.id] || 0) - budget, budget }
+    })
+    .filter(row => row.budget > 0 && row.over > 0)
     .sort((a, b) => b.over - a.over)
 
   for (const { cat } of overBudgetCats.slice(0, 2)) {
@@ -46,8 +51,8 @@ export default function MonthlyInsights({ transactions, prevTransactions, catego
   if (insights.length >= 3) return <Render insights={insights} />
 
   // 2. 지출 변동
-  if (prevTotalExpense > 0 && totalExpense > 0) {
-    const diff = (totalExpense - prevTotalExpense) / prevTotalExpense
+  if (prevTotalOutflow > 0 && totalOutflow > 0) {
+    const diff = (totalOutflow - prevTotalOutflow) / prevTotalOutflow
     if (diff <= -0.2) insights.push({ type: 'positive', message: '지출이 지난달보다 크게 줄었어요!' })
     else if (diff >= 0.2) insights.push({ type: 'warning', message: '지출이 지난달보다 크게 늘었어요.' })
   }
@@ -62,8 +67,8 @@ export default function MonthlyInsights({ transactions, prevTransactions, catego
   if (insights.length >= 3) return <Render insights={insights} />
 
   // 4. 저축 가능액 증가
-  const savings = totalIncome - totalExpense
-  const prevSavings = prevTotalIncome - prevTotalExpense
+  const savings = totalIncome - totalOutflow
+  const prevSavings = prevTotalIncome - prevTotalOutflow
   if (savings > 0 && savings > prevSavings) {
     insights.push({ type: 'positive', message: '이번 달은 지난달보다 더 모을 수 있어요!' })
   }

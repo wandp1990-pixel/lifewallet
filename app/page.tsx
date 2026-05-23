@@ -1,11 +1,14 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import useSWR from 'swr'
 import { ChevronLeft, ChevronRight, ArrowUpDown, Repeat, Search, Plus } from 'lucide-react'
 import { useStore } from '@/lib/store'
+import { getExpenseAmount, getOutflowAmount, isLoanReceivedTransaction } from '@/lib/finance'
 import type { Transaction, RecurringTransaction } from '@/lib/types'
 import { formatAmount } from '@/lib/utils'
-import { getMonthStartDay, getMonthRange } from '@/lib/monthStart'
+import { getDisplayMonth, getMonthStartDay, getMonthRange } from '@/lib/monthStart'
+import { fetcher } from '@/lib/fetcher'
 import ListTab from '@/components/ledger/ListTab'
 import CalendarTab from '@/components/ledger/CalendarTab'
 import MonthlyTab from '@/components/ledger/MonthlyTab'
@@ -36,7 +39,7 @@ export default function LedgerPage() {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
-  const [monthStartDay, setMonthStartDay] = useState(1)
+  const [monthStartDay, setMonthStartDay] = useState<number | null>(null)
   const [view, setView] = useState<ViewType>('list')
   const [filter, setFilter] = useState<FilterType>('all')
   const [search, setSearch] = useState('')
@@ -46,56 +49,43 @@ export default function LedgerPage() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [addSheetOpen, setAddSheetOpen] = useState(false)
   const [editSheetTx, setEditSheetTx] = useState<Transaction | null>(null)
-  const [transactions, setTransactions] = useState<Transaction[]>([])
-  const [loading, setLoading] = useState(true)
-  const [recurringList, setRecurringList] = useState<RecurringTransaction[]>([])
   const [applyingId, setApplyingId] = useState<string | null>(null)
 
   // 월별 탭 전용: 연도 단위 탐색 + 연간 거래 데이터
   const [yearlyYear, setYearlyYear] = useState(now.getFullYear())
-  const [yearlyTransactions, setYearlyTransactions] = useState<Transaction[]>([])
-  const [yearlyLoading, setYearlyLoading] = useState(false)
-
-  useEffect(() => { setMonthStartDay(getMonthStartDay()) }, [])
-
-  const loanAssetIds = new Set(assets.filter(a => a.group_type === 'loan').map(a => a.id))
-
-  const fetchTransactions = useCallback(async (y: number, m: number, startDay: number) => {
-    setLoading(true)
-    try {
-      const { from, to } = getMonthRange(y, m, startDay)
-      const res = await fetch(`/api/transactions?from=${from}&to=${to}`)
-      const data = await res.json()
-      setTransactions(Array.isArray(data) ? data : [])
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => { fetchTransactions(year, month, monthStartDay) }, [year, month, monthStartDay, fetchTransactions])
 
   useEffect(() => {
-    fetch('/api/recurring')
-      .then(r => r.json())
-      .then((data: RecurringTransaction[]) => setRecurringList(Array.isArray(data) ? data : []))
-      .catch(() => {})
+    const startDay = getMonthStartDay()
+    const displayMonth = getDisplayMonth(new Date(), startDay)
+    setMonthStartDay(startDay)
+    setYear(displayMonth.year)
+    setMonth(displayMonth.month)
+    setYearlyYear(displayMonth.year)
   }, [])
 
-  // 월별 탭 활성 시 연간 거래 데이터 fetch
-  useEffect(() => {
-    if (view !== 'monthly') return
-    const { from: yearFrom } = getMonthRange(yearlyYear, 1, monthStartDay)
-    const { to: yearTo } = getMonthRange(yearlyYear, 12, monthStartDay)
-    setYearlyLoading(true)
-    fetch(`/api/transactions?from=${yearFrom}&to=${yearTo}`)
-      .then(r => r.json())
-      .then(data => setYearlyTransactions(Array.isArray(data) ? data : []))
-      .catch(() => {})
-      .finally(() => setYearlyLoading(false))
+  const txUrl = useMemo(() => {
+    if (monthStartDay === null) return null
+    const { from, to } = getMonthRange(year, month, monthStartDay)
+    return `/api/transactions?from=${from}&to=${to}`
+  }, [year, month, monthStartDay])
+
+  const yearlyUrl = useMemo(() => {
+    if (view !== 'monthly' || monthStartDay === null) return null
+    const { from } = getMonthRange(yearlyYear, 1, monthStartDay)
+    const { to } = getMonthRange(yearlyYear, 12, monthStartDay)
+    return `/api/transactions?from=${from}&to=${to}`
   }, [view, yearlyYear, monthStartDay])
 
+  const { data: transactions = [], isLoading: loading, mutate: mutateTx } = useSWR<Transaction[]>(txUrl, fetcher)
+  const { data: yearlyTransactions = [], isLoading: yearlyLoading } = useSWR<Transaction[]>(yearlyUrl, fetcher)
+  const { data: recurringRaw, mutate: mutateRecurring } = useSWR<RecurringTransaction[]>('/api/recurring', fetcher)
+  const recurringList = recurringRaw ?? []
+
+  const currentDisplayMonth = monthStartDay === null
+    ? { year: now.getFullYear(), month: now.getMonth() + 1 }
+    : getDisplayMonth(now, monthStartDay)
   const currentMonthKey = `${year}-${String(month).padStart(2, '0')}`
-  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1
+  const isCurrentMonth = year === currentDisplayMonth.year && month === currentDisplayMonth.month
   const pendingRecurring = recurringList.filter(r => r.enabled && r.last_applied_month !== currentMonthKey)
 
   async function applyRecurring(r: RecurringTransaction) {
@@ -104,12 +94,15 @@ export default function LedgerPage() {
       const res = await fetch(`/api/recurring/${r.id}/apply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ month: currentMonthKey }),
+        body: JSON.stringify({ month: currentMonthKey, month_start_day: monthStartDay ?? 1 }),
       })
       if (res.ok) {
         const { transaction } = await res.json()
-        setTransactions(prev => [transaction, ...prev])
-        setRecurringList(prev => prev.map(x => x.id === r.id ? { ...x, last_applied_month: currentMonthKey } : x))
+        mutateTx((data) => [transaction, ...(data ?? [])], { revalidate: false })
+        mutateRecurring(
+          (data) => data?.map(x => x.id === r.id ? { ...x, last_applied_month: currentMonthKey } : x),
+          { revalidate: false }
+        )
       }
     } finally {
       setApplyingId(null)
@@ -128,7 +121,7 @@ export default function LedgerPage() {
   function nextYear() { setYearlyYear(y => y + 1) }
 
   function isLoanReceived(t: Transaction) {
-    return t.type === 'transfer' && loanAssetIds.has(t.from_asset_id)
+    return isLoanReceivedTransaction(t, assets)
   }
 
   function txMatchesAsset(t: Transaction, assetId: string): boolean {
@@ -140,14 +133,15 @@ export default function LedgerPage() {
   const incomeCount = visible.filter(t => t.type === 'income').length
   const income = visible.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   const expenseCount = visible.filter(t => t.type === 'expense').length
-  const expense = visible.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+  const expense = getExpenseAmount(visible)
+  const outflow = getOutflowAmount(visible)
   const transferCount = visible.filter(t => t.type === 'transfer' && !isLoanReceived(t)).length
   const transfer = visible.filter(t => t.type === 'transfer' && !isLoanReceived(t)).reduce((s, t) => s + t.amount, 0)
   const loanRepaymentCount = visible.filter(t => t.type === 'loan_repayment').length
   const loanRepayment = visible.filter(t => t.type === 'loan_repayment').reduce((s, t) => s + t.amount, 0)
   const loanReceivedCount = visible.filter(isLoanReceived).length
   const loanReceived = visible.filter(isLoanReceived).reduce((s, t) => s + t.amount, 0)
-  const netFlow = income - expense - loanRepayment
+  const netFlow = income - outflow
 
   function countByFilter(f: FilterType): number {
     if (f === 'all') return visible.length
@@ -180,14 +174,14 @@ export default function LedgerPage() {
     )
 
   function handleDelete(id: string) {
-    setTransactions(prev => prev.filter(t => t.id !== id))
+    mutateTx((data) => data?.filter(t => t.id !== id) ?? [], { revalidate: false })
   }
 
   const usedAssetIds = new Set(visible.flatMap(t => [t.asset_id, t.from_asset_id, t.to_asset_id].filter(Boolean)))
   const filterableAssets = assets.filter(a => usedAssetIds.has(a.id))
   const filterableCategories = categories.filter(c => visible.some(t => t.category_id === c.id))
 
-  // 요약 탭 - 카테고리별 지출
+  // 요약 탭 - 소비 카테고리별 지출
   const catExpense: Record<string, number> = {}
   for (const t of visible.filter(t => t.type === 'expense')) {
     catExpense[t.category_id] = (catExpense[t.category_id] ?? 0) + t.amount
@@ -323,9 +317,9 @@ export default function LedgerPage() {
                 </p>
                 <p className="text-[13px] text-[var(--color-text-sub)] -mt-0.5">{month}월 합계</p>
               </div>
-              {(income + expense) > 0 ? (
+              {(income + outflow) > 0 ? (
                 <div className="h-[7px] rounded-full overflow-hidden flex mb-[5px]">
-                  <div style={{ width: `${Math.round(income / (income + expense) * 100)}%` }} className="bg-[var(--color-income)]" />
+                  <div style={{ width: `${Math.round(income / (income + outflow) * 100)}%` }} className="bg-[var(--color-income)]" />
                   <div className="flex-1 bg-[var(--color-expense)]" />
                 </div>
               ) : (
@@ -339,8 +333,8 @@ export default function LedgerPage() {
                 </div>
                 <div className="flex items-center gap-1">
                   <div className="w-1.5 h-1.5 rounded-[1px] bg-[var(--color-expense)]" />
-                  <span className="text-[10px] text-[var(--color-text-sub)]">지출</span>
-                  <span className="text-[11px] font-semibold tabular-nums text-[var(--color-expense)]">{formatAmount(expense)}원</span>
+                  <span className="text-[10px] text-[var(--color-text-sub)]">유출</span>
+                  <span className="text-[11px] font-semibold tabular-nums text-[var(--color-expense)]">{formatAmount(outflow)}원</span>
                 </div>
               </div>
             </div>
@@ -359,7 +353,9 @@ export default function LedgerPage() {
             <div key={r.id} className="flex items-center justify-between bg-[var(--color-surface)] rounded-xl px-3 py-2">
               <div>
                 <p className="text-[13px] font-medium text-[var(--color-text)]">{r.content}</p>
-                <p className="text-[11px] text-[var(--color-text-sub)]">매월 {r.day_of_month}일 · {formatAmount(r.amount)}원</p>
+                <p className="text-[11px] text-[var(--color-text-sub)]">
+                  매월 {r.day_of_month}일 · {formatAmount(r.amount)}원{r.type === 'loan_repayment' && r.fee > 0 ? ` · 이자 ${formatAmount(r.fee)}원` : ''}
+                </p>
               </div>
               <button
                 onClick={() => applyRecurring(r)}
@@ -385,9 +381,9 @@ export default function LedgerPage() {
       ) : view === 'list' ? (
         <ListTab transactions={filtered} categories={categories} assets={assets} onDelete={handleDelete} onEdit={tx => setEditSheetTx(tx)} />
       ) : view === 'calendar' ? (
-        <CalendarTab year={year} month={month} transactions={transactions} onSelectDate={() => setView('list')} />
+        <CalendarTab year={year} month={month} monthStartDay={monthStartDay ?? 1} transactions={transactions} onSelectDate={() => setView('list')} />
       ) : view === 'monthly' ? (
-        <MonthlyTab year={yearlyYear} transactions={yearlyTransactions} monthStartDay={monthStartDay} loading={yearlyLoading} />
+        <MonthlyTab year={yearlyYear} transactions={yearlyTransactions} monthStartDay={monthStartDay ?? 1} loading={yearlyLoading} />
       ) : view === 'summary' ? (
         <div className="p-4 space-y-3">
           <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
@@ -413,7 +409,7 @@ export default function LedgerPage() {
           {Object.keys(catExpense).length > 0 && (
             <div className="bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] overflow-hidden">
               <div className="px-4 py-3 border-b border-[var(--color-border)]">
-                <p className="text-[13px] font-semibold text-[var(--color-text-sub)]">카테고리별 지출</p>
+                <p className="text-[13px] font-semibold text-[var(--color-text-sub)]">소비 카테고리별 지출</p>
               </div>
               {Object.entries(catExpense)
                 .sort(([, a], [, b]) => b - a)
@@ -453,7 +449,7 @@ export default function LedgerPage() {
         initial={editSheetTx ?? undefined}
         transactionId={editSheetTx?.id}
         onClose={() => { setAddSheetOpen(false); setEditSheetTx(null) }}
-        onSaved={() => { setEditSheetTx(null); fetchTransactions(year, month, monthStartDay) }}
+        onSaved={() => { setEditSheetTx(null); mutateTx() }}
       />
     </div>
   )

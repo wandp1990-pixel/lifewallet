@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { MoreHorizontal } from 'lucide-react'
+import { isLoanReceivedTransaction } from '@/lib/finance'
 import type { Transaction, Category, Asset } from '@/lib/types'
 import { formatAmount } from '@/lib/utils'
 import CatIcon from '@/components/ui/CatIcon'
@@ -31,6 +32,7 @@ export default function TransactionItem({ tx, categories, assets, onDelete, onEd
   const fromAsset = assets.find(a => a.id === tx.from_asset_id)
   const toAsset = assets.find(a => a.id === tx.to_asset_id)
 
+  const isLoanReceived = isLoanReceivedTransaction(tx, assets)
   let assetLabel = ''
   if (tx.type === 'income' || tx.type === 'expense' || tx.type === 'asset') {
     assetLabel = asset?.name ?? ''
@@ -41,15 +43,21 @@ export default function TransactionItem({ tx, categories, assets, onDelete, onEd
   const amountColor =
     tx.type === 'income' ? 'text-[var(--color-income)]' :
     tx.type === 'expense' || tx.type === 'loan_repayment' ? 'text-[var(--color-expense)]' :
+    isLoanReceived ? 'text-[var(--color-primary)]' :
     'text-[var(--color-text)]'
 
-  const amountPrefix = tx.type === 'income' ? '+' : ''
+  const amountPrefix = tx.type === 'income' || isLoanReceived ? '+' : ''
 
-  const iconKey = category?.icon || TYPE_ICON[tx.type] || '💰'
+  const iconKey = category?.icon || TYPE_ICON[isLoanReceived ? 'loan_received' : tx.type] || '💰'
   const iconId = category?.id ?? ''
 
   // 서브 레이블: 카테고리명 · 자산명
-  const subLabel = [category?.name, assetLabel].filter(Boolean).join(' · ')
+  const costLabel = tx.type === 'transfer' && tx.fee > 0
+    ? `수수료 ${formatAmount(tx.fee)}원`
+    : tx.type === 'loan_repayment' && tx.fee > 0
+      ? `이자 ${formatAmount(tx.fee)}원`
+      : ''
+  const subLabel = [isLoanReceived ? '대출 수령' : category?.name, assetLabel, costLabel].filter(Boolean).join(' · ')
 
   useEffect(() => {
     function handleOutside(e: MouseEvent) {

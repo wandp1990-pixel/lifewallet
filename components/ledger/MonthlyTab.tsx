@@ -2,9 +2,10 @@
 
 import { useState, useMemo } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
+import { getOutflowAmount } from '@/lib/finance'
 import type { Transaction } from '@/lib/types'
 import { formatAmount } from '@/lib/utils'
-import { getMonthRange } from '@/lib/monthStart'
+import { getDisplayMonth, getMonthRange } from '@/lib/monthStart'
 
 const MONTH_NAMES = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
 
@@ -45,8 +46,7 @@ interface Props {
 export default function MonthlyTab({ year, transactions, monthStartDay, loading }: Props) {
   const today = new Date()
   const todayStr = today.toISOString().split('T')[0]
-  const currentYear = today.getFullYear()
-  const currentMonth = today.getMonth() + 1
+  const { year: currentYear, month: currentMonth } = getDisplayMonth(today, monthStartDay)
 
   const defaultExpanded = year === currentYear ? currentMonth : 12
   const [expandedMonths, setExpandedMonths] = useState<Set<number>>(new Set([defaultExpanded]))
@@ -60,7 +60,7 @@ export default function MonthlyTab({ year, transactions, monthStartDay, loading 
       const periodTxns = transactions.filter(t => t.date >= from && t.date <= to && t.type !== 'asset')
 
       const monthIncome = periodTxns.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-      const monthExpense = periodTxns.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+      const monthExpense = getOutflowAmount(periodTxns)
 
       // 7일 단위 주간 분할
       const weeks: WeekRow[] = []
@@ -69,7 +69,7 @@ export default function MonthlyTab({ year, transactions, monthStartDay, loading 
         const weekTo = addDays(cursor, 6)
         const weekTxns = periodTxns.filter(t => t.date >= cursor && t.date <= weekTo)
         const wIncome = weekTxns.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-        const wExpense = weekTxns.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+        const wExpense = getOutflowAmount(weekTxns)
         weeks.push({ from: cursor, to: weekTo, income: wIncome, expense: wExpense, isCurrent: todayStr >= cursor && todayStr <= weekTo })
         cursor = addDays(cursor, 7)
       }
@@ -134,7 +134,7 @@ export default function MonthlyTab({ year, transactions, monthStartDay, loading 
           )}
           <div className="flex justify-between text-[12px]">
             <span className="text-[var(--color-text-sub)]">■ 수입 <span className="font-semibold text-[var(--color-income)]">{formatAmount(summaryMonth.income)}원</span></span>
-            <span className="text-[var(--color-text-sub)]">■ 지출 <span className="font-semibold text-[var(--color-expense)]">{formatAmount(summaryMonth.expense)}원</span></span>
+            <span className="text-[var(--color-text-sub)]">■ 유출 <span className="font-semibold text-[var(--color-expense)]">{formatAmount(summaryMonth.expense)}원</span></span>
           </div>
         </div>
       )}

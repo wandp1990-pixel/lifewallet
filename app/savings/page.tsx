@@ -64,7 +64,7 @@ export default function SavingsPage() {
           <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 space-y-3">
             <div className="flex justify-between items-baseline">
               <div>
-                <p className="text-xs text-[var(--color-text-sub)] mb-0.5">총 저축액</p>
+                <p className="text-xs text-[var(--color-text-sub)] mb-0.5">목표별 저축 합계</p>
                 <p className="text-2xl font-bold text-[var(--color-text)] tabular-nums">{formatAmount(totalCurrent)}원</p>
               </div>
               <div className="text-right">
@@ -83,6 +83,9 @@ export default function SavingsPage() {
                   style={{ width: `${totalPct}%` }}
                 />
               </div>
+              <p className="text-[11px] text-[var(--color-text-placeholder)] mt-2">
+                같은 자산을 여러 목표에 연결하면 실제 보유 현금보다 크게 보일 수 있어요.
+              </p>
             </div>
           </div>
         )}

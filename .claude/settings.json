@@ -6,8 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cat '/mnt/d/99. ZiReE/ZiReE/01. Projects/코딩/LifeWallet/FRONTEND.md'",
-            "statusMessage": "📱 프론트엔드 원칙 로드 중..."
+            "command": "cat '/mnt/d/99. ZiReE/ZiReE/README.md' '/mnt/d/99. ZiReE/ZiReE/AI_BOOTSTRAP.md' '/mnt/d/99. ZiReE/ZiReE/01. Projects/README.md' '/mnt/d/99. ZiReE/ZiReE/01. Projects/코딩/README.md' '/mnt/d/99. ZiReE/ZiReE/01. Projects/코딩/LifeWallet/README.md'",
+            "statusMessage": "LifeWallet README 계층 로드 중..."
           }
         ]
       }
@@ -17,8 +17,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '\\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\\n📦 LifeWallet 배포 체크\\n코드를 수정했다면 반드시 배포하세요:\\n  cd lifewallet && vercel --prod\\n확인: https://lifewallet-eight.vercel.app\\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━'",
-            "statusMessage": "배포 체크..."
+            "command": "echo '\\nLifeWallet 배포 절차와 URL은 단일 소스 문서 참조: ../README.md → lifewallet/DEPLOY.md'",
+            "statusMessage": "배포 단일 소스 확인..."
           }
         ]
       }

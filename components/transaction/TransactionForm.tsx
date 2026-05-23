@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, Trash2 } from 'lucide-react'
+import { isDebtAssetType, validateTransactionInput } from '@/lib/finance'
 import { useStore } from '@/lib/store'
 import CatIcon from '@/components/ui/CatIcon'
 import { todayStr } from '@/lib/utils'
@@ -36,7 +37,7 @@ const TYPE_LABELS: Record<TxType, string> = {
   loan_repayment: '대출상환',
 }
 
-const TYPES: TxType[] = ['expense', 'income', 'transfer', 'loan_repayment']
+const TYPES: TxType[] = ['income', 'expense', 'transfer', 'loan_repayment']
 
 function fmtNum(n: number): string {
   return n > 0 ? n.toLocaleString('ko-KR') : ''
@@ -50,6 +51,15 @@ function fmtInput(s: string): string {
   const digits = s.replace(/\D/g, '')
   if (!digits) return ''
   return Number(digits).toLocaleString('ko-KR')
+}
+
+function withSelectedAssets<T extends { id: string }>(base: T[], all: T[], selectedIds: string[]): T[] {
+  const map = new Map(base.map(asset => [asset.id, asset]))
+  for (const id of selectedIds.filter(Boolean)) {
+    const selected = all.find(asset => asset.id === id)
+    if (selected && !map.has(id)) map.set(id, selected)
+  }
+  return Array.from(map.values())
 }
 
 function txToForm(tx: Partial<Transaction>): FormState {
@@ -108,11 +118,13 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
     : []
 
   const visibleAssets = assets.filter(a => a.visible)
-  const loanAssets = assets.filter(a => a.group_type === 'loan')
+  const visibleLoanAssets = visibleAssets.filter(a => a.group_type === 'loan')
+  const repaymentFromAssets = visibleAssets.filter(a => !isDebtAssetType(a.group_type))
+  const singleAssetOptions = withSelectedAssets(visibleAssets, assets, [form.assetId])
   const currentCategories = categories.filter(c => c.type === form.type)
   const showSingleAsset = form.type === 'income' || form.type === 'expense'
   const showFromTo = form.type === 'transfer' || form.type === 'loan_repayment'
-  const showFee = form.type === 'transfer'
+  const showFee = form.type === 'transfer' || form.type === 'loan_repayment'
   const showCategory = form.type === 'income' || form.type === 'expense'
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -125,13 +137,15 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
   }
 
   function validate(): string {
-    const amount = parseNum(form.amount)
-    if (!amount || amount <= 0) return '금액을 입력해 주세요'
-    if (showSingleAsset && !form.assetId) return '자산을 선택해 주세요'
-    if (showFromTo && !form.fromAssetId) return '출금 계좌를 선택해 주세요'
-    if (showFromTo && !form.toAssetId) return (form.type === 'loan_repayment' ? '대출 계좌를' : '입금 계좌를') + ' 선택해 주세요'
-    if (showCategory && !form.categoryId) return '분류를 선택해 주세요'
-    return ''
+    return validateTransactionInput({
+      type: form.type,
+      amount: parseNum(form.amount),
+      category_id: form.categoryId,
+      asset_id: form.assetId,
+      from_asset_id: form.fromAssetId,
+      to_asset_id: form.toAssetId,
+      fee: parseNum(form.fee),
+    }, assets) ?? ''
   }
 
   async function submit(continueAfter: boolean) {
@@ -191,6 +205,19 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
     const res = await fetch(`/api/transactions/${transactionId}`, { method: 'DELETE' })
     if (res.ok) router.back()
   }
+
+  const fromAssets = withSelectedAssets(
+    form.type === 'loan_repayment' ? repaymentFromAssets : visibleAssets,
+    assets,
+    [form.fromAssetId]
+  )
+  const toAssets = withSelectedAssets(
+    form.type === 'loan_repayment'
+    ? visibleLoanAssets.filter(a => a.id !== form.fromAssetId)
+    : visibleAssets.filter(a => a.id !== form.fromAssetId),
+    assets,
+    [form.toAssetId]
+  )
 
   return (
     <div className="flex flex-col min-h-full">
@@ -285,8 +312,8 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
               className="tds-field"
             >
               <option value="">자산 선택</option>
-              {visibleAssets.map(a => (
-                <option key={a.id} value={a.id}>{a.name}</option>
+              {singleAssetOptions.map(a => (
+                <option key={a.id} value={a.id}>{a.name}{!a.visible ? ' (숨김)' : ''}</option>
               ))}
             </select>
           </div>
@@ -303,8 +330,8 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
                 className="tds-field"
               >
                 <option value="">계좌 선택</option>
-                {visibleAssets.map(a => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
+                {fromAssets.map(a => (
+                  <option key={a.id} value={a.id}>{a.name}{!a.visible ? ' (숨김)' : ''}</option>
                 ))}
               </select>
             </div>
@@ -318,18 +345,20 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
                 className="tds-field"
               >
                 <option value="">계좌 선택</option>
-                {(form.type === 'loan_repayment' ? loanAssets : visibleAssets).map(a => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
+                {toAssets.map(a => (
+                  <option key={a.id} value={a.id}>{a.name}{!a.visible ? ' (숨김)' : ''}</option>
                 ))}
               </select>
             </div>
           </>
         )}
 
-        {/* 수수료 (이체만) */}
+        {/* 수수료/이자 */}
         {showFee && (
           <div>
-            <label className="text-xs font-medium text-[var(--color-text-sub)] mb-1.5 block">수수료 (선택)</label>
+            <label className="text-xs font-medium text-[var(--color-text-sub)] mb-1.5 block">
+              {form.type === 'loan_repayment' ? '이자 금액 (선택)' : '수수료 (선택)'}
+            </label>
             <div className="flex items-center gap-2 rounded-xl px-3 focus-within:outline focus-within:outline-[var(--color-primary)] transition-colors" style={{ background: 'rgba(0,23,51,0.02)', border: '1px solid rgba(2,32,71,0.05)' }}>
               <input
                 type="text"

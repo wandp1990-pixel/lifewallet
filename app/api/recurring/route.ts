@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import db, { initDb } from '@/lib/db'
+import { validateTransactionInput } from '@/lib/finance'
 import { generateId } from '@/lib/utils'
-import type { RecurringTransaction } from '@/lib/types'
+import type { Asset, RecurringTransaction } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,9 +34,6 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   await initDb()
   const body = await req.json()
-  if (!body.amount || body.amount <= 0) {
-    return NextResponse.json({ error: '금액은 0보다 커야 합니다' }, { status: 400 })
-  }
 
   const r: RecurringTransaction = {
     id: generateId('rec'),
@@ -52,6 +50,12 @@ export async function POST(req: NextRequest) {
     enabled: true,
     last_applied_month: '',
     created_at: new Date().toISOString(),
+  }
+
+  const assets = (await db.execute({ sql: 'SELECT id, group_type, visible, balance FROM assets' })).rows as unknown as Pick<Asset, 'id' | 'group_type' | 'visible' | 'balance'>[]
+  const validationError = validateTransactionInput(r, assets)
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 400 })
   }
 
   await db.execute({

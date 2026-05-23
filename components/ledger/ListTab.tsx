@@ -2,6 +2,7 @@
 
 import type { Transaction, Category, Asset } from '@/lib/types'
 import { formatAmount } from '@/lib/utils'
+import { getOutflowAmount } from '@/lib/finance'
 import TransactionItem from './TransactionItem'
 
 interface Props {
@@ -36,7 +37,7 @@ export default function ListTab({ transactions, categories, assets, onDelete, on
       {dates.map(date => {
         const dayTxs = grouped[date]
         const dayIncome = dayTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-        const dayExpense = dayTxs.filter(t => t.type === 'expense' || t.type === 'loan_repayment').reduce((s, t) => s + t.amount, 0)
+        const dayExpense = getOutflowAmount(dayTxs)
         const [y, m, d] = date.split('-').map(Number)
         const dateObj = new Date(y, m - 1, d)
         const dow = dateObj.getDay()

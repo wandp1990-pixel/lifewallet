@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { isDebtAssetType, validateTransactionInput } from '@/lib/finance'
 import { useStore } from '@/lib/store'
 import { todayStr } from '@/lib/utils'
 import type { Transaction } from '@/lib/types'
@@ -11,11 +12,30 @@ type TxType = 'expense' | 'income' | 'transfer' | 'loan_repayment'
 const TYPE_LABELS: Record<TxType, string> = {
   expense: '지출', income: '수입', transfer: '이체', loan_repayment: '대출상환',
 }
-const TYPES: TxType[] = ['expense', 'income', 'transfer', 'loan_repayment']
+const TYPES: TxType[] = ['income', 'expense', 'transfer', 'loan_repayment']
 
 function fmtDisplay(digits: string): string {
   if (!digits) return '0'
   return parseInt(digits, 10).toLocaleString('ko-KR')
+}
+
+function fmtInput(s: string): string {
+  const digits = s.replace(/\D/g, '')
+  if (!digits) return ''
+  return Number(digits).toLocaleString('ko-KR')
+}
+
+function parseInput(s: string): number {
+  return parseInt(s.replace(/,/g, ''), 10) || 0
+}
+
+function withSelectedAssets<T extends { id: string }>(base: T[], all: T[], selectedIds: string[]): T[] {
+  const map = new Map(base.map(asset => [asset.id, asset]))
+  for (const id of selectedIds.filter(Boolean)) {
+    const selected = all.find(asset => asset.id === id)
+    if (selected && !map.has(id)) map.set(id, selected)
+  }
+  return Array.from(map.values())
 }
 
 function fmtKorean(n: number): string {
@@ -48,6 +68,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
   const [assetId, setAssetId] = useState('')
   const [fromAssetId, setFromAssetId] = useState('')
   const [toAssetId, setToAssetId] = useState('')
+  const [feeStr, setFeeStr] = useState('')
   const [date, setDate] = useState(todayStr())
   const [content, setContent] = useState('')
   const [note, setNote] = useState('')
@@ -55,18 +76,25 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
   const [catExpanded, setCatExpanded] = useState(false)
 
   const amount = parseInt(digits || '0', 10)
+  const fee = parseInput(feeStr)
   const visibleAssets = assets.filter(a => a.visible)
-  const loanAssets = assets.filter(a => a.group_type === 'loan')
+  const loanAssets = visibleAssets.filter(a => a.group_type === 'loan')
+  const repaymentFromAssets = visibleAssets.filter(a => !isDebtAssetType(a.group_type))
+  const singleAssetOptions = withSelectedAssets(visibleAssets, assets, [assetId])
   const currentCats = categories.filter(c => c.type === (type === 'income' ? 'income' : 'expense'))
 
   const showCategory = type === 'expense' || type === 'income'
   const showFromTo = type === 'transfer' || type === 'loan_repayment'
 
-  const isValid = amount > 0 && (
-    showCategory
-      ? catId !== '' && assetId !== ''
-      : fromAssetId !== '' && toAssetId !== ''
-  )
+  const isValid = validateTransactionInput({
+    type,
+    amount,
+    category_id: showCategory ? catId : '',
+    asset_id: showCategory ? assetId : '',
+    from_asset_id: showFromTo ? fromAssetId : '',
+    to_asset_id: showFromTo ? toAssetId : '',
+    fee: type === 'loan_repayment' ? fee : 0,
+  }, assets) === null
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -80,6 +108,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
       setAssetId(initial.asset_id ?? '')
       setFromAssetId(initial.from_asset_id ?? '')
       setToAssetId(initial.to_asset_id ?? '')
+      setFeeStr(initial.fee > 0 ? initial.fee.toLocaleString('ko-KR') : '')
       setDate(initial.date ?? todayStr())
       setContent(initial.content ?? '')
       setNote(initial.note ?? '')
@@ -90,6 +119,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
       setAssetId(visibleAssets[0]?.id ?? '')
       setFromAssetId(visibleAssets[0]?.id ?? '')
       setToAssetId(loanAssets[0]?.id ?? visibleAssets[1]?.id ?? '')
+      setFeeStr('')
       setContent('')
       setNote('')
       setDate(todayStr())
@@ -111,8 +141,10 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
     setCatExpanded(false)
     if (t === 'loan_repayment') {
       setToAssetId(loanAssets[0]?.id ?? '')
+      setFromAssetId(repaymentFromAssets[0]?.id ?? '')
     } else if (t === 'transfer') {
       setToAssetId(visibleAssets.find(a => a.id !== fromAssetId)?.id ?? '')
+      setFeeStr('')
     }
   }
 
@@ -142,7 +174,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
       to_asset_id: showFromTo ? toAssetId : '',
       content,
       note,
-      fee: 0,
+      fee: type === 'loan_repayment' ? fee : 0,
     }
 
     try {
@@ -190,9 +222,10 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
   if (!open) return null
 
   const visibleCats = catExpanded ? currentCats : currentCats.slice(0, 8)
-  const toAssets = type === 'loan_repayment'
-    ? loanAssets
-    : visibleAssets.filter(a => a.id !== fromAssetId)
+  const fromAssets = withSelectedAssets(type === 'loan_repayment' ? repaymentFromAssets : visibleAssets, assets, [fromAssetId])
+  const toAssets = withSelectedAssets(type === 'loan_repayment'
+    ? loanAssets.filter(a => a.id !== fromAssetId)
+    : visibleAssets.filter(a => a.id !== fromAssetId), assets, [toAssetId])
 
   return (
     <>
@@ -336,7 +369,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
             <div>
               <p className="text-[12px] font-medium mb-2 text-[var(--color-text-sub)]">자산</p>
               <div className="flex flex-wrap gap-2">
-                {visibleAssets.map(a => (
+                {singleAssetOptions.map(a => (
                   <button
                     key={a.id}
                     onClick={() => setAssetId(a.id)}
@@ -346,7 +379,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
                         : 'bg-[var(--color-surface-sub)] text-[var(--color-text-body)] border-transparent'
                     }`}
                   >
-                    {a.name}
+                    {a.name}{!a.visible ? ' (숨김)' : ''}
                   </button>
                 ))}
               </div>
@@ -359,7 +392,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
               <div>
                 <p className="text-[12px] font-medium mb-2 text-[var(--color-text-sub)]">출금 계좌</p>
                 <div className="flex flex-wrap gap-2">
-                  {visibleAssets.map(a => (
+                  {fromAssets.map(a => (
                     <button
                       key={a.id}
                       onClick={() => setFromAssetId(a.id)}
@@ -369,7 +402,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
                           : 'bg-[var(--color-surface-sub)] text-[var(--color-text-body)] border-transparent'
                       }`}
                     >
-                      {a.name}
+                      {a.name}{!a.visible ? ' (숨김)' : ''}
                     </button>
                   ))}
                 </div>
@@ -389,11 +422,24 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
                           : 'bg-[var(--color-surface-sub)] text-[var(--color-text-body)] border-transparent'
                       }`}
                     >
-                      {a.name}
+                      {a.name}{!a.visible ? ' (숨김)' : ''}
                     </button>
                   ))}
                 </div>
               </div>
+              {type === 'loan_repayment' && (
+                <div>
+                  <p className="text-[12px] font-medium mb-2 text-[var(--color-text-sub)]">이자 금액 (선택)</p>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={feeStr}
+                    onChange={e => setFeeStr(fmtInput(e.target.value))}
+                    placeholder="0"
+                    className="tds-field !py-2.5 !text-[15px] text-right"
+                  />
+                </div>
+              )}
             </div>
           )}
 

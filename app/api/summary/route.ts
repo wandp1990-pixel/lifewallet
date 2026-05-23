@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import db from '@/lib/db'
+import { isExpenseLikeType } from '@/lib/finance'
 
 export const dynamic = 'force-dynamic'
 
@@ -7,23 +8,28 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const year = searchParams.get('year')
   const month = searchParams.get('month')
+  const fromParam = searchParams.get('from')
+  const toParam = searchParams.get('to')
 
-  if (!year || !month) return NextResponse.json({ error: 'year, month 파라미터가 필요합니다' }, { status: 400 })
+  const from = fromParam ?? (year && month ? `${year}-${String(month).padStart(2, '0')}-01` : null)
+  const to = toParam ?? (year && month ? `${year}-${String(month).padStart(2, '0')}-31` : null)
 
-  const from = `${year}-${String(month).padStart(2, '0')}-01`
-  const to = `${year}-${String(month).padStart(2, '0')}-31`
+  if (!from || !to) {
+    return NextResponse.json({ error: 'from/to 또는 year/month 파라미터가 필요합니다' }, { status: 400 })
+  }
 
   const rows = await db.execute({
-    sql: `SELECT
-            SUM(CASE WHEN type='income' THEN amount ELSE 0 END) as income,
-            SUM(CASE WHEN type='expense' THEN amount ELSE 0 END) as expense
-          FROM transactions WHERE date >= ? AND date <= ?`,
+    sql: `SELECT type, amount, fee FROM transactions WHERE date >= ? AND date <= ?`,
     args: [from, to],
   })
 
-  const row = rows.rows[0] as Record<string, unknown>
+  const values = rows.rows as unknown as { type: string; amount: number; fee?: number }[]
+  const income = values.filter(row => row.type === 'income').reduce((sum, row) => sum + row.amount, 0)
+  const expense = values.filter(row => row.type === 'expense').reduce((sum, row) => sum + row.amount, 0)
+  const outflow = values.filter(row => isExpenseLikeType(row.type)).reduce((sum, row) => sum + row.amount, 0)
+
   return NextResponse.json(
-    { income: row.income ?? 0, expense: row.expense ?? 0 },
+    { income, expense, outflow },
     { headers: { 'Cache-Control': 'no-store' } }
   )
 }

@@ -1,5 +1,6 @@
 import { createClient } from '@libsql/client'
 import type { Transaction, Asset } from './types'
+import { getLoanRepaymentPrincipal } from './finance'
 
 const DEFAULT_CATEGORIES = [
   { id: 'cat_income_salary', type: 'income',  name: '급여',          icon: 'arrowDown',   ord: 1 },
@@ -165,8 +166,9 @@ export async function applyTransactionBalance(
     await db.execute({ sql: 'UPDATE assets SET balance = balance - ? WHERE id = ?', args: [amount + (fee ?? 0), from_asset_id] })
     await db.execute({ sql: 'UPDATE assets SET balance = balance + ? WHERE id = ?', args: [amount, to_asset_id] })
   } else if (type === 'loan_repayment') {
+    const principalAmount = getLoanRepaymentPrincipal(tx as Pick<Transaction, 'type' | 'amount' | 'fee'>)
     await db.execute({ sql: 'UPDATE assets SET balance = balance - ? WHERE id = ?', args: [amount, from_asset_id] })
-    await db.execute({ sql: 'UPDATE assets SET balance = balance + ? WHERE id = ?', args: [amount, to_asset_id] })
+    await db.execute({ sql: 'UPDATE assets SET balance = balance + ? WHERE id = ?', args: [principalAmount, to_asset_id] })
   } else if (type === 'asset') {
     await db.execute({ sql: 'UPDATE assets SET balance = balance + ? WHERE id = ?', args: [amount, asset_id] })
   }

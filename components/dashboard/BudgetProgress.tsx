@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { getBudgetForMonth } from '@/lib/budget'
 import { categoryColor } from '@/lib/colors'
 import { formatAmount } from '@/lib/utils'
 import type { Transaction, Category, Budget } from '@/lib/types'
@@ -19,8 +20,7 @@ export default function BudgetProgress({ transactions, categories, budgets, year
 
   const rows = expenseCategories.map(cat => {
     const used = expenses.filter(t => t.category_id === cat.id).reduce((s, t) => s + t.amount, 0)
-    const budgetEntry = budgets.find(b => b.year === year && b.month === month && b.category_id === cat.id)
-    const budget = budgetEntry?.amount ?? 0
+    const budget = getBudgetForMonth(budgets, cat.id, year, month)
     const pct = budget > 0 ? Math.min(100, Math.round((used / budget) * 100)) : 0
     const over = budget > 0 && used > budget
     return { cat, used, budget, pct, over }
@@ -30,10 +30,10 @@ export default function BudgetProgress({ transactions, categories, budgets, year
     return (
       <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4">
         <div className="flex items-center justify-between mb-4">
-          <p className="text-sm font-semibold text-[var(--color-text)]">예산 진행 상황</p>
+          <p className="text-sm font-semibold text-[var(--color-text)]">소비 예산 진행 상황</p>
           <Link href="/statistics/budget-settings" className="text-xs text-[var(--color-primary)]">예산 편집 →</Link>
         </div>
-        <p className="text-sm text-center text-[var(--color-text-sub)] py-4">예산이 설정되지 않았습니다</p>
+        <p className="text-sm text-center text-[var(--color-text-sub)] py-4">소비 예산이 설정되지 않았습니다</p>
       </div>
     )
   }
@@ -41,7 +41,7 @@ export default function BudgetProgress({ transactions, categories, budgets, year
   return (
     <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4">
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm font-semibold text-[var(--color-text)]">예산 진행 상황</p>
+        <p className="text-sm font-semibold text-[var(--color-text)]">소비 예산 진행 상황</p>
         <Link href="/statistics/budget-settings" className="text-xs text-[var(--color-primary)]">예산 편집 →</Link>
       </div>
       <div className="space-y-3">

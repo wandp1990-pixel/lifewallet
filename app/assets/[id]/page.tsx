@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ChevronLeft, Pencil } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { formatAmount, formatDate } from '@/lib/utils'
+import { getDebtBalance, isDebtAssetType, isExpenseLikeType } from '@/lib/finance'
 import AssetForm from '@/components/assets/AssetForm'
 import type { Transaction } from '@/lib/types'
 
@@ -70,7 +71,7 @@ function LoanDetail({ assetId }: { assetId: string }) {
             </>
           )}
           <span className="text-[var(--color-text-sub)]">남은 잔액</span>
-          <span className="text-right font-semibold text-[var(--color-expense)]">{formatAmount(asset.balance)}원</span>
+          <span className="text-right font-semibold text-[var(--color-expense)]">{formatAmount(getDebtBalance(asset.balance))}원</span>
         </div>
       </div>
 
@@ -90,7 +91,7 @@ function LoanDetail({ assetId }: { assetId: string }) {
                 <p className="text-sm text-[var(--color-text-body)]">{tx.content || '대출 상환'}</p>
                 <p className="text-xs text-[var(--color-text-sub)]">{formatDate(tx.date)}</p>
               </div>
-              <span className="text-sm font-semibold text-[var(--color-income)]">-{formatAmount(tx.amount)}원</span>
+              <span className="text-sm font-semibold text-[var(--color-expense)]">-{formatAmount(tx.amount)}원</span>
             </div>
           ))
         )}
@@ -185,7 +186,7 @@ function BalanceHistory({ assetId, transactions }: { assetId: string; transactio
         </div>
       ) : (
         transactions.map(tx => {
-          const isOut = tx.type === 'expense' || tx.from_asset_id === assetId
+          const isOut = isExpenseLikeType(tx.type) || tx.from_asset_id === assetId
           const isAsset = tx.type === 'asset'
           const amountSign = isAsset
             ? (tx.amount >= 0 ? '+' : '')
@@ -268,7 +269,7 @@ export default function AssetDetailPage({ params }: Props) {
             <div className="text-center">
               <h1 className="text-[17px] font-bold text-[var(--color-text)]">{asset.name}</h1>
               <p className={`text-lg font-bold ${['card', 'minus_account', 'loan', 'insurance'].includes(asset.group_type) ? 'text-[var(--color-expense)]' : 'text-[var(--color-text)]'}`}>
-                {formatAmount(asset.balance)}원
+                {formatAmount(isDebtAssetType(asset.group_type) ? getDebtBalance(asset.balance) : asset.balance)}원
               </p>
             </div>
             <button

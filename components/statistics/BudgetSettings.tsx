@@ -4,29 +4,12 @@ import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useStore } from '@/lib/store'
+import { getBudgetForMonth, isDirectBudget } from '@/lib/budget'
+import { getDisplayMonth, getMonthStartDay } from '@/lib/monthStart'
 import type { Budget } from '@/lib/types'
 import { categoryColor } from '@/lib/colors'
 import { formatAmount } from '@/lib/utils'
 import Link from 'next/link'
-
-function getBudgetForMonth(budgets: Budget[], categoryId: string, year: number, month: number): number {
-  const direct = budgets.find(b => b.year === year && b.month === month && b.category_id === categoryId)
-  if (direct) return direct.amount
-
-  let y = year
-  let m = month - 1
-  for (let i = 0; i < 24; i++) {
-    if (m < 1) { m = 12; y-- }
-    const found = budgets.find(b => b.year === y && b.month === m && b.category_id === categoryId)
-    if (found) return found.amount
-    m--
-  }
-  return 0
-}
-
-function isDirectBudget(budgets: Budget[], categoryId: string, year: number, month: number): boolean {
-  return budgets.some(b => b.year === year && b.month === month && b.category_id === categoryId)
-}
 
 export default function BudgetSettings() {
   const router = useRouter()
@@ -34,8 +17,9 @@ export default function BudgetSettings() {
   const { categories, budgets, setBudget, ready } = useStore()
 
   const now = new Date()
-  const initYear = Number(searchParams.get('year') || now.getFullYear())
-  const initMonth = Number(searchParams.get('month') || now.getMonth() + 1)
+  const displayMonth = getDisplayMonth(now, getMonthStartDay())
+  const initYear = Number(searchParams.get('year') || displayMonth.year)
+  const initMonth = Number(searchParams.get('month') || displayMonth.month)
 
   const [year, setYear] = useState(initYear)
   const [month, setMonth] = useState(initMonth)
