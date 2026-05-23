@@ -16,12 +16,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       {/* main: overflow-hidden → 스크롤 불가, rubber-band 원천 차단 */}
       {/* pt: safe-area-inset-top + bg-surface → 상태바 영역 흰색 통일 */}
       <main
-        className="flex-1 overflow-hidden bg-[var(--color-surface)]"
+        className="flex-1 overflow-hidden bg-[var(--color-surface)] pb-[var(--bottom-nav-total)] md:pb-0"
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
         {/* 실제 스크롤 컨테이너 — 설정 등 자체 스크롤 없는 페이지의 폴백 */}
         <div
-          className="h-full overflow-y-auto pb-[var(--bottom-nav-total)] md:pb-0"
+          className="h-full overflow-y-auto"
           style={{ overscrollBehavior: 'none' }}
         >
           {children}
