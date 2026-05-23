@@ -142,6 +142,10 @@ export default function LedgerPage() {
   const loanReceivedCount = visible.filter(isLoanReceived).length
   const loanReceived = visible.filter(isLoanReceived).reduce((s, t) => s + t.amount, 0)
   const netFlow = income - outflow
+  const summaryGaugeTotal = income > 0 ? income : outflow
+  const remainingPct = summaryGaugeTotal > 0 ? Math.max(0, Math.min(100, Math.max(0, netFlow) / summaryGaugeTotal * 100)) : 0
+  const expensePct = summaryGaugeTotal > 0 ? Math.max(0, Math.min(100 - remainingPct, expense / summaryGaugeTotal * 100)) : 0
+  const loanRepaymentPct = summaryGaugeTotal > 0 ? Math.max(0, Math.min(100 - remainingPct - expensePct, loanRepayment / summaryGaugeTotal * 100)) : 0
 
   function countByFilter(f: FilterType): number {
     if (f === 'all') return visible.length
@@ -317,17 +321,12 @@ export default function LedgerPage() {
                 </p>
                 <p className="text-[13px] text-[var(--color-text-sub)] -mt-0.5">{month}월 합계</p>
               </div>
-              {(income + expense + loanRepayment) > 0 ? (
+              {summaryGaugeTotal > 0 ? (
                 <div className="h-[7px] rounded-full overflow-hidden flex mb-[5px]">
-                  <div style={{ width: `${Math.round(income / (income + expense + loanRepayment) * 100)}%` }} className="bg-[var(--color-income)]" />
-                  {loanRepayment > 0 ? (
-                    <>
-                      <div style={{ width: `${Math.round(expense / (income + expense + loanRepayment) * 100)}%` }} className="bg-[var(--color-expense)]" />
-                      <div className="flex-1 bg-[var(--color-warning)]" />
-                    </>
-                  ) : (
-                    <div className="flex-1 bg-[var(--color-expense)]" />
-                  )}
+                  {remainingPct > 0 && <div style={{ width: `${remainingPct}%` }} className="bg-[var(--color-income)]" />}
+                  {expensePct > 0 && <div style={{ width: `${expensePct}%` }} className="bg-[var(--color-expense)]" />}
+                  {loanRepaymentPct > 0 && <div style={{ width: `${loanRepaymentPct}%` }} className="bg-[var(--color-warning)]" />}
+                  <div className="flex-1 bg-[var(--color-surface-sub)]" />
                 </div>
               ) : (
                 <div className="h-[7px] rounded-full bg-[var(--color-surface-sub)] mb-[5px]" />
@@ -448,10 +447,10 @@ export default function LedgerPage() {
       </div>
 
       {/* FAB — 바텀 탭(60px) + safe area + 여백(16px) */}
-      <div className="fixed right-4 z-40 md:hidden" style={{ bottom: 'calc(var(--bottom-nav-total) + 16px)' }}>
+      <div className="fixed right-4 z-40 md:hidden" style={{ bottom: 'calc(var(--bottom-nav-total) + var(--fab-gap))' }}>
         <button
           onClick={() => setAddSheetOpen(true)}
-          className="w-12 h-12 rounded-full bg-[var(--color-primary)] flex items-center justify-center shadow-[0px_4px_16px_rgba(49,130,246,0.4)] active:scale-95 transition-transform"
+          className="h-[var(--fab-size)] w-[var(--fab-size)] rounded-full bg-[var(--color-primary)] flex items-center justify-center shadow-[0px_4px_16px_rgba(49,130,246,0.4)] active:scale-95 transition-transform"
         >
           <Plus size={20} className="text-white" />
         </button>

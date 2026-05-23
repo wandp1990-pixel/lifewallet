@@ -33,7 +33,7 @@ export default function ListTab({ transactions, categories, assets, onDelete, on
   const dates = Object.keys(grouped).sort((a, b) => b.localeCompare(a))
 
   return (
-    <div className="bg-[var(--color-surface-sub)] min-h-full pb-4">
+    <div className="bg-[var(--color-surface-sub)] min-h-full pb-[var(--fab-clearance)] md:pb-4">
       {dates.map(date => {
         const dayTxs = grouped[date]
         const dayIncome = dayTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)

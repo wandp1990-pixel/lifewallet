@@ -41,6 +41,9 @@
   --bottom-nav-height: 60px;
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
   --bottom-nav-total: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
+  --fab-size: 48px;
+  --fab-gap: 16px;
+  --fab-clearance: calc(var(--fab-size) + var(--fab-gap) + 12px);
 }
 
 html {
