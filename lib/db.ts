@@ -1,6 +1,6 @@
 import { createClient } from '@libsql/client'
 import type { Transaction, Asset } from './types'
-import { getLoanRepaymentPrincipal } from './finance'
+import { DEBT_TYPES, getLoanRepaymentPrincipal, normalizeAssetBalance } from './finance'
 
 const db = createClient({
   url: process.env.TURSO_DATABASE_URL!,
@@ -8,6 +8,19 @@ const db = createClient({
 })
 
 export default db
+
+const debtTypesSql = DEBT_TYPES.map(() => '?').join(',')
+
+function signedBalanceSql(column = 'balance') {
+  return `CASE WHEN group_type IN (${debtTypesSql}) AND ${column} > 0 THEN -${column} ELSE ${column} END`
+}
+
+async function updateAssetBalance(assetId: string, delta: number) {
+  await db.execute({
+    sql: `UPDATE assets SET balance = ${signedBalanceSql()} + ? WHERE id = ?`,
+    args: [...DEBT_TYPES, delta, assetId],
+  })
+}
 
 export async function initDb() {
   await db.executeMultiple(`
@@ -119,6 +132,11 @@ export async function initDb() {
     await db.execute("UPDATE transactions SET category_id = '' WHERE category_id != '' AND category_id NOT IN (SELECT id FROM categories)")
     await db.execute("UPDATE recurring_transactions SET category_id = '' WHERE category_id != '' AND category_id NOT IN (SELECT id FROM categories)")
   }
+
+  await db.execute({
+    sql: `UPDATE assets SET balance = -ABS(balance) WHERE group_type IN (${debtTypesSql}) AND balance > 0`,
+    args: DEBT_TYPES,
+  })
 }
 
 export async function applyTransactionBalance(
@@ -126,18 +144,18 @@ export async function applyTransactionBalance(
 ) {
   const { type, amount, fee, asset_id, from_asset_id, to_asset_id } = tx
   if (type === 'income') {
-    await db.execute({ sql: 'UPDATE assets SET balance = balance + ? WHERE id = ?', args: [amount, asset_id] })
+    await updateAssetBalance(asset_id, amount)
   } else if (type === 'expense') {
-    await db.execute({ sql: 'UPDATE assets SET balance = balance - ? WHERE id = ?', args: [amount, asset_id] })
+    await updateAssetBalance(asset_id, -amount)
   } else if (type === 'transfer') {
-    await db.execute({ sql: 'UPDATE assets SET balance = balance - ? WHERE id = ?', args: [amount + (fee ?? 0), from_asset_id] })
-    await db.execute({ sql: 'UPDATE assets SET balance = balance + ? WHERE id = ?', args: [amount, to_asset_id] })
+    await updateAssetBalance(from_asset_id, -(amount + (fee ?? 0)))
+    await updateAssetBalance(to_asset_id, amount)
   } else if (type === 'loan_repayment') {
     const principalAmount = getLoanRepaymentPrincipal(tx as Pick<Transaction, 'type' | 'amount' | 'fee'>)
-    await db.execute({ sql: 'UPDATE assets SET balance = balance - ? WHERE id = ?', args: [amount, from_asset_id] })
-    await db.execute({ sql: 'UPDATE assets SET balance = balance + ? WHERE id = ?', args: [principalAmount, to_asset_id] })
+    await updateAssetBalance(from_asset_id, -amount)
+    await updateAssetBalance(to_asset_id, principalAmount)
   } else if (type === 'asset') {
-    await db.execute({ sql: 'UPDATE assets SET balance = balance + ? WHERE id = ?', args: [amount, asset_id] })
+    await updateAssetBalance(asset_id, amount)
   }
 }
 
@@ -149,12 +167,14 @@ export async function reverseTransactionBalance(
 }
 
 export function rowToAsset(row: Record<string, unknown>): Asset {
+  const groupType = row.group_type as Asset['group_type']
+  const balance = normalizeAssetBalance(groupType, Number(row.balance ?? 0))
   return {
     id: row.id as string,
-    group_type: row.group_type as Asset['group_type'],
+    group_type: groupType,
     group_name: row.group_name as string,
     name: row.name as string,
-    balance: row.balance as number,
+    balance,
     order: row.ord as number,
     visible: Boolean(row.visible),
     track_detail: Boolean(row.track_detail),

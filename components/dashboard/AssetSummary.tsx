@@ -1,9 +1,8 @@
 'use client'
 
 import { formatAmount } from '@/lib/utils'
-import type { Asset, AssetGroupType } from '@/lib/types'
-
-const DEBT_TYPES: AssetGroupType[] = ['card', 'minus_account', 'loan', 'insurance']
+import { getDebtBalance, isDebtAssetType } from '@/lib/finance'
+import type { Asset } from '@/lib/types'
 
 interface Props {
   assets: Asset[]
@@ -11,8 +10,8 @@ interface Props {
 
 export default function AssetSummary({ assets }: Props) {
   const visible = assets.filter(a => a.visible)
-  const totalAssets = visible.filter(a => !DEBT_TYPES.includes(a.group_type)).reduce((s, a) => s + a.balance, 0)
-  const totalDebts = visible.filter(a => DEBT_TYPES.includes(a.group_type)).reduce((s, a) => s + Math.abs(a.balance), 0)
+  const totalAssets = visible.filter(a => !isDebtAssetType(a.group_type)).reduce((s, a) => s + a.balance, 0)
+  const totalDebts = visible.filter(a => isDebtAssetType(a.group_type)).reduce((s, a) => s + getDebtBalance(a.balance), 0)
   const netWorth = totalAssets - totalDebts
 
   const tracked = visible.filter(a => a.track_detail)
@@ -29,8 +28,8 @@ export default function AssetSummary({ assets }: Props) {
           {tracked.map(a => (
             <div key={a.id} className="flex justify-between text-sm">
               <span className="text-[var(--color-text-body)] truncate">{a.name}</span>
-              <span className={`tabular-nums font-medium flex-shrink-0 ${DEBT_TYPES.includes(a.group_type) ? 'text-[var(--color-expense)]' : 'text-[var(--color-text)]'}`}>
-                {formatAmount(a.balance)}원
+              <span className={`tabular-nums font-medium flex-shrink-0 ${isDebtAssetType(a.group_type) ? 'text-[var(--color-expense)]' : 'text-[var(--color-text)]'}`}>
+                {formatAmount(isDebtAssetType(a.group_type) ? getDebtBalance(a.balance) : a.balance)}원
               </span>
             </div>
           ))}
