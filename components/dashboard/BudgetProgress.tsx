@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { getBudgetForMonth } from '@/lib/budget'
+import { getBudgetForMonth, getBudgetPace } from '@/lib/budget'
 import { categoryColor } from '@/lib/colors'
 import { formatAmount } from '@/lib/utils'
 import type { Transaction, Category, Budget } from '@/lib/types'
@@ -12,9 +12,10 @@ interface Props {
   budgets: Budget[]
   year: number
   month: number
+  monthStartDay: number
 }
 
-export default function BudgetProgress({ transactions, categories, budgets, year, month }: Props) {
+export default function BudgetProgress({ transactions, categories, budgets, year, month, monthStartDay }: Props) {
   const expenseCategories = categories.filter(c => c.type === 'expense' && c.visible)
   const expenses = transactions.filter(t => t.type === 'expense')
 
@@ -25,6 +26,11 @@ export default function BudgetProgress({ transactions, categories, budgets, year
     const over = budget > 0 && used > budget
     return { cat, used, budget, pct, over }
   }).filter(r => r.used > 0 || r.budget > 0)
+  const totalUsed = rows.reduce((sum, row) => sum + row.used, 0)
+  const totalBudget = rows.reduce((sum, row) => sum + row.budget, 0)
+  const pace = getBudgetPace(totalBudget, totalUsed, year, month, monthStartDay)
+  const totalPct = Math.min(100, Math.round(pace.spendPct))
+  const isFast = pace.isCurrentPeriod && pace.spendPct > pace.dayPct + 5
 
   if (rows.length === 0) {
     return (
@@ -44,6 +50,46 @@ export default function BudgetProgress({ transactions, categories, budgets, year
         <p className="text-sm font-semibold text-[var(--color-text)]">소비 예산 진행 상황</p>
         <Link href="/statistics/budget-settings" className="text-xs text-[var(--color-primary)]">예산 편집 →</Link>
       </div>
+      {totalBudget > 0 && (
+        <div className="mb-4 rounded-xl bg-[var(--color-surface-sub)] px-3 py-3">
+          <div className="flex justify-between text-[12px] text-[var(--color-text-sub)] mb-2">
+            <span>월 진행 {pace.dayPct.toFixed(0)}%</span>
+            <span className={isFast ? 'text-[var(--color-expense)]' : 'text-[var(--color-primary)]'}>
+              예산 {pace.spendPct.toFixed(0)}% 소진
+            </span>
+          </div>
+          <div className="relative pt-7">
+            {pace.isCurrentPeriod && (
+              <>
+                <div
+                  className="absolute top-0 flex flex-col items-center"
+                  style={{ left: `${pace.clampedDayPct}%`, transform: 'translateX(-50%)' }}
+                >
+                  <div className="rounded-full bg-[#4e5968] px-2 py-0.5 text-[10px] font-semibold text-white">오늘</div>
+                  <div className="h-0 w-0 border-l-[4px] border-r-[4px] border-t-[5px] border-l-transparent border-r-transparent border-t-[#4e5968]" />
+                </div>
+                <div
+                  className="absolute bottom-[-5px] top-6 z-10 w-px bg-[#8b95a1]"
+                  style={{ left: `${pace.dayPct}%`, transform: 'translateX(-50%)' }}
+                />
+              </>
+            )}
+            <div className="h-2 rounded-full bg-[var(--color-border)] overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${totalPct}%`,
+                  backgroundColor: pace.spendPct >= 100 ? 'var(--color-expense)' : isFast ? 'var(--color-warning)' : 'var(--color-primary)',
+                }}
+              />
+            </div>
+          </div>
+          <div className="mt-2 flex justify-between text-[11px] text-[var(--color-text-sub)] tabular-nums">
+            <span>{formatAmount(totalUsed)} / {formatAmount(totalBudget)}원</span>
+            {pace.isCurrentPeriod && <span>월말 예상 {formatAmount(pace.projectedSpend)}원</span>}
+          </div>
+        </div>
+      )}
       <div className="space-y-3">
         {rows.map(({ cat, used, budget, pct, over }) => (
           <div key={cat.id}>

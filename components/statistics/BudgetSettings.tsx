@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { getBudgetForMonth, isDirectBudget } from '@/lib/budget'
 import { getDisplayMonth, getMonthStartDay } from '@/lib/monthStart'
@@ -14,7 +14,7 @@ import Link from 'next/link'
 export default function BudgetSettings() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { categories, budgets, setBudget, ready } = useStore()
+  const { categories, budgets, setBudget, deleteBudget, ready } = useStore()
 
   const now = new Date()
   const displayMonth = getDisplayMonth(now, getMonthStartDay())
@@ -63,20 +63,34 @@ export default function BudgetSettings() {
     setSaving(true)
     try {
       const toSave = Object.entries(inputs).filter(([, v]) => v.trim() !== '')
+      const toDelete = expenseCategories
+        .filter(cat => isDirectBudget(budgets, cat.id, year, month) && (inputs[cat.id] ?? '').trim() === '')
+        .map(cat => cat.id)
+
       await Promise.all(
-        toSave.map(async ([categoryId, v]) => {
-          const amount = Number(v.replace(/,/g, ''))
-          if (isNaN(amount) || amount < 0) return
-          const res = await fetch('/api/budget', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ year, month, category_id: categoryId, amount }),
-          })
-          if (res.ok) {
+        [
+          ...toSave.map(async ([categoryId, v]) => {
+            const amount = Number(v.replace(/,/g, ''))
+            if (isNaN(amount) || amount < 0) throw new Error('invalid budget amount')
+            const res = await fetch('/api/budget', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ year, month, category_id: categoryId, amount }),
+            })
+            if (!res.ok) throw new Error('save failed')
             const b: Budget = await res.json()
             setBudget(b)
-          }
-        })
+          }),
+          ...toDelete.map(async (categoryId) => {
+            const res = await fetch('/api/budget', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ year, month, category_id: categoryId }),
+            })
+            if (!res.ok) throw new Error('delete failed')
+            deleteBudget(year, month, categoryId)
+          }),
+        ]
       )
       showToast('예산을 저장했습니다')
     } catch {
@@ -151,6 +165,17 @@ export default function BudgetSettings() {
                     onChange={e => setInputs(prev => ({ ...prev, [cat.id]: e.target.value }))}
                     className="w-32 text-right text-[14px] font-semibold text-[var(--color-text)] bg-[rgba(0,23,51,0.02)] border border-[rgba(2,32,71,0.05)] rounded-xl px-3 py-2 tabular-nums focus:outline-none focus:border-[var(--color-primary)]"
                   />
+                  {isDirect && (
+                    <button
+                      type="button"
+                      onClick={() => setInputs(prev => ({ ...prev, [cat.id]: '' }))}
+                      title="직접 설정값 초기화"
+                      aria-label={`${cat.name} 예산 직접 설정값 초기화`}
+                      className="p-2 text-[var(--color-text-sub)] hover:text-[var(--color-primary)]"
+                    >
+                      <RotateCcw size={16} />
+                    </button>
+                  )}
                   <span className="text-[13px] text-[var(--color-text-sub)]">원</span>
                 </div>
               </div>

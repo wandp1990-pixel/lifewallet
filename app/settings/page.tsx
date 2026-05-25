@@ -4,6 +4,7 @@ import MonthStartSetting from '@/components/settings/MonthStartSetting'
 
 const MORE_ITEMS = [
   { href: '/dashboard', label: '대시보드' },
+  { href: '/report', label: '재무 보고서' },
   { href: '/savings', label: '저축 목표' },
   { href: '/wishlist', label: '위시리스트' },
 ]

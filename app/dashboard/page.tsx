@@ -223,7 +223,7 @@ export default function DashboardPage() {
       <CategoryChart transactions={currentTxs} categories={categories} yearMonth={yearMonthLabel} />
 
       {/* 예산 진행 */}
-      <BudgetProgress transactions={currentTxs} categories={categories} budgets={budgets} year={year} month={month} />
+      <BudgetProgress transactions={currentTxs} categories={categories} budgets={budgets} year={year} month={month} monthStartDay={monthStartDay} />
 
       {/* 최근 내역 */}
       <RecentList transactions={currentTxs} categories={categories} assets={assets} />

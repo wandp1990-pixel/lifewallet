@@ -8,7 +8,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { getExpenseAmount, getOutflowAmount } from '@/lib/finance'
 import { useStore } from '@/lib/store'
 import type { Transaction, Category } from '@/lib/types'
-import { getBudgetForMonth, isDirectBudget } from '@/lib/budget'
+import { getBudgetForMonth, getBudgetPace, isDirectBudget } from '@/lib/budget'
 import { categoryColor } from '@/lib/colors'
 import { formatAmount } from '@/lib/utils'
 import CatIcon from '@/components/ui/CatIcon'
@@ -132,6 +132,7 @@ export default function StatisticsView() {
 
   const totalBudget = budgetStats.reduce((s, b) => s + b.budget, 0)
   const budgetPct = totalBudget > 0 ? Math.min((totalExpense / totalBudget) * 100, 100) : 0
+  const budgetPace = monthStartDay === null ? null : getBudgetPace(totalBudget, totalExpense, year, month, monthStartDay)
 
   // 내용별 집계
   const contentStats = useMemo(() => {
@@ -229,6 +230,7 @@ export default function StatisticsView() {
                 total={totalExpense}
                 totalBudget={totalBudget}
                 budgetPct={budgetPct}
+                pace={budgetPace}
                 year={year}
                 month={month}
               />
@@ -333,12 +335,13 @@ interface BudgetStat {
 }
 
 function BudgetView({
-  stats, total, totalBudget, budgetPct, year, month,
+  stats, total, totalBudget, budgetPct, pace, year, month,
 }: {
   stats: BudgetStat[]
   total: number
   totalBudget: number
   budgetPct: number
+  pace: ReturnType<typeof getBudgetPace> | null
   year: number
   month: number
 }) {
@@ -364,12 +367,35 @@ function BudgetView({
           <span>총 예산 {formatAmount(totalBudget)}원</span>
           <span>소비 {formatAmount(total)}원</span>
         </div>
-        <div className="h-2 bg-[var(--color-surface-sub)] rounded-full overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all"
-            style={{ width: `${budgetPct}%`, backgroundColor: budgetPct >= 100 ? 'var(--color-expense)' : 'var(--color-primary)' }}
-          />
+        <div className="relative pt-7">
+          {pace?.isCurrentPeriod && (
+            <>
+              <div
+                className="absolute top-0 flex flex-col items-center"
+                style={{ left: `${pace.clampedDayPct}%`, transform: 'translateX(-50%)' }}
+              >
+                <div className="rounded-full bg-[#4e5968] px-2 py-0.5 text-[10px] font-semibold text-white">오늘</div>
+                <div className="h-0 w-0 border-l-[4px] border-r-[4px] border-t-[5px] border-l-transparent border-r-transparent border-t-[#4e5968]" />
+              </div>
+              <div
+                className="absolute bottom-[-5px] top-6 z-10 w-px bg-[#8b95a1]"
+                style={{ left: `${pace.dayPct}%`, transform: 'translateX(-50%)' }}
+              />
+            </>
+          )}
+          <div className="h-2 bg-[var(--color-surface-sub)] rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all"
+              style={{ width: `${budgetPct}%`, backgroundColor: budgetPct >= 100 ? 'var(--color-expense)' : pace?.isCurrentPeriod && pace.spendPct > pace.dayPct + 5 ? 'var(--color-warning)' : 'var(--color-primary)' }}
+            />
+          </div>
         </div>
+        {pace?.isCurrentPeriod && (
+          <div className="flex justify-between mt-2 text-[12px] text-[var(--color-text-sub)]">
+            <span>월 진행 {pace.dayPct.toFixed(0)}%</span>
+            <span>월말 예상 {formatAmount(pace.projectedSpend)}원</span>
+          </div>
+        )}
         <div className="flex justify-between mt-2 text-[12px]">
           <span className="text-[var(--color-text-sub)]">소진율 {budgetPct.toFixed(1)}%</span>
           <span className={total > totalBudget ? 'text-[var(--color-expense)]' : 'text-[var(--color-income)]'}>

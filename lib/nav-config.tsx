@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import {
   BookOpen, LayoutDashboard, BarChart2,
-  Layers, PiggyBank, Star, Settings,
+  Layers, PiggyBank, Star, Settings, FileText, MoreHorizontal,
 } from 'lucide-react'
 
 export interface NavItem {
@@ -33,6 +33,12 @@ export const NAV_ITEMS = {
     icon: (active: boolean, variant: 'desktop' | 'mobile') =>
       <BarChart2 size={size(variant)} strokeWidth={active ? 2.5 : 1.8} />,
   },
+  report: {
+    href: '/report',
+    label: '재무 보고서',
+    icon: (active: boolean, variant: 'desktop' | 'mobile') =>
+      <FileText size={size(variant)} strokeWidth={active ? 2.5 : 1.8} />,
+  },
   assets: {
     href: '/assets',
     label: '자산',
@@ -55,7 +61,9 @@ export const NAV_ITEMS = {
     href: '/settings',
     label: '설정',
     icon: (active: boolean, variant: 'desktop' | 'mobile') =>
-      <Settings size={size(variant)} strokeWidth={active ? 2.5 : 1.8} />,
+      variant === 'mobile'
+        ? <MoreHorizontal size={size(variant)} strokeWidth={active ? 2.5 : 1.8} />
+        : <Settings size={size(variant)} strokeWidth={active ? 2.5 : 1.8} />,
   },
 } as Record<string, NavItem>
 
@@ -63,7 +71,7 @@ export type NavId = keyof typeof NAV_ITEMS
 
 export const DESKTOP_NAV: { group: string; items: NavId[] }[] = [
   { group: '메인', items: ['daily', 'dashboard'] },
-  { group: '분석', items: ['statistics'] },
+  { group: '분석', items: ['statistics', 'report'] },
   { group: '자산·계획', items: ['assets', 'savings', 'wishlist'] },
   { group: '시스템', items: ['settings'] },
 ]

@@ -30,6 +30,7 @@ interface StoreActions {
   reorderCategories: (categories: Category[]) => void
 
   setBudget: (b: Budget) => void
+  deleteBudget: (year: number, month: number, categoryId: string) => void
 
   addSavingsGoal: (g: SavingsGoal) => void
   updateSavingsGoal: (g: SavingsGoal) => void
@@ -99,6 +100,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       budgets: s.budgets.some(x => x.year === b.year && x.month === b.month && x.category_id === b.category_id)
         ? s.budgets.map(x => x.year === b.year && x.month === b.month && x.category_id === b.category_id ? b : x)
         : [...s.budgets, b],
+    })),
+    deleteBudget: (year, month, categoryId) => setState(s => ({
+      ...s,
+      budgets: s.budgets.filter(x => !(x.year === year && x.month === month && x.category_id === categoryId)),
     })),
 
     addSavingsGoal: (g) => setState(s => ({ ...s, savingsGoals: [...s.savingsGoals, g] })),

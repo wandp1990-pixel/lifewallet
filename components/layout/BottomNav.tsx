@@ -2,40 +2,18 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BarChart2, Layers, MoreHorizontal, Home } from 'lucide-react'
+import { MOBILE_NAV, NAV_ITEMS, type NavId } from '@/lib/nav-config'
 
-const now = new Date()
-const todayLabel = `${now.getMonth() + 1}. ${String(now.getDate()).padStart(2, '0')}.`
-
-const NAV = [
-  {
-    href: '/',
-    label: todayLabel,
-    icon: (active: boolean) => <Home size={22} strokeWidth={active ? 2.5 : 1.8} />,
-    matchMode: 'exact' as const,
-  },
-  {
-    href: '/statistics',
-    label: '통계',
-    icon: (active: boolean) => <BarChart2 size={22} strokeWidth={active ? 2.5 : 1.8} />,
-    matchMode: 'startsWith' as const,
-  },
-  {
-    href: '/assets',
-    label: '자산',
-    icon: (active: boolean) => <Layers size={22} strokeWidth={active ? 2.5 : 1.8} />,
-    matchMode: 'startsWith' as const,
-  },
-  {
-    href: '/settings',
-    label: '더보기',
-    icon: (active: boolean) => <MoreHorizontal size={22} strokeWidth={active ? 2.5 : 1.8} />,
-    matchMode: 'startsWith' as const,
-  },
-]
+const MORE_PATHS = ['/settings', '/dashboard', '/report', '/savings', '/wishlist']
 
 function isActive(pathname: string, href: string, matchMode: 'exact' | 'startsWith') {
   return matchMode === 'exact' ? pathname === href : pathname === href || pathname.startsWith(href + '/')
+}
+
+function getMobileLabel(id: NavId) {
+  if (id === 'daily') return '내역'
+  if (id === 'settings') return '더보기'
+  return NAV_ITEMS[id].label
 }
 
 export default function BottomNav() {
@@ -44,8 +22,11 @@ export default function BottomNav() {
   return (
     <>
       <div className="flex h-[60px] px-2">
-        {NAV.map(item => {
-          const active = isActive(pathname, item.href, item.matchMode)
+        {MOBILE_NAV.map(id => {
+          const item = NAV_ITEMS[id]
+          const active = id === 'settings'
+            ? MORE_PATHS.some(path => isActive(pathname, path, 'startsWith'))
+            : isActive(pathname, item.href, item.matchMode ?? 'startsWith')
           return (
             <Link
               key={item.href}
@@ -55,8 +36,8 @@ export default function BottomNav() {
                 active ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-sub)]',
               ].join(' ')}
             >
-              {item.icon(active)}
-              {item.label}
+              {item.icon(active, 'mobile')}
+              {getMobileLabel(id)}
             </Link>
           )
         })}
