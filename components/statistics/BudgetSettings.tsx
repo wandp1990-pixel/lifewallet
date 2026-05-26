@@ -7,9 +7,9 @@ import { useStore } from '@/lib/store'
 import { getBudgetForMonth, isDirectBudget } from '@/lib/budget'
 import { getDisplayMonth, getMonthStartDay } from '@/lib/monthStart'
 import type { Budget } from '@/lib/types'
-import { categoryColor } from '@/lib/colors'
 import { formatAmount } from '@/lib/utils'
 import Link from 'next/link'
+import CatIcon from '@/components/ui/CatIcon'
 
 export default function BudgetSettings() {
   const router = useRouter()
@@ -145,10 +145,10 @@ export default function BudgetSettings() {
             const inputVal = inputs[cat.id] ?? ''
 
             return (
-              <div key={cat.id} className="flex items-center gap-3 px-4 py-4">
-                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: categoryColor(cat.id) }} />
+              <div key={cat.id} className="flex items-center gap-3 px-4 py-3">
+                <CatIcon icon={cat.icon || 'box'} id={cat.id} size={28} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-[14px] text-[var(--color-text)]">{cat.icon} {cat.name}</div>
+                  <div className="text-[14px] text-[var(--color-text)]">{cat.name}</div>
                   {!isDirect && fallback > 0 && (
                     <div className="text-[11px] text-[var(--color-text-placeholder)] mt-0.5">
                       이전 달 기준 {formatAmount(fallback)}원

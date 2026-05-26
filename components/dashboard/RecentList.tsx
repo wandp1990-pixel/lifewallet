@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { isLoanReceivedTransaction } from '@/lib/finance'
 import { formatAmount } from '@/lib/utils'
 import { categoryColor } from '@/lib/colors'
+import CatIcon from '@/components/ui/CatIcon'
 import type { Transaction, Category, Asset } from '@/lib/types'
 
 interface Props {
@@ -57,14 +58,9 @@ export default function RecentList({ transactions, categories, assets }: Props) 
           return (
             <div key={tx.id} className="flex items-center gap-3 px-4 py-3 border-b border-[var(--color-border)] last:border-b-0">
               {cat ? (
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0"
-                  style={{ backgroundColor: categoryColor(cat.id) + '22' }}
-                >
-                  {cat.icon}
-                </div>
+                <CatIcon icon={cat.icon || 'box'} id={cat.id} size={32} />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-[var(--color-surface-sub)] flex-shrink-0" />
+                <div className="w-8 h-8 rounded-[9px] bg-[var(--color-surface-sub)] flex-shrink-0" />
               )}
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-[var(--color-text)] truncate">{tx.content || (isLoanReceived ? '대출 수령' : tx.type === 'transfer' ? '이체' : tx.type)}</p>

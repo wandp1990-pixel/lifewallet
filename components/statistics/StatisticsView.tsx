@@ -5,7 +5,7 @@ import useSWR from 'swr'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
-import { getExpenseAmount, getOutflowAmount } from '@/lib/finance'
+import { getExpenseAmount } from '@/lib/finance'
 import { useStore } from '@/lib/store'
 import type { Transaction, Category } from '@/lib/types'
 import { getBudgetForMonth, getBudgetPace, isDirectBudget } from '@/lib/budget'
@@ -17,6 +17,7 @@ import { fetcher } from '@/lib/fetcher'
 
 type StatView = 'category' | 'budget' | 'content'
 type ContentType = 'expense' | 'income'
+type CategoryType = 'expense' | 'income'
 type ContentPeriod = 'month' | 'week' | 'year'
 
 const VIEW_LABELS: Record<StatView, string> = {
@@ -41,6 +42,7 @@ export default function StatisticsView() {
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [monthStartDay, setMonthStartDay] = useState<number | null>(null)
   const [view, setView] = useState<StatView>('category')
+  const [categoryType, setCategoryType] = useState<CategoryType>('expense')
   const [contentType, setContentType] = useState<ContentType>('expense')
   const [contentPeriod, setContentPeriod] = useState<ContentPeriod>('month')
 
@@ -90,16 +92,11 @@ export default function StatisticsView() {
     () => getExpenseAmount(transactions),
     [transactions]
   )
-  const totalOutflow = useMemo(
-    () => getOutflowAmount(transactions),
-    [transactions]
-  )
-
-  // 카테고리별 지출 집계
+  // 카테고리별 수입/지출 집계
   const categoryStats = useMemo(() => {
     const map: Record<string, number> = {}
     for (const t of transactions) {
-      if (t.type !== 'expense') continue
+      if (t.type !== categoryType) continue
       const key = t.category_id || ''
       map[key] = (map[key] ?? 0) + t.amount
     }
@@ -108,15 +105,17 @@ export default function StatisticsView() {
       const cat = categories.find(c => c.id === categoryId)
       return {
         categoryId,
-        name: cat ? `${cat.icon} ${cat.name}` : '미분류',
+        name: cat ? cat.name : '미분류',
         icon: cat?.icon ?? '📦',
         catName: cat?.name ?? '미분류',
         amount,
-        pct: totalExpense > 0 ? (amount / totalExpense) * 100 : 0,
+        pct: (categoryType === 'income' ? totalIncome : totalExpense) > 0
+          ? (amount / (categoryType === 'income' ? totalIncome : totalExpense)) * 100
+          : 0,
         color: categoryColor(categoryId),
       }
     })
-  }, [transactions, categories, totalExpense])
+  }, [transactions, categories, categoryType, totalIncome, totalExpense])
 
   // 예산 뷰
   const budgetStats = useMemo(() => {
@@ -187,11 +186,7 @@ export default function StatisticsView() {
             <ChevronLeft size={20} />
           </button>
           <div className="text-center">
-            <div className="text-[15px] font-semibold text-[var(--color-text)]">{year}년 {month}월</div>
-            <div className="flex gap-4 mt-0.5 text-[12px]">
-              <span className="text-[var(--color-income)]">수입 {formatAmount(totalIncome)}원</span>
-              <span className="text-[var(--color-expense)]">유출 {formatAmount(totalOutflow)}원</span>
-            </div>
+            <div className="text-[17px] font-semibold text-[var(--color-text)]">{year}년 {month}월</div>
           </div>
           <button onClick={nextMonth} className="p-1 text-[var(--color-text-sub)]">
             <ChevronRight size={20} />
@@ -223,7 +218,14 @@ export default function StatisticsView() {
           </div>
         ) : (
           <>
-            {view === 'category' && <CategoryView stats={categoryStats} total={totalExpense} />}
+            {view === 'category' && (
+              <CategoryView
+                stats={categoryStats}
+                total={categoryType === 'income' ? totalIncome : totalExpense}
+                categoryType={categoryType}
+                setCategoryType={setCategoryType}
+              />
+            )}
             {view === 'budget' && (
               <BudgetView
                 stats={budgetStats}
@@ -273,11 +275,23 @@ function CategoryTooltip({ active, payload }: { active?: boolean; payload?: { na
   )
 }
 
-function CategoryView({ stats, total }: { stats: CategoryStat[]; total: number }) {
+function CategoryView({
+  stats, total, categoryType, setCategoryType,
+}: {
+  stats: CategoryStat[]
+  total: number
+  categoryType: CategoryType
+  setCategoryType: (v: CategoryType) => void
+}) {
+  const isIncome = categoryType === 'income'
+
   if (total === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-[var(--color-text-sub)]">
-        <p className="text-[15px]">이번 달 지출 내역이 없습니다</p>
+      <div className="px-4 pt-4">
+        <CategoryTypeTabs value={categoryType} onChange={setCategoryType} />
+        <div className="flex flex-col items-center justify-center py-16 text-[var(--color-text-sub)]">
+          <p className="text-[15px]">이번 달 {isIncome ? '수입' : '지출'} 내역이 없습니다</p>
+        </div>
       </div>
     )
   }
@@ -286,6 +300,8 @@ function CategoryView({ stats, total }: { stats: CategoryStat[]; total: number }
 
   return (
     <div className="px-4 pt-4">
+      <CategoryTypeTabs value={categoryType} onChange={setCategoryType} />
+
       {/* 도넛 차트 */}
       <div className="flex justify-center mb-4">
         <div className="relative">
@@ -298,8 +314,8 @@ function CategoryView({ stats, total }: { stats: CategoryStat[]; total: number }
             </PieChart>
           </ResponsiveContainer>
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <p className="text-[11px] text-[var(--color-text-sub)]">소비 지출</p>
-            <p className="text-[15px] font-bold text-[var(--color-expense)] tabular-nums">{formatAmount(total)}원</p>
+            <p className="text-[11px] text-[var(--color-text-sub)]">총 {isIncome ? '수입' : '지출'}</p>
+            <p className={`text-[15px] font-bold tabular-nums ${isIncome ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]'}`}>{formatAmount(total)}원</p>
           </div>
         </div>
       </div>
@@ -319,6 +335,26 @@ function CategoryView({ stats, total }: { stats: CategoryStat[]; total: number }
           </div>
         ))}
       </div>
+    </div>
+  )
+}
+
+function CategoryTypeTabs({ value, onChange }: { value: CategoryType; onChange: (v: CategoryType) => void }) {
+  return (
+    <div className="mb-4 flex gap-2">
+      {(['income', 'expense'] as CategoryType[]).map(t => (
+        <button
+          key={t}
+          onClick={() => onChange(t)}
+          className={`h-9 rounded-full px-4 text-[13px] font-medium transition-colors ${
+            value === t
+              ? 'bg-[var(--color-primary)] text-white'
+              : 'bg-[var(--color-surface-sub)] text-[var(--color-text-sub)]'
+          }`}
+        >
+          {t === 'income' ? '수입' : '지출'}
+        </button>
+      ))}
     </div>
   )
 }
@@ -468,7 +504,7 @@ function ContentView({
     <div className="pt-4">
       {/* 지출/수입 탭 */}
       <div className="flex px-4 gap-2 mb-3">
-        {(['expense', 'income'] as ContentType[]).map(t => (
+        {(['income', 'expense'] as ContentType[]).map(t => (
           <button
             key={t}
             onClick={() => setContentType(t)}

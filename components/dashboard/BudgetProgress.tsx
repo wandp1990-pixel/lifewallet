@@ -95,7 +95,7 @@ export default function BudgetProgress({ transactions, categories, budgets, year
           <div key={cat.id}>
             <div className="flex items-center gap-2 mb-1">
               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: categoryColor(cat.id) }} />
-              <span className="text-xs text-[var(--color-text-body)] flex-1">{cat.icon} {cat.name}</span>
+              <span className="text-xs text-[var(--color-text-body)] flex-1">{cat.name}</span>
               <span className={`text-xs font-medium tabular-nums ${over ? 'text-[var(--color-expense)]' : 'text-[var(--color-text-sub)]'}`}>
                 {over ? `초과 ${formatAmount(used - budget)}원` : budget > 0 ? `잔여 ${formatAmount(budget - used)}원` : ''}
               </span>
