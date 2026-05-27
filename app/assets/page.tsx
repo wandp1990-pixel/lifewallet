@@ -64,6 +64,14 @@ export default function AssetsPage() {
     () => assets.filter(a => a.visible && a.track_detail),
     [assets]
   )
+  const trackDetailRegularAssets = useMemo(
+    () => trackDetailAssets.filter(a => !isDebtAssetType(a.group_type)),
+    [trackDetailAssets]
+  )
+  const trackDetailDebtAssets = useMemo(
+    () => trackDetailAssets.filter(a => isDebtAssetType(a.group_type)),
+    [trackDetailAssets]
+  )
 
   function toggleCollapse(groupType: string) {
     setCollapsed(prev => {
@@ -165,25 +173,63 @@ export default function AssetsPage() {
               </div>
             </div>
 
-            {/* 자산 구성 (track_detail ON만) */}
+            {/* 자산/부채 구성 (track_detail ON만) */}
             {trackDetailAssets.length > 0 && (
-              <div className="border-t border-[var(--color-border)] pt-3 space-y-1.5">
-                {trackDetailAssets.map(a => {
-                  const isDebt = isDebtAssetType(a.group_type)
-                  const basis = isDebt ? getDebtBalance(a.balance) : a.balance
-                  const total = isDebt ? totalDebt : totalAssets
-                  const pct = total > 0 ? Math.round((basis / total) * 100) : 0
-                  return (
-                    <button
-                      key={a.id}
-                      onClick={() => router.push(`/assets/${a.id}`)}
-                      className="w-full flex items-center justify-between text-sm hover:bg-[var(--color-surface)] rounded-lg px-2 py-1 transition-colors"
-                    >
-                      <span className="text-[var(--color-text-body)]">{a.name}</span>
-                      <span className="text-xs text-[var(--color-text-sub)]">{pct}%</span>
-                    </button>
-                  )
-                })}
+              <div className="border-t border-[var(--color-border)] pt-3 space-y-3">
+                {trackDetailRegularAssets.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between px-2">
+                      <span className="text-[11px] font-semibold text-[var(--color-text-sub)]">자산 구성</span>
+                      <span className="text-[11px] text-[var(--color-text-placeholder)]">
+                        관리 자산 {formatAmount(totalAssets)}원 기준
+                      </span>
+                    </div>
+                    {trackDetailRegularAssets.map(a => {
+                      const pct = totalAssets > 0 ? Math.round((a.balance / totalAssets) * 100) : 0
+                      return (
+                        <button
+                          key={a.id}
+                          onClick={() => router.push(`/assets/${a.id}`)}
+                          className="w-full flex items-center justify-between gap-3 text-sm hover:bg-[var(--color-surface)] rounded-lg px-2 py-1 transition-colors"
+                        >
+                          <span className="min-w-0 truncate text-[var(--color-text-body)]">{a.name}</span>
+                          <span className="shrink-0 flex items-baseline gap-2 tabular-nums">
+                            <span className="text-xs text-[var(--color-text-sub)]">{formatAmount(a.balance)}원</span>
+                            <span className="w-9 text-right text-xs text-[var(--color-text-sub)]">{pct}%</span>
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {trackDetailDebtAssets.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between px-2">
+                      <span className="text-[11px] font-semibold text-[var(--color-text-sub)]">부채 구성</span>
+                      <span className="text-[11px] text-[var(--color-text-placeholder)]">
+                        관리 부채 {formatAmount(totalDebt)}원 기준
+                      </span>
+                    </div>
+                    {trackDetailDebtAssets.map(a => {
+                      const debtBalance = getDebtBalance(a.balance)
+                      const pct = totalDebt > 0 ? Math.round((debtBalance / totalDebt) * 100) : 0
+                      return (
+                        <button
+                          key={a.id}
+                          onClick={() => router.push(`/assets/${a.id}`)}
+                          className="w-full flex items-center justify-between gap-3 text-sm hover:bg-[var(--color-surface)] rounded-lg px-2 py-1 transition-colors"
+                        >
+                          <span className="min-w-0 truncate text-[var(--color-text-body)]">{a.name}</span>
+                          <span className="shrink-0 flex items-baseline gap-2 tabular-nums">
+                            <span className="text-xs text-[var(--color-expense)]">{formatAmount(debtBalance)}원</span>
+                            <span className="w-9 text-right text-xs text-[var(--color-text-sub)]">{pct}%</span>
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>
