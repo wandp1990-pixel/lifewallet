@@ -38,6 +38,13 @@ function priorityLabel(priority: MonthlyReport['debtStrategy']['loans'][number][
   return '일반'
 }
 
+function payoffLabel(loan: MonthlyReport['debtStrategy']['loans'][number]) {
+  if (loan.payoffStatus === 'paid_off') return '완납'
+  if (loan.payoffStatus === 'ok') return `${loan.estimatedPayoffDate} (${loan.estimatedPayoffMonths}회)`
+  if (loan.payoffStatus === 'payment_too_low') return '월 상환액 부족'
+  return loan.endDate ? `등록 만기 ${loan.endDate}` : '월 상환액 미입력'
+}
+
 export default function MonthlyReportView() {
   const [year, setYear] = useState<number | null>(null)
   const [month, setMonth] = useState<number | null>(null)
@@ -291,7 +298,12 @@ function DebtStrategy({ report }: { report: MonthlyReport }) {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate font-semibold text-[var(--color-text)]">{loan.name}</p>
-                <p className="mt-1 text-[12px] text-[var(--color-text-sub)]">금리 {loan.interestRate.toFixed(2)}% · {priorityLabel(loan.priority)}</p>
+                <p className="mt-1 text-[12px] text-[var(--color-text-sub)]">
+                  금리 {loan.interestRate.toFixed(2)}% · 월 이자 예상 {formatAmount(loan.monthlyInterestEstimate)}원 · {priorityLabel(loan.priority)}
+                </p>
+                <p className="mt-0.5 text-[12px] text-[var(--color-text-sub)]">
+                  예상 완납 {payoffLabel(loan)}
+                </p>
               </div>
               <p className="shrink-0 text-right text-[14px] font-bold tabular-nums">{formatAmount(loan.balance)}원</p>
             </div>

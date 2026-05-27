@@ -60,6 +60,145 @@ export function getLoanRepaymentPrincipal(
   return tx.amount - (tx.fee ?? 0)
 }
 
+export interface LoanPayoffEstimate {
+  balance: number
+  monthlyInterest: number
+  firstPrincipalPayment: number
+  estimatedMonths: number | null
+  estimatedPayoffDate: string
+  totalInterest: number | null
+  status: 'paid_off' | 'not_configured' | 'payment_too_low' | 'ok'
+}
+
+function formatDateKey(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function clampDay(year: number, monthIndex: number, day: number): number {
+  const lastDay = new Date(year, monthIndex + 1, 0).getDate()
+  return Math.min(day, lastDay)
+}
+
+function estimatePayoffDate(fromDate: string, months: number, paymentDay?: number): string {
+  if (months <= 0) return fromDate
+  const base = new Date(`${fromDate}T00:00:00`)
+  if (Number.isNaN(base.getTime())) return ''
+
+  const desiredDay = paymentDay && paymentDay >= 1 && paymentDay <= 31
+    ? paymentDay
+    : base.getDate()
+  const firstOffset = paymentDay && base.getDate() > desiredDay ? 1 : 0
+  const monthIndex = base.getMonth() + firstOffset + months - 1
+  const year = base.getFullYear() + Math.floor(monthIndex / 12)
+  const normalizedMonthIndex = ((monthIndex % 12) + 12) % 12
+  const day = clampDay(year, normalizedMonthIndex, desiredDay)
+
+  return formatDateKey(new Date(year, normalizedMonthIndex, day))
+}
+
+export function estimateLoanPayoff({
+  balance,
+  annualInterestRate = 0,
+  monthlyPayment = 0,
+  paymentDay = 0,
+  fromDate = new Date().toISOString().slice(0, 10),
+}: {
+  balance: number
+  annualInterestRate?: number
+  monthlyPayment?: number
+  paymentDay?: number
+  fromDate?: string
+}): LoanPayoffEstimate {
+  const debtBalance = getDebtBalance(balance)
+  const monthlyRate = Math.max(annualInterestRate, 0) / 100 / 12
+  const monthlyInterest = Math.round(debtBalance * monthlyRate)
+
+  if (debtBalance <= 0) {
+    return {
+      balance: 0,
+      monthlyInterest: 0,
+      firstPrincipalPayment: 0,
+      estimatedMonths: 0,
+      estimatedPayoffDate: fromDate,
+      totalInterest: 0,
+      status: 'paid_off',
+    }
+  }
+
+  if (monthlyPayment <= 0) {
+    return {
+      balance: debtBalance,
+      monthlyInterest,
+      firstPrincipalPayment: 0,
+      estimatedMonths: null,
+      estimatedPayoffDate: '',
+      totalInterest: null,
+      status: 'not_configured',
+    }
+  }
+
+  const firstPrincipalPayment = Math.min(monthlyPayment - monthlyInterest, debtBalance)
+  if (monthlyPayment - monthlyInterest <= 0) {
+    return {
+      balance: debtBalance,
+      monthlyInterest,
+      firstPrincipalPayment,
+      estimatedMonths: null,
+      estimatedPayoffDate: '',
+      totalInterest: null,
+      status: 'payment_too_low',
+    }
+  }
+
+  let remaining = debtBalance
+  let totalInterest = 0
+  let months = 0
+
+  while (remaining > 0 && months < 1200) {
+    const interest = Math.round(remaining * monthlyRate)
+    const principal = monthlyPayment - interest
+    if (principal <= 0) {
+      return {
+        balance: debtBalance,
+        monthlyInterest,
+        firstPrincipalPayment,
+        estimatedMonths: null,
+        estimatedPayoffDate: '',
+        totalInterest: null,
+        status: 'payment_too_low',
+      }
+    }
+    totalInterest += interest
+    remaining -= Math.min(principal, remaining)
+    months += 1
+  }
+
+  if (remaining > 0) {
+    return {
+      balance: debtBalance,
+      monthlyInterest,
+      firstPrincipalPayment,
+      estimatedMonths: null,
+      estimatedPayoffDate: '',
+      totalInterest: null,
+      status: 'payment_too_low',
+    }
+  }
+
+  return {
+    balance: debtBalance,
+    monthlyInterest,
+    firstPrincipalPayment,
+    estimatedMonths: months,
+    estimatedPayoffDate: estimatePayoffDate(fromDate, months, paymentDay),
+    totalInterest,
+    status: 'ok',
+  }
+}
+
 export function getOutflowAmount(transactions: (Pick<Transaction, 'type' | 'amount'> & { fee?: number })[]): number {
   return transactions.reduce((sum, tx) => {
     if (isExpenseLikeType(tx.type)) return sum + tx.amount

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ChevronLeft, Pencil } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { formatAmount, formatDate } from '@/lib/utils'
-import { getDebtBalance, isDebtAssetType, isExpenseLikeType } from '@/lib/finance'
+import { estimateLoanPayoff, getDebtBalance, getLoanRepaymentPrincipal, isDebtAssetType, isExpenseLikeType } from '@/lib/finance'
 import AssetForm from '@/components/assets/AssetForm'
 import type { Transaction } from '@/lib/types'
 
@@ -27,6 +27,12 @@ function LoanDetail({ assetId }: { assetId: string }) {
   }, [assetId])
 
   if (!asset) return null
+  const payoff = estimateLoanPayoff({
+    balance: asset.balance,
+    annualInterestRate: asset.interest_rate ?? 0,
+    monthlyPayment: asset.monthly_payment ?? 0,
+    paymentDay: asset.payment_day ?? 0,
+  })
 
   return (
     <div className="space-y-4">
@@ -54,7 +60,7 @@ function LoanDetail({ assetId }: { assetId: string }) {
           )}
           {asset.end_date && (
             <>
-              <span className="text-[var(--color-text-sub)]">만기일</span>
+              <span className="text-[var(--color-text-sub)]">등록 만기일</span>
               <span className="text-right font-medium text-[var(--color-text)]">{asset.end_date}</span>
             </>
           )}
@@ -68,6 +74,28 @@ function LoanDetail({ assetId }: { assetId: string }) {
             <>
               <span className="text-[var(--color-text-sub)]">월 상환액</span>
               <span className="text-right font-medium text-[var(--color-text)]">{formatAmount(asset.monthly_payment)}원</span>
+            </>
+          )}
+          {asset.interest_rate != null && asset.interest_rate > 0 && getDebtBalance(asset.balance) > 0 && (
+            <>
+              <span className="text-[var(--color-text-sub)]">월 예상 이자</span>
+              <span className="text-right font-medium text-[var(--color-text)]">{formatAmount(payoff.monthlyInterest)}원</span>
+            </>
+          )}
+          {asset.monthly_payment != null && asset.monthly_payment > 0 && (
+            <>
+              <span className="text-[var(--color-text-sub)]">예상 원금 상환</span>
+              <span className={`text-right font-medium ${payoff.firstPrincipalPayment > 0 ? 'text-[var(--color-text)]' : 'text-[var(--color-expense)]'}`}>
+                {payoff.firstPrincipalPayment > 0 ? `${formatAmount(payoff.firstPrincipalPayment)}원` : '월 이자 이하'}
+              </span>
+              <span className="text-[var(--color-text-sub)]">예상 완납</span>
+              <span className={`text-right font-medium ${payoff.status === 'ok' || payoff.status === 'paid_off' ? 'text-[var(--color-text)]' : 'text-[var(--color-expense)]'}`}>
+                {payoff.status === 'ok'
+                  ? `${payoff.estimatedPayoffDate} (${payoff.estimatedMonths}회)`
+                  : payoff.status === 'paid_off'
+                    ? '완납'
+                    : '계산 불가'}
+              </span>
             </>
           )}
           <span className="text-[var(--color-text-sub)]">남은 잔액</span>
@@ -85,15 +113,21 @@ function LoanDetail({ assetId }: { assetId: string }) {
             상환 내역이 없습니다
           </div>
         ) : (
-          repayments.map(tx => (
-            <div key={tx.id} className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] last:border-b-0">
-              <div>
-                <p className="text-sm text-[var(--color-text-body)]">{tx.content || '대출 상환'}</p>
-                <p className="text-xs text-[var(--color-text-sub)]">{formatDate(tx.date)}</p>
+          repayments.map(tx => {
+            const principal = getLoanRepaymentPrincipal(tx)
+            return (
+              <div key={tx.id} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--color-border)] last:border-b-0">
+                <div className="min-w-0">
+                  <p className="text-sm text-[var(--color-text-body)]">{tx.content || '대출 상환'}</p>
+                  <p className="text-xs text-[var(--color-text-sub)]">
+                    {formatDate(tx.date)}
+                    {tx.fee > 0 ? ` · 원금 ${formatAmount(principal)}원 · 이자 ${formatAmount(tx.fee)}원` : ''}
+                  </p>
+                </div>
+                <span className="shrink-0 text-sm font-semibold text-[var(--color-expense)]">-{formatAmount(tx.amount)}원</span>
               </div>
-              <span className="text-sm font-semibold text-[var(--color-expense)]">-{formatAmount(tx.amount)}원</span>
-            </div>
-          ))
+            )
+          })
         )}
       </div>
     </div>

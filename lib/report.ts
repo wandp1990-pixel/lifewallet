@@ -1,5 +1,5 @@
 import { getBudgetForMonth } from './budget'
-import { getDebtBalance, getExpenseAmount, getLoanRepaymentAmount, getOutflowAmount } from './finance'
+import { estimateLoanPayoff, getDebtBalance, getExpenseAmount, getLoanRepaymentAmount, getOutflowAmount } from './finance'
 import { getMonthRange } from './monthStart'
 import type { Asset, Budget, Category, RecurringTransaction, SavingsGoal, Transaction, WishlistItem } from './types'
 
@@ -58,6 +58,11 @@ export interface MonthlyReport {
       endDate: string
       paidThisMonth: number
       interestThisMonth: number
+      monthlyInterestEstimate: number
+      estimatedPayoffMonths: number | null
+      estimatedPayoffDate: string
+      totalInterestEstimate: number | null
+      payoffStatus: 'paid_off' | 'not_configured' | 'payment_too_low' | 'ok'
       priority: 'high_interest' | 'quick_close' | 'heavy_payment' | 'normal'
     }[]
     totalBalance: number
@@ -198,6 +203,8 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
     })
     .sort((a, b) => b.amount - a.amount)
 
+  const reportDate = new Date(`${year}-${String(month).padStart(2, '0')}-01T00:00:00`)
+  const reportDateKey = `${year}-${String(month).padStart(2, '0')}-01`
   const loanTransactions = transactions.filter(t => t.type === 'loan_repayment')
   const loanAssets = assets.filter(asset => asset.group_type === 'loan')
   const loans = loanAssets.map(asset => {
@@ -207,6 +214,13 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
     const balanceValue = getDebtBalance(asset.balance)
     const monthlyPayment = asset.monthly_payment ?? 0
     const interestRate = asset.interest_rate ?? 0
+    const payoff = estimateLoanPayoff({
+      balance: asset.balance,
+      annualInterestRate: interestRate,
+      monthlyPayment,
+      paymentDay: asset.payment_day ?? 0,
+      fromDate: reportDateKey,
+    })
     let priority: MonthlyReport['debtStrategy']['loans'][number]['priority'] = 'normal'
     if (balanceValue > 0) {
       if (interestRate >= 8) priority = 'high_interest'
@@ -223,11 +237,15 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
       endDate: asset.end_date ?? '',
       paidThisMonth,
       interestThisMonth,
+      monthlyInterestEstimate: payoff.monthlyInterest,
+      estimatedPayoffMonths: payoff.estimatedMonths,
+      estimatedPayoffDate: payoff.estimatedPayoffDate,
+      totalInterestEstimate: payoff.totalInterest,
+      payoffStatus: payoff.status,
       priority,
     }
   }).sort((a, b) => b.interestRate - a.interestRate || a.balance - b.balance)
 
-  const reportDate = new Date(`${year}-${String(month).padStart(2, '0')}-01T00:00:00`)
   const savingsGoalsReport = savingsGoals.map(goal => {
     const remainingAmount = Math.max(goal.target_amount - goal.current_amount, 0)
     const requiredMonthlySavings = goal.target_date
