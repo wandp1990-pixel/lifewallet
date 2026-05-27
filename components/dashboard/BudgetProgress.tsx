@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { getBudgetForMonth, getBudgetPace } from '@/lib/budget'
 import { categoryColor } from '@/lib/colors'
 import { formatAmount } from '@/lib/utils'
@@ -35,10 +34,7 @@ export default function BudgetProgress({ transactions, categories, budgets, year
   if (rows.length === 0) {
     return (
       <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4">
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm font-semibold text-[var(--color-text)]">소비 예산 진행 상황</p>
-          <Link href="/statistics/budget-settings" className="text-xs text-[var(--color-primary)]">예산 편집 →</Link>
-        </div>
+        <p className="text-sm font-semibold text-[var(--color-text)] mb-4">소비 예산 진행 상황</p>
         <p className="text-sm text-center text-[var(--color-text-sub)] py-4">소비 예산이 설정되지 않았습니다</p>
       </div>
     )
@@ -46,10 +42,7 @@ export default function BudgetProgress({ transactions, categories, budgets, year
 
   return (
     <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4">
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm font-semibold text-[var(--color-text)]">소비 예산 진행 상황</p>
-        <Link href="/statistics/budget-settings" className="text-xs text-[var(--color-primary)]">예산 편집 →</Link>
-      </div>
+      <p className="text-sm font-semibold text-[var(--color-text)] mb-4">소비 예산 진행 상황</p>
       {totalBudget > 0 && (
         <div className="mb-4 rounded-xl bg-[var(--color-surface-sub)] px-3 py-3">
           <div className="flex justify-between text-[12px] text-[var(--color-text-sub)] mb-2">
@@ -65,8 +58,8 @@ export default function BudgetProgress({ transactions, categories, budgets, year
                   className="absolute top-0 flex flex-col items-center"
                   style={{ left: `${pace.clampedDayPct}%`, transform: 'translateX(-50%)' }}
                 >
-                  <div className="rounded-[4px] bg-[var(--color-text)] px-1.5 py-0.5 text-[11px] font-semibold text-white leading-none whitespace-nowrap">오늘</div>
-                  <div className="h-0 w-0 border-l-[3px] border-r-[3px] border-t-[4px] border-l-transparent border-r-transparent border-t-[var(--color-text)]" />
+                  <div className="rounded-sm bg-[var(--color-text-body)] px-1.5 py-0.5 text-[11px] font-semibold text-white leading-none whitespace-nowrap">오늘</div>
+                  <div className="h-0 w-0 border-l-[3px] border-r-[3px] border-t-[4px] border-l-transparent border-r-transparent border-t-[var(--color-text-body)]" />
                 </div>
                 <div
                   className="absolute bottom-[-5px] top-6 z-10 w-px bg-[var(--color-text-sub)]"

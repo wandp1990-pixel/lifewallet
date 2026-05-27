@@ -233,8 +233,6 @@ export default function StatisticsView() {
                 totalBudget={totalBudget}
                 budgetPct={budgetPct}
                 pace={budgetPace}
-                year={year}
-                month={month}
               />
             )}
             {view === 'content' && (
@@ -371,15 +369,13 @@ interface BudgetStat {
 }
 
 function BudgetView({
-  stats, total, totalBudget, budgetPct, pace, year, month,
+  stats, total, totalBudget, budgetPct, pace,
 }: {
   stats: BudgetStat[]
   total: number
   totalBudget: number
   budgetPct: number
   pace: ReturnType<typeof getBudgetPace> | null
-  year: number
-  month: number
 }) {
   if (totalBudget === 0) {
     return (
@@ -410,8 +406,8 @@ function BudgetView({
                 className="absolute top-0 flex flex-col items-center"
                 style={{ left: `${pace.clampedDayPct}%`, transform: 'translateX(-50%)' }}
               >
-                <div className="rounded-[4px] bg-[var(--color-text)] px-1.5 py-0.5 text-[11px] font-semibold text-white leading-none whitespace-nowrap">오늘</div>
-                <div className="h-0 w-0 border-l-[3px] border-r-[3px] border-t-[4px] border-l-transparent border-r-transparent border-t-[var(--color-text)]" />
+                <div className="rounded-sm bg-[var(--color-text-body)] px-1.5 py-0.5 text-[11px] font-semibold text-white leading-none whitespace-nowrap">오늘</div>
+                <div className="h-0 w-0 border-l-[3px] border-r-[3px] border-t-[4px] border-l-transparent border-r-transparent border-t-[var(--color-text-body)]" />
               </div>
               <div
                 className="absolute bottom-[-5px] top-6 z-10 w-px bg-[var(--color-text-sub)]"
@@ -437,14 +433,6 @@ function BudgetView({
           <span className={total > totalBudget ? 'text-[var(--color-expense)]' : 'text-[var(--color-income)]'}>
             {total > totalBudget ? `초과 ${formatAmount(total - totalBudget)}원` : `잔여 ${formatAmount(totalBudget - total)}원`}
           </span>
-        </div>
-        <div className="mt-3 flex justify-end">
-          <Link
-            href={`/statistics/budget-settings?year=${year}&month=${month}`}
-            className="text-[12px] text-[var(--color-primary)]"
-          >
-            예산 편집 →
-          </Link>
         </div>
       </div>
 

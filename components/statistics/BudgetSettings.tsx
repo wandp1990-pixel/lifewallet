@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { getBudgetForMonth, isDirectBudget } from '@/lib/budget'
 import { getDisplayMonth, getMonthStartDay } from '@/lib/monthStart'
@@ -165,17 +165,6 @@ export default function BudgetSettings() {
                     onChange={e => setInputs(prev => ({ ...prev, [cat.id]: e.target.value }))}
                     className="w-32 text-right text-[16px] font-semibold text-[var(--color-text)] bg-[rgba(0,23,51,0.02)] border border-[rgba(2,32,71,0.05)] rounded-xl px-3 py-2 tabular-nums focus:outline-none focus:border-[var(--color-primary)]"
                   />
-                  {isDirect && (
-                    <button
-                      type="button"
-                      onClick={() => setInputs(prev => ({ ...prev, [cat.id]: '' }))}
-                      title="직접 설정값 초기화"
-                      aria-label={`${cat.name} 예산 직접 설정값 초기화`}
-                      className="p-2 text-[var(--color-text-sub)] hover:text-[var(--color-primary)]"
-                    >
-                      <RotateCcw size={16} />
-                    </button>
-                  )}
                   <span className="text-[13px] text-[var(--color-text-sub)]">원</span>
                 </div>
               </div>
