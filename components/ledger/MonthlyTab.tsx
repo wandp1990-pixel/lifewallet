@@ -182,7 +182,7 @@ export default function MonthlyTab({ year, transactions, monthStartDay, loading 
                     return (
                       <div
                         key={w.from}
-                        className={`flex items-center px-4 py-2.5 border-t border-[var(--color-border)] ${w.isCurrent ? 'bg-[#fff4f5]' : ''}`}
+                        className={`flex items-center px-4 py-2.5 border-t border-[var(--color-border)] ${w.isCurrent ? 'bg-[var(--color-expense-subtle)]' : ''}`}
                       >
                         <span className="text-[13px] text-[var(--color-text-sub)] flex-1">
                           {fmtMD(w.from)} ~ {fmtMD(w.to)}

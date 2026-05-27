@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { getBudgetForMonth, isDirectBudget } from '@/lib/budget'
 import { getDisplayMonth, getMonthStartDay } from '@/lib/monthStart'
@@ -165,6 +165,17 @@ export default function BudgetSettings() {
                     onChange={e => setInputs(prev => ({ ...prev, [cat.id]: e.target.value }))}
                     className="w-32 text-right text-[16px] font-semibold text-[var(--color-text)] bg-[rgba(0,23,51,0.02)] border border-[rgba(2,32,71,0.05)] rounded-xl px-3 py-2 tabular-nums focus:outline-none focus:border-[var(--color-primary)]"
                   />
+                  {isDirect && (
+                    <button
+                      type="button"
+                      onClick={() => setInputs(prev => ({ ...prev, [cat.id]: '' }))}
+                      title="직접 설정값 초기화"
+                      aria-label={`${cat.name} 예산 직접 설정값 초기화`}
+                      className="p-2 text-[var(--color-text-sub)] hover:text-[var(--color-primary)]"
+                    >
+                      <RotateCcw size={16} />
+                    </button>
+                  )}
                   <span className="text-[13px] text-[var(--color-text-sub)]">원</span>
                 </div>
               </div>
@@ -195,7 +206,7 @@ export default function BudgetSettings() {
 
       {/* 토스트 */}
       {toast && (
-        <div className="fixed left-1/2 -translate-x-1/2 bg-[#191f28] text-white text-[14px] font-medium px-4 py-3 rounded-xl shadow-lg z-50 whitespace-nowrap" style={{ bottom: 'calc(var(--bottom-nav-total) + 80px)' }}>
+        <div className="fixed left-1/2 -translate-x-1/2 bg-[var(--color-text)] text-white text-[14px] font-medium px-4 py-3 rounded-xl shadow-e3 z-50 whitespace-nowrap" style={{ bottom: 'calc(var(--bottom-nav-total) + 80px)' }}>
           {toast}
         </div>
       )}

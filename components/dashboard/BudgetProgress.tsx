@@ -65,11 +65,11 @@ export default function BudgetProgress({ transactions, categories, budgets, year
                   className="absolute top-0 flex flex-col items-center"
                   style={{ left: `${pace.clampedDayPct}%`, transform: 'translateX(-50%)' }}
                 >
-                  <div className="rounded-full bg-[#4e5968] px-2 py-0.5 text-[10px] font-semibold text-white">오늘</div>
-                  <div className="h-0 w-0 border-l-[4px] border-r-[4px] border-t-[5px] border-l-transparent border-r-transparent border-t-[#4e5968]" />
+                  <div className="rounded-[4px] bg-[var(--color-text)] px-1.5 py-0.5 text-[11px] font-semibold text-white leading-none whitespace-nowrap">오늘</div>
+                  <div className="h-0 w-0 border-l-[3px] border-r-[3px] border-t-[4px] border-l-transparent border-r-transparent border-t-[var(--color-text)]" />
                 </div>
                 <div
-                  className="absolute bottom-[-5px] top-6 z-10 w-px bg-[#8b95a1]"
+                  className="absolute bottom-[-5px] top-6 z-10 w-px bg-[var(--color-text-sub)]"
                   style={{ left: `${pace.dayPct}%`, transform: 'translateX(-50%)' }}
                 />
               </>

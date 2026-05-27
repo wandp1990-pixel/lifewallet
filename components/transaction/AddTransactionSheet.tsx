@@ -306,7 +306,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
                 onClick={() => handleType(t)}
                 className={`py-1.5 text-[13px] font-medium rounded-[9px] transition-colors ${
                   type === t
-                    ? 'bg-[var(--color-surface)] shadow-sm text-[var(--color-text)]'
+                    ? 'bg-[var(--color-surface)] shadow-seg text-[var(--color-text)]'
                     : 'text-[var(--color-text-sub)]'
                 }`}
               >

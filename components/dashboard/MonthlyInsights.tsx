@@ -1,5 +1,6 @@
 'use client'
 
+import { CheckCircle2, AlertTriangle } from 'lucide-react'
 import { getOutflowAmount } from '@/lib/finance'
 import { getBudgetForMonth } from '@/lib/budget'
 import type { Transaction, Category, Budget } from '@/lib/types'
@@ -85,9 +86,11 @@ function Render({ insights }: { insights: { type: 'positive' | 'warning'; messag
         {insights.slice(0, 3).map((ins, i) => (
           <div
             key={i}
-            className={`flex items-start gap-2 p-3 rounded-xl text-sm ${ins.type === 'positive' ? 'bg-[#edfbf4] text-[#016b43]' : 'bg-[#fff8ed] text-[#a35f00]'}`}
+            className={`flex items-start gap-2 p-3 rounded-xl text-sm ${ins.type === 'positive' ? 'bg-[var(--color-income-subtle)] text-[var(--color-income-strong)]' : 'bg-[var(--color-warning-subtle)] text-[var(--color-warning-strong)]'}`}
           >
-            <span>{ins.type === 'positive' ? '✅' : '⚠️'}</span>
+            {ins.type === 'positive'
+              ? <CheckCircle2 size={16} className="shrink-0 mt-0.5" />
+              : <AlertTriangle size={16} className="shrink-0 mt-0.5" />}
             <span>{ins.message}</span>
           </div>
         ))}

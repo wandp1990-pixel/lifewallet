@@ -465,7 +465,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
       </div>
 
       {/* 하단 버튼 */}
-      <div className="fixed bottom-0 left-0 right-0 z-10 bg-[var(--color-surface)] border-t border-[var(--color-border)] px-4 py-3 flex gap-2 md:static md:mt-auto" style={{ paddingBottom: 'calc(12px + var(--safe-area-bottom))' }}>
+      <div className="fixed left-0 right-0 z-10 bg-[var(--color-surface)] border-t border-[var(--color-border)] px-4 py-3 flex gap-2 md:static md:mt-auto" style={{ bottom: 'var(--bottom-nav-total)' }}>
         {mode === 'new' && (
           <button
             type="button"

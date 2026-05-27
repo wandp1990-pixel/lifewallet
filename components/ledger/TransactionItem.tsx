@@ -106,7 +106,7 @@ export default function TransactionItem({ tx, categories, assets, onDelete, onEd
             <MoreHorizontal size={15} className="text-[var(--color-text-sub)]" />
           </button>
           {menuOpen && (
-            <div className="absolute right-0 top-8 z-50 min-w-[100px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-lg overflow-hidden">
+            <div className="absolute right-0 top-8 z-50 min-w-[100px] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-e3 overflow-hidden">
               <button
                 onClick={e => { e.stopPropagation(); setMenuOpen(false); onEdit ? onEdit(tx) : router.push(`/transaction/${tx.id}`) }}
                 className="w-full text-left px-4 py-2.5 text-sm text-[var(--color-text)] hover:bg-[var(--color-surface-sub)]"

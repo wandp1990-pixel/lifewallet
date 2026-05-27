@@ -12,6 +12,12 @@
   --color-income: #03b26c;
   --color-expense: #f04452;
   --color-warning: #fe9800;
+  /* 재무 시맨틱 — subtle 배경 / strong 텍스트 */
+  --color-income-subtle: #edfbf4;
+  --color-income-strong: #016b43;
+  --color-expense-subtle: #fff4f5;
+  --color-warning-subtle: #fff8ed;
+  --color-warning-strong: #a35f00;
 
   /* 중립 */
   --color-bg: #f9fafb;
@@ -23,6 +29,13 @@
   --color-text-body: #6b7684;
   --color-text-sub: #8b95a1;
   --color-text-placeholder: #b0b8c1;
+
+  /* Elevation — 단일 레이어, pure black opacity */
+  --shadow-e1: 0px 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-e2: 0px 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-e3: 0px 4px 12px rgba(0, 0, 0, 0.12);
+  --shadow-e4: 0px 8px 24px rgba(0, 0, 0, 0.16);
+  --shadow-seg: 0px 2px 4px rgba(0, 0, 0, 0.06);
 }
 
 .dark {

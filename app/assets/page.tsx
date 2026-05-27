@@ -257,7 +257,7 @@ export default function AssetsPage() {
                           {menuOpen === asset.id && (
                             <>
                               <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(null)} />
-                              <div className="absolute right-2 top-10 z-20 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-lg overflow-hidden min-w-[120px]">
+                              <div className="absolute right-2 top-10 z-20 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-e3 overflow-hidden min-w-[120px]">
                                 <button
                                   onClick={() => handleMenuAction(asset, 'edit')}
                                   className="w-full px-4 py-2.5 text-sm text-left text-[var(--color-text)] hover:bg-[var(--color-surface-sub)] transition-colors"
