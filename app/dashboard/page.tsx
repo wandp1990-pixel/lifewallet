@@ -152,24 +152,24 @@ export default function DashboardPage() {
   return (
     <div className="p-4 md:p-6 max-w-3xl mx-auto space-y-4">
       {/* 헤더 */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
           <h1 className="text-xl font-bold text-[var(--color-text)]">대시보드</h1>
-          <p className="text-xs text-[var(--color-text-sub)] mt-0.5">{yearMonthLabel} 재무 상태를 분석해요</p>
+          <p className="mt-0.5 text-xs leading-4 text-[var(--color-text-sub)]">{yearMonthLabel} 재무 상태를 분석해요</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
-            <button onClick={() => navMonth(-1)} className="p-1.5 rounded-lg hover:bg-[var(--color-surface-sub)]">
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1">
+            <button onClick={() => navMonth(-1)} className="rounded-lg p-1.5 hover:bg-[var(--color-surface-sub)]" aria-label="이전 달">
               <ChevronLeft size={18} className="text-[var(--color-text-sub)]" />
             </button>
             <span className="text-sm font-medium text-[var(--color-text)] min-w-[60px] text-center">{month}월</span>
-            <button onClick={() => navMonth(1)} className="p-1.5 rounded-lg hover:bg-[var(--color-surface-sub)]">
+            <button onClick={() => navMonth(1)} className="rounded-lg p-1.5 hover:bg-[var(--color-surface-sub)]" aria-label="다음 달">
               <ChevronRight size={18} className="text-[var(--color-text-sub)]" />
             </button>
           </div>
           <button
             onClick={() => router.push('/transaction/new')}
-            className="flex items-center gap-1 h-9 px-3 rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold"
+            className="flex h-9 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl bg-[var(--color-primary)] px-3 text-sm font-semibold text-white"
           >
             <Plus size={15} /> 내역
           </button>
@@ -199,7 +199,7 @@ export default function DashboardPage() {
           amountColor="text-[var(--color-income)]"
         />
         <KpiCard
-          label="이번 달 유출"
+          label="이번 달 지출"
           amount={outflow}
           badge={expenseChangePct !== null ? `${expenseChangePct >= 0 ? '↑' : '↓'}${Math.abs(expenseChangePct)}% 소비 예산 ${budgetPct}% 소진` : totalBudget > 0 ? `소비 예산 ${budgetPct}% 소진` : undefined}
           icon={<TrendingDown size={18} />}
@@ -209,7 +209,7 @@ export default function DashboardPage() {
         <KpiCard
           label="저축 가능액"
           amount={Math.max(0, income - outflow)}
-          badge={savingsChangePct !== null ? `${savingsChangePct >= 0 ? '↑' : '↓'}${Math.abs(savingsChangePct)}% 유출률 ${income > 0 ? Math.round((outflow / income) * 100) : 0}%` : undefined}
+          badge={savingsChangePct !== null ? `${savingsChangePct >= 0 ? '↑' : '↓'}${Math.abs(savingsChangePct)}% 지출률 ${income > 0 ? Math.round((outflow / income) * 100) : 0}%` : undefined}
           badgePositive={savingsChangePct !== null && savingsChangePct > 0}
           icon={<PiggyBank size={18} />}
           sparks={sparkSavings}

@@ -60,7 +60,7 @@ curl -L -s https://lifewallet-eight.vercel.app
 | `vercel --prod` 후 변경 안 보임 | 최신 배포가 Error 상태, alias가 이전 배포를 가리킴, 또는 브라우저/PWA 캐시 | `vercel ls lifewallet` → `vercel inspect https://lifewallet-eight.vercel.app` → `curl -L -s https://lifewallet-eight.vercel.app` 순서로 확인. 배포 Error면 원인 수정 후 재배포. alias가 이전 배포면 최신 Ready 배포를 다시 `vercel --prod`로 승격. 서버 응답은 최신인데 기기만 이전 UI면 PWA/브라우저 캐시 갱신 안내 |
 | Turso 연결 에러 | 환경변수 미등록 | `vercel env ls` 로 `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` 확인 |
 | `vercel` 명령이 DNS/network 에러 | 로컬 샌드박스 또는 네트워크 제한 | 권한 승인을 요청해 네트워크 허용 상태로 같은 명령 재실행 |
-| Production 배포가 4~5초 만에 Error | 빌드 설정 또는 환경변수 문제 가능성 높음 | `vercel inspect <배포 URL>` 또는 Vercel 로그로 실패 원인 확인 후, `next.config.*`면 [F6](../PITFALLS.md#f6), 환경변수면 `vercel env ls` 확인 |
+| Production 배포가 4~5초 만에 Error | 빌드 설정 또는 환경변수 문제 가능성 높음 | `vercel inspect <배포 URL>` 또는 Vercel 로그로 실패 원인 확인 후, `next.config.*`면 [F6](../../PITFALLS.md#f6), 환경변수면 `vercel env ls` 확인 |
 
 ## 배포 연동 방식
 

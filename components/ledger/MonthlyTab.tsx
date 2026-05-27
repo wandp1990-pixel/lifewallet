@@ -134,7 +134,7 @@ export default function MonthlyTab({ year, transactions, monthStartDay, loading 
           )}
           <div className="flex justify-between text-[12px]">
             <span className="text-[var(--color-text-sub)]">■ 수입 <span className="font-semibold text-[var(--color-income)]">{formatAmount(summaryMonth.income)}원</span></span>
-            <span className="text-[var(--color-text-sub)]">■ 유출 <span className="font-semibold text-[var(--color-expense)]">{formatAmount(summaryMonth.expense)}원</span></span>
+            <span className="text-[var(--color-text-sub)]">■ 지출 <span className="font-semibold text-[var(--color-expense)]">{formatAmount(summaryMonth.expense)}원</span></span>
           </div>
         </div>
       )}
