@@ -4,6 +4,7 @@ import { getBudgetForMonth, getBudgetPace } from '@/lib/budget'
 import { categoryColor } from '@/lib/colors'
 import { formatAmount } from '@/lib/utils'
 import type { Transaction, Category, Budget } from '@/lib/types'
+import BudgetTodayMarker from '@/components/ui/BudgetTodayMarker'
 
 interface Props {
   transactions: Transaction[]
@@ -53,19 +54,7 @@ export default function BudgetProgress({ transactions, categories, budgets, year
           </div>
           <div className="relative pt-7">
             {pace.isCurrentPeriod && (
-              <>
-                <div
-                  className="absolute top-0 flex flex-col items-center"
-                  style={{ left: `${pace.clampedDayPct}%`, transform: 'translateX(-50%)' }}
-                >
-                  <div className="rounded-sm bg-[var(--color-text-body)] px-1.5 py-0.5 text-[11px] font-semibold text-white leading-none whitespace-nowrap">오늘</div>
-                  <div className="h-0 w-0 border-l-[3px] border-r-[3px] border-t-[4px] border-l-transparent border-r-transparent border-t-[var(--color-text-body)]" />
-                </div>
-                <div
-                  className="absolute bottom-[-5px] top-6 z-10 w-px bg-[var(--color-text-sub)]"
-                  style={{ left: `${pace.dayPct}%`, transform: 'translateX(-50%)' }}
-                />
-              </>
+              <BudgetTodayMarker dayPct={pace.dayPct} clampedDayPct={pace.clampedDayPct} label />
             )}
             <div className="h-2 rounded-full bg-[var(--color-border)] overflow-hidden">
               <div
@@ -93,14 +82,19 @@ export default function BudgetProgress({ transactions, categories, budgets, year
                 {over ? `초과 ${formatAmount(used - budget)}원` : budget > 0 ? `잔여 ${formatAmount(budget - used)}원` : ''}
               </span>
             </div>
-            <div className="h-1.5 rounded-full bg-[var(--color-surface-sub)] overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{
-                  width: `${pct}%`,
-                  backgroundColor: over ? 'var(--color-expense)' : categoryColor(cat.id),
-                }}
-              />
+            <div className="relative">
+              {budget > 0 && pace.isCurrentPeriod && (
+                <BudgetTodayMarker dayPct={pace.dayPct} clampedDayPct={pace.clampedDayPct} />
+              )}
+              <div className="h-1.5 rounded-full bg-[var(--color-surface-sub)] overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${pct}%`,
+                    backgroundColor: over ? 'var(--color-expense)' : categoryColor(cat.id),
+                  }}
+                />
+              </div>
             </div>
             {budget > 0 && (
               <p className="text-[10px] text-[var(--color-text-sub)] mt-0.5 text-right tabular-nums">

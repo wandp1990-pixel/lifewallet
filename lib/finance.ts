@@ -33,10 +33,6 @@ function findAsset(assetId: string, assets: ValidationAsset[]): ValidationAsset 
   return assets.find(asset => asset.id === assetId) ?? null
 }
 
-function isHiddenAsset(asset: ValidationAsset): boolean {
-  return asset.visible === false || asset.visible === 0
-}
-
 function findCategory(categoryId: string, categories: ValidationCategory[]): ValidationCategory | null {
   return categories.find(category => category.id === categoryId) ?? null
 }
@@ -85,7 +81,6 @@ export function validateTransactionInput(
     if (!tx.asset_id) return '자산을 선택해주세요'
     const asset = findAsset(tx.asset_id, assets)
     if (!asset) return '선택한 자산을 찾을 수 없습니다'
-    if (isHiddenAsset(asset)) return '숨긴 자산에는 새 거래를 입력할 수 없습니다'
   }
 
   if (tx.type === 'transfer' || tx.type === 'loan_repayment') {
@@ -94,7 +89,6 @@ export function validateTransactionInput(
     const fromAsset = findAsset(tx.from_asset_id, assets)
     const toAsset = findAsset(tx.to_asset_id, assets)
     if (!fromAsset || !toAsset) return '선택한 자산을 찾을 수 없습니다'
-    if (isHiddenAsset(fromAsset) || isHiddenAsset(toAsset)) return '숨긴 자산에는 새 거래를 입력할 수 없습니다'
   }
 
   const fromAssetType = tx.from_asset_id ? findAssetType(tx.from_asset_id, assets) : null

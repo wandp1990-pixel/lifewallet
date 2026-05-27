@@ -169,8 +169,10 @@ export default function AssetsPage() {
             {trackDetailAssets.length > 0 && (
               <div className="border-t border-[var(--color-border)] pt-3 space-y-1.5">
                 {trackDetailAssets.map(a => {
-                  const assetBasis = isDebtAssetType(a.group_type) ? getDebtBalance(a.balance) : a.balance
-                  const pct = totalAssets > 0 ? Math.round((assetBasis / totalAssets) * 100) : 0
+                  const isDebt = isDebtAssetType(a.group_type)
+                  const basis = isDebt ? getDebtBalance(a.balance) : a.balance
+                  const total = isDebt ? totalDebt : totalAssets
+                  const pct = total > 0 ? Math.round((basis / total) * 100) : 0
                   return (
                     <button
                       key={a.id}

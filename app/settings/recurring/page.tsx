@@ -178,13 +178,13 @@ export default function RecurringPage() {
     categories,
     [form.category_id]
   )
-  const visibleAssets = assets.filter(a => a.visible)
-  const loanAssets = visibleAssets.filter(a => a.group_type === 'loan')
-  const repaymentFromAssets = visibleAssets.filter(a => !isDebtAssetType(a.group_type))
-  const fromAssets = form.type === 'loan_repayment' ? repaymentFromAssets : visibleAssets
+  const selectableAssets = assets
+  const loanAssets = selectableAssets.filter(a => a.group_type === 'loan')
+  const repaymentFromAssets = selectableAssets.filter(a => !isDebtAssetType(a.group_type))
+  const fromAssets = form.type === 'loan_repayment' ? repaymentFromAssets : selectableAssets
   const toAssets = form.type === 'loan_repayment'
     ? loanAssets.filter(a => a.id !== form.from_asset_id)
-    : visibleAssets.filter(a => a.id !== form.from_asset_id)
+    : selectableAssets.filter(a => a.id !== form.from_asset_id)
 
   const validationError = validateTransactionInput({
     type: form.type,
@@ -352,7 +352,7 @@ export default function RecurringPage() {
                 className="tds-field"
               >
                 <option value="">자산 선택</option>
-                {visibleAssets.map(a => (
+                {selectableAssets.map(a => (
                   <option key={a.id} value={a.id}>{a.name}</option>
                 ))}
               </select>

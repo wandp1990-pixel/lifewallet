@@ -6,6 +6,7 @@ import { ChevronLeft, Trash2 } from 'lucide-react'
 import { isDebtAssetType, validateTransactionInput } from '@/lib/finance'
 import { useStore } from '@/lib/store'
 import CatIcon from '@/components/ui/CatIcon'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { todayStr } from '@/lib/utils'
 import type { Transaction } from '@/lib/types'
 
@@ -113,6 +114,9 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
   const [error, setError] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const contentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -126,10 +130,10 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
     ? suggestions.filter(s => s.toLowerCase().includes(form.content.toLowerCase()) && s !== form.content)
     : []
 
-  const visibleAssets = assets.filter(a => a.visible)
-  const visibleLoanAssets = visibleAssets.filter(a => a.group_type === 'loan')
-  const repaymentFromAssets = visibleAssets.filter(a => !isDebtAssetType(a.group_type))
-  const singleAssetOptions = withSelectedAssets(visibleAssets, assets, [form.assetId])
+  const selectableAssets = assets
+  const loanAssets = selectableAssets.filter(a => a.group_type === 'loan')
+  const repaymentFromAssets = selectableAssets.filter(a => !isDebtAssetType(a.group_type))
+  const singleAssetOptions = withSelectedAssets(selectableAssets, assets, [form.assetId])
   const currentCategories = withSelectedCategories(
     categories.filter(c => c.type === form.type && c.visible),
     categories,
@@ -212,22 +216,36 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
     }
   }
 
-  async function handleDelete() {
+  async function confirmDelete() {
     if (!transactionId) return
-    if (!confirm('거래를 삭제하시겠습니까?')) return
-    const res = await fetch(`/api/transactions/${transactionId}`, { method: 'DELETE' })
-    if (res.ok) router.back()
+    if (deleting) return
+    setDeleting(true)
+    setDeleteError('')
+
+    try {
+      const res = await fetch(`/api/transactions/${transactionId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        setDeleteError('삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+        setDeleting(false)
+        return
+      }
+      setDeleteConfirmOpen(false)
+      router.back()
+    } catch {
+      setDeleteError('네트워크 오류가 발생했습니다.')
+      setDeleting(false)
+    }
   }
 
   const fromAssets = withSelectedAssets(
-    form.type === 'loan_repayment' ? repaymentFromAssets : visibleAssets,
+    form.type === 'loan_repayment' ? repaymentFromAssets : selectableAssets,
     assets,
     [form.fromAssetId]
   )
   const toAssets = withSelectedAssets(
     form.type === 'loan_repayment'
-    ? visibleLoanAssets.filter(a => a.id !== form.fromAssetId)
-    : visibleAssets.filter(a => a.id !== form.fromAssetId),
+    ? loanAssets.filter(a => a.id !== form.fromAssetId)
+    : selectableAssets.filter(a => a.id !== form.fromAssetId),
     assets,
     [form.toAssetId]
   )
@@ -248,7 +266,10 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
           </h1>
           {mode === 'edit' ? (
             <button
-              onClick={handleDelete}
+              onClick={() => {
+                setDeleteError('')
+                setDeleteConfirmOpen(true)
+              }}
               className="p-1.5 rounded-lg hover:bg-[var(--color-surface-sub)] transition-colors"
             >
               <Trash2 size={18} className="text-[var(--color-expense)]" />
@@ -485,6 +506,22 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
           {saving ? '저장 중…' : '저장'}
         </button>
       </div>
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        title="거래를 삭제할까요?"
+        description={(
+          <>
+            <span className="block font-medium text-[var(--color-text)]">{form.content || '(내용 없음)'}</span>
+            <span className="mt-1 block">{form.date} · {form.amount || '0'}원 거래가 삭제됩니다.</span>
+            {deleteError && <span className="mt-2 block font-medium text-[var(--color-expense)]">{deleteError}</span>}
+          </>
+        )}
+        confirmLabel="삭제"
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteConfirmOpen(false)}
+      />
     </div>
   )
 }

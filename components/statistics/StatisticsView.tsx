@@ -12,6 +12,7 @@ import { getBudgetForMonth, getBudgetPace, isDirectBudget } from '@/lib/budget'
 import { categoryColor } from '@/lib/colors'
 import { formatAmount } from '@/lib/utils'
 import CatIcon from '@/components/ui/CatIcon'
+import BudgetTodayMarker from '@/components/ui/BudgetTodayMarker'
 import { getDisplayMonth, getMonthStartDay, getMonthRange } from '@/lib/monthStart'
 import { fetcher } from '@/lib/fetcher'
 
@@ -180,7 +181,7 @@ export default function StatisticsView() {
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
       {/* 헤더 */}
-      <div className="sticky top-0 z-10 bg-[var(--color-surface)] border-b border-[var(--color-border)]">
+      <div className="sticky top-0 z-30 bg-[var(--color-surface)] border-b border-[var(--color-border)] shadow-[0_1px_0_rgba(0,0,0,0.02)]">
         <div className="flex items-center justify-between px-4 py-3">
           <button onClick={prevMonth} className="p-1 text-[var(--color-text-sub)]">
             <ChevronLeft size={20} />
@@ -401,19 +402,7 @@ function BudgetView({
         </div>
         <div className="relative pt-7">
           {pace?.isCurrentPeriod && (
-            <>
-              <div
-                className="absolute top-0 flex flex-col items-center"
-                style={{ left: `${pace.clampedDayPct}%`, transform: 'translateX(-50%)' }}
-              >
-                <div className="rounded-sm bg-[var(--color-text-body)] px-1.5 py-0.5 text-[11px] font-semibold text-white leading-none whitespace-nowrap">오늘</div>
-                <div className="h-0 w-0 border-l-[3px] border-r-[3px] border-t-[4px] border-l-transparent border-r-transparent border-t-[var(--color-text-body)]" />
-              </div>
-              <div
-                className="absolute bottom-[-5px] top-6 z-10 w-px bg-[var(--color-text-sub)]"
-                style={{ left: `${pace.dayPct}%`, transform: 'translateX(-50%)' }}
-              />
-            </>
+            <BudgetTodayMarker dayPct={pace.dayPct} clampedDayPct={pace.clampedDayPct} label />
           )}
           <div className="h-2 bg-[var(--color-surface-sub)] rounded-full overflow-hidden">
             <div
@@ -454,11 +443,16 @@ function BudgetView({
                 {over ? `초과 ${formatAmount(spent - budget)}원` : `잔여 ${formatAmount(budget - spent)}원`}
               </span>
             </div>
-            <div className="h-1.5 bg-[var(--color-surface-sub)] rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{ width: `${pct}%`, backgroundColor: over ? 'var(--color-expense)' : categoryColor(cat.id) }}
-              />
+            <div className="relative">
+              {pace?.isCurrentPeriod && budget > 0 && (
+                <BudgetTodayMarker dayPct={pace.dayPct} clampedDayPct={pace.clampedDayPct} />
+              )}
+              <div className="h-1.5 bg-[var(--color-surface-sub)] rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{ width: `${pct}%`, backgroundColor: over ? 'var(--color-expense)' : categoryColor(cat.id) }}
+                />
+              </div>
             </div>
             <div className="flex justify-between mt-1 text-[11px] text-[var(--color-text-placeholder)] tabular-nums">
               <span>{formatAmount(spent)}원 사용</span>

@@ -6,6 +6,7 @@ import { useStore } from '@/lib/store'
 import { todayStr } from '@/lib/utils'
 import type { Transaction } from '@/lib/types'
 import CatIcon from '@/components/ui/CatIcon'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 type TxType = 'expense' | 'income' | 'transfer' | 'loan_repayment'
 
@@ -83,13 +84,16 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
   const [catExpanded, setCatExpanded] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   const amount = parseInt(digits || '0', 10)
   const fee = parseInput(feeStr)
-  const visibleAssets = assets.filter(a => a.visible)
-  const loanAssets = visibleAssets.filter(a => a.group_type === 'loan')
-  const repaymentFromAssets = visibleAssets.filter(a => !isDebtAssetType(a.group_type))
-  const singleAssetOptions = withSelectedAssets(visibleAssets, assets, [assetId])
+  const selectableAssets = assets
+  const loanAssets = selectableAssets.filter(a => a.group_type === 'loan')
+  const repaymentFromAssets = selectableAssets.filter(a => !isDebtAssetType(a.group_type))
+  const singleAssetOptions = withSelectedAssets(selectableAssets, assets, [assetId])
   const currentCats = withSelectedCategories(
     categories.filter(c => c.type === (type === 'income' ? 'income' : 'expense') && c.visible),
     categories,
@@ -129,9 +133,9 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
       setType('expense')
       setDigits('')
       setCatId('')
-      setAssetId(visibleAssets[0]?.id ?? '')
-      setFromAssetId(visibleAssets[0]?.id ?? '')
-      setToAssetId(loanAssets[0]?.id ?? visibleAssets[1]?.id ?? '')
+      setAssetId(selectableAssets[0]?.id ?? '')
+      setFromAssetId(selectableAssets[0]?.id ?? '')
+      setToAssetId(loanAssets[0]?.id ?? selectableAssets[1]?.id ?? '')
       setFeeStr('')
       setContent('')
       setNote('')
@@ -139,14 +143,19 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
     }
     setSaving(false)
     setCatExpanded(false)
+    setDeleteConfirmOpen(false)
+    setDeleting(false)
+    setDeleteError('')
   }, [open])
 
   useEffect(() => {
     if (!open) return
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const h = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !deleteConfirmOpen) onClose()
+    }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
-  }, [open, onClose])
+  }, [open, onClose, deleteConfirmOpen])
 
   function handleType(t: TxType) {
     setType(t)
@@ -156,7 +165,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
       setToAssetId(loanAssets[0]?.id ?? '')
       setFromAssetId(repaymentFromAssets[0]?.id ?? '')
     } else if (t === 'transfer') {
-      setToAssetId(visibleAssets.find(a => a.id !== fromAssetId)?.id ?? '')
+      setToAssetId(selectableAssets.find(a => a.id !== fromAssetId)?.id ?? '')
       setFeeStr('')
     }
   }
@@ -217,13 +226,25 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
     }
   }
 
-  async function handleDelete() {
+  async function confirmDelete() {
     if (!transactionId) return
-    if (!confirm('거래를 삭제하시겠습니까?')) return
-    const res = await fetch(`/api/transactions/${transactionId}`, { method: 'DELETE' })
-    if (res.ok) {
+    if (deleting) return
+    setDeleting(true)
+    setDeleteError('')
+
+    try {
+      const res = await fetch(`/api/transactions/${transactionId}`, { method: 'DELETE' })
+      if (!res.ok) {
+        setDeleteError('삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.')
+        setDeleting(false)
+        return
+      }
+      setDeleteConfirmOpen(false)
       onSaved?.()
       onClose()
+    } catch {
+      setDeleteError('네트워크 오류가 발생했습니다.')
+      setDeleting(false)
     }
   }
 
@@ -235,10 +256,10 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
   if (!open) return null
 
   const visibleCats = catExpanded ? currentCats : currentCats.slice(0, 8)
-  const fromAssets = withSelectedAssets(type === 'loan_repayment' ? repaymentFromAssets : visibleAssets, assets, [fromAssetId])
+  const fromAssets = withSelectedAssets(type === 'loan_repayment' ? repaymentFromAssets : selectableAssets, assets, [fromAssetId])
   const toAssets = withSelectedAssets(type === 'loan_repayment'
     ? loanAssets.filter(a => a.id !== fromAssetId)
-    : visibleAssets.filter(a => a.id !== fromAssetId), assets, [toAssetId])
+    : selectableAssets.filter(a => a.id !== fromAssetId), assets, [toAssetId])
 
   return (
     <>
@@ -285,7 +306,10 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
             )}
             {mode === 'edit' && (
               <button
-                onClick={handleDelete}
+                onClick={() => {
+                  setDeleteError('')
+                  setDeleteConfirmOpen(true)
+                }}
                 className="text-[14px] text-[var(--color-expense)]"
               >삭제</button>
             )}
@@ -548,6 +572,22 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
           </button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        title="거래를 삭제할까요?"
+        description={(
+          <>
+            <span className="block font-medium text-[var(--color-text)]">{content || '(내용 없음)'}</span>
+            <span className="mt-1 block">{date} · {fmtDisplay(String(amount))}원 거래가 삭제됩니다.</span>
+            {deleteError && <span className="mt-2 block font-medium text-[var(--color-expense)]">{deleteError}</span>}
+          </>
+        )}
+        confirmLabel="삭제"
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onClose={() => setDeleteConfirmOpen(false)}
+      />
     </>
   )
 }
