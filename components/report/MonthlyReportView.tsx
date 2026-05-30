@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import useSWR from 'swr'
 import { AlertTriangle, ChevronLeft, ChevronRight, CircleDollarSign, Landmark, PieChart as PieChartIcon, PiggyBank, Scale, Sparkles, Target, WalletCards } from 'lucide-react'
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
+import { PieChart, Pie, Cell, ResponsiveContainer, ComposedChart, Area, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
 import { fetcher } from '@/lib/fetcher'
 import { getDisplayMonth, getMonthStartDay } from '@/lib/monthStart'
 import type { MonthlyReport } from '@/lib/report'
@@ -135,24 +135,25 @@ export default function MonthlyReportView() {
           </div>
         ) : (
           <div className="space-y-6">
+            {/* 단일 컬럼 · 중요도 순 (지금 상태 → 원인 분석 → 목표·부채 → 미래 → 실행 → 보조 그래프).
+                순서 변경 시 PAGES.md `/report` "주요 섹션" 표와 함께 맞출 것. */}
+            {/* A. 지금 상태 */}
             <KeyInsights report={report} />
             <Summary report={report} />
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-              <div className="space-y-6">
-                <EssentialityBreakdown report={report} />
-                <CategoryAnalysis report={report} />
-                <CashflowTimeline report={report} />
-                <AnnualOutlook report={report} />
-              </div>
-              <aside className="space-y-6">
-                <HealthMetrics report={report} />
-                <DebtStrategy report={report} />
-                <SavingsSummary report={report} />
-                <NextMonthForecast report={report} />
-              </aside>
-            </div>
+            <HealthMetrics report={report} />
+            {/* B. 원인 분석 */}
+            <EssentialityBreakdown report={report} />
+            <CategoryAnalysis report={report} />
             <AnomalyDetection report={report} />
+            {/* C. 목표·부채 */}
+            <SavingsSummary report={report} />
+            <DebtStrategy report={report} />
+            {/* D. 미래 */}
+            <NextMonthForecast report={report} />
+            <AnnualOutlook report={report} />
+            {/* E. 실행 + 보조 그래프 */}
             <ActionItems report={report} />
+            <CashflowTimeline report={report} />
           </div>
         )}
       </main>
@@ -613,62 +614,81 @@ function NextMonthForecast({ report }: { report: MonthlyReport }) {
   )
 }
 
-function CashflowTimeline({ report }: { report: MonthlyReport }) {
+function CashflowTooltip({ active, payload }: { active?: boolean; payload?: { payload: CashflowPoint }[] }) {
+  if (!active || !payload || payload.length === 0) return null
+  const row = payload[0].payload
   return (
-    <Section title="캐시플로우 타임라인">
-      <div className="md:hidden">
-        {report.cashflowTimeline.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-[var(--color-text-sub)]">이번 달 거래가 없습니다.</p>
-        ) : (
-          <div className="divide-y divide-[var(--color-border)]">
-            {report.cashflowTimeline.map(row => (
-              <div key={row.date} className="px-4 py-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-[var(--color-text)]">{row.date.slice(5)}</p>
-                    <p className="mt-1 truncate text-[12px] text-[var(--color-text-sub)]">{row.mainItems.join(', ') || '주요 항목 없음'}</p>
-                  </div>
-                  <p className={cn('shrink-0 text-right text-[15px] font-bold tabular-nums', toneClass(row.net))}>{formatSignedAmount(row.net)}</p>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]">
-                  <MobileMetric label="수입" value={row.income ? `${formatAmount(row.income)}원` : '-'} className="text-[var(--color-income)]" />
-                  <MobileMetric label="지출" value={row.outflow ? `${formatAmount(row.outflow)}원` : '-'} className="text-[var(--color-expense)]" />
-                  <MobileMetric label="누적" value={formatSignedAmount(row.cumulative)} className={toneClass(row.cumulative)} />
-                  <MobileMetric label="순수익" value={formatSignedAmount(row.net)} className={toneClass(row.net)} />
-                </div>
-              </div>
-            ))}
+    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[12px] shadow-md">
+      <p className="font-semibold text-[var(--color-text)]">{row.label}</p>
+      <div className="mt-1 space-y-0.5">
+        <p className="text-[var(--color-income)]">수입 {row.income ? `${formatAmount(row.income)}원` : '-'}</p>
+        <p className="text-[var(--color-expense)]">지출 {row.outflow ? `${formatAmount(row.outflow)}원` : '-'}</p>
+        <p className={toneClass(row.net)}>순수익 {formatSignedAmount(row.net)}</p>
+        <p className={cn('font-semibold', toneClass(row.cumulative))}>누적 {formatSignedAmount(row.cumulative)}</p>
+      </div>
+      {row.mainItems.length > 0 ? (
+        <p className="mt-1 max-w-[180px] truncate text-[var(--color-text-sub)]">{row.mainItems.join(', ')}</p>
+      ) : null}
+    </div>
+  )
+}
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span aria-hidden className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
+      {label}
+    </span>
+  )
+}
+
+type CashflowPoint = {
+  label: string
+  cumulative: number
+  net: number
+  income: number
+  outflow: number
+  mainItems: string[]
+}
+
+function CashflowTimeline({ report }: { report: MonthlyReport }) {
+  // 누적 잔고(area)와 일별 순수익(bar)은 자릿수가 크게 달라, Y축을 분리해 막대가 묻히지 않게 한다.
+  const data: CashflowPoint[] = report.cashflowTimeline.map(row => ({
+    label: row.date.slice(5),
+    cumulative: row.cumulative,
+    net: row.net,
+    income: row.income,
+    outflow: row.outflow,
+    mainItems: row.mainItems,
+  }))
+  return (
+    <Section title="캐시플로우">
+      {data.length === 0 ? (
+        <p className="px-4 py-10 text-center text-sm text-[var(--color-text-sub)]">이번 달 거래가 없습니다.</p>
+      ) : (
+        <div className="px-2 py-5 md:px-4">
+          <ResponsiveContainer width="100%" height={240}>
+            <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+              <CartesianGrid vertical={false} stroke="var(--color-border)" strokeDasharray="3 3" />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--color-text-sub)' }} tickLine={false} axisLine={false} minTickGap={16} />
+              <YAxis yAxisId="net" hide />
+              <YAxis yAxisId="cumulative" hide />
+              <Tooltip content={<CashflowTooltip />} cursor={{ fill: 'var(--color-surface-sub)' }} />
+              <Bar yAxisId="net" dataKey="net" maxBarSize={20} radius={[2, 2, 0, 0]}>
+                {data.map((d, i) => (
+                  <Cell key={i} fill={d.net >= 0 ? 'var(--color-income)' : 'var(--color-expense)'} />
+                ))}
+              </Bar>
+              <Area yAxisId="cumulative" type="monotone" dataKey="cumulative" stroke="var(--color-primary)" strokeWidth={2} fill="var(--color-primary)" fillOpacity={0.08} dot={false} />
+            </ComposedChart>
+          </ResponsiveContainer>
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[12px] text-[var(--color-text-sub)]">
+            <LegendDot color="var(--color-primary)" label="누적 잔고" />
+            <LegendDot color="var(--color-income)" label="일 순수익 (+)" />
+            <LegendDot color="var(--color-expense)" label="일 순수익 (−)" />
           </div>
-        )}
-      </div>
-      <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="bg-[var(--color-surface-sub)] text-[12px] text-[var(--color-text-body)]">
-            <tr>
-              <th className="px-5 py-3 font-semibold">날짜</th>
-              <th className="px-5 py-3 text-right font-semibold">수입</th>
-              <th className="px-5 py-3 text-right font-semibold">지출</th>
-              <th className="px-5 py-3 text-right font-semibold">일 순수익</th>
-              <th className="px-5 py-3 text-right font-semibold">누적</th>
-              <th className="px-5 py-3 font-semibold">주요 항목</th>
-            </tr>
-          </thead>
-          <tbody>
-            {report.cashflowTimeline.length === 0 ? (
-              <tr><td colSpan={6} className="px-5 py-10 text-center text-[var(--color-text-sub)]">이번 달 거래가 없습니다.</td></tr>
-            ) : report.cashflowTimeline.map(row => (
-              <tr key={row.date} className="border-t border-[var(--color-border)]">
-                <td className="px-5 py-3 font-medium">{row.date.slice(5)}</td>
-                <td className="px-5 py-3 text-right tabular-nums text-[var(--color-income)]">{row.income ? `${formatAmount(row.income)}원` : '-'}</td>
-                <td className="px-5 py-3 text-right tabular-nums text-[var(--color-expense)]">{row.outflow ? `${formatAmount(row.outflow)}원` : '-'}</td>
-                <td className={cn('px-5 py-3 text-right font-semibold tabular-nums', toneClass(row.net))}>{formatSignedAmount(row.net)}</td>
-                <td className={cn('px-5 py-3 text-right tabular-nums', toneClass(row.cumulative))}>{formatSignedAmount(row.cumulative)}</td>
-                <td className="max-w-[260px] truncate px-5 py-3 text-[var(--color-text-body)]">{row.mainItems.join(', ') || '-'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+        </div>
+      )}
     </Section>
   )
 }
