@@ -245,7 +245,12 @@ function KeyInsights({ report }: { report: MonthlyReport }) {
   const hasActivity = report.summary.income > 0 || report.summary.outflow > 0
 
   return (
-    <section aria-label="핵심 인사이트" className="grid gap-3 md:grid-cols-1 xl:grid-cols-3">
+    // 모바일: 가로 스냅 캐러셀(카드 폭 78%, 다음 카드 peek) — 첫 화면 세로 점유 축소. PC(md:↑): 세로 그리드.
+    // 상세는 PAGES.md `/report` "핵심 인사이트 카드 동작 규칙" / "모바일 레이아웃" 단일 소스.
+    <section
+      aria-label="핵심 인사이트"
+      className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:grid md:grid-cols-1 md:overflow-visible md:px-0 md:pb-0 xl:grid-cols-3"
+    >
       {INSIGHT_CARDS.map(card => {
         const list =
           card.kind === 'strength'
@@ -258,27 +263,27 @@ function KeyInsights({ report }: { report: MonthlyReport }) {
         return (
           <div
             key={card.kind}
-            className={cn('flex min-h-[120px] flex-col rounded-lg border p-4 md:p-5', card.ring)}
+            className={cn('flex min-h-[104px] w-[78%] shrink-0 snap-start flex-col rounded-lg border p-3.5 md:min-h-[120px] md:w-auto md:p-5', card.ring)}
           >
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <span aria-hidden className="text-[18px]">{card.emoji}</span>
+                <span aria-hidden className="text-[17px]">{card.emoji}</span>
                 <span className={cn('text-[13px] font-semibold', card.accent)}>{card.label}</span>
               </div>
               <Icon size={16} className={cn('shrink-0', card.accent)} />
             </div>
             {item ? (
-              <div className="mt-3 flex flex-1 flex-col">
+              <div className="mt-2 flex flex-1 flex-col">
                 <p className="break-words text-[15px] font-bold leading-snug text-[var(--color-text)]">{item.title}</p>
                 {item.detail ? (
-                  <p className="mt-1 break-words text-[12px] leading-snug text-[var(--color-text-body)]">{item.detail}</p>
+                  <p className="mt-0.5 break-words text-[12px] leading-snug text-[var(--color-text-body)]">{item.detail}</p>
                 ) : null}
                 {item.metric ? (
-                  <p className={cn('mt-auto pt-2 text-[18px] font-bold tabular-nums', card.accent)}>{item.metric}</p>
+                  <p className={cn('mt-auto pt-1.5 text-[18px] font-bold tabular-nums', card.accent)}>{item.metric}</p>
                 ) : null}
               </div>
             ) : (
-              <p className="mt-3 break-words text-[12px] leading-snug text-[var(--color-text-sub)]">
+              <p className="mt-2 break-words text-[12px] leading-snug text-[var(--color-text-sub)]">
                 {hasActivity ? card.emptyMessage : '거래를 입력하면 자동 분석이 시작됩니다.'}
               </p>
             )}
@@ -908,9 +913,9 @@ function Metric({ label, value, className }: { label: string; value: string; cla
 
 function MobileMetric({ label, value, danger, className }: { label: string; value: string; danger?: boolean; className?: string }) {
   return (
-    <div className="min-w-0 rounded-md bg-[var(--color-surface-sub)] px-2.5 py-1.5">
-      <p className="text-[11px] text-[var(--color-text-sub)]">{label}</p>
-      <p className={cn('mt-0.5 break-words text-[13px] font-semibold tabular-nums text-[var(--color-text)]', danger && 'text-[var(--color-expense)]', className)}>{value}</p>
+    <div className="min-w-0 rounded-md bg-[var(--color-surface-sub)] px-2.5 py-1">
+      <p className="text-[11px] leading-tight text-[var(--color-text-sub)]">{label}</p>
+      <p className={cn('break-words text-[13px] font-semibold leading-tight tabular-nums text-[var(--color-text)]', danger && 'text-[var(--color-expense)]', className)}>{value}</p>
     </div>
   )
 }
