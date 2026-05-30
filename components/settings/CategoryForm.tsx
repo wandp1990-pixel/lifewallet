@@ -9,7 +9,7 @@ const ESSENTIALITY_OPTIONS: { value: Essentiality; label: string; hint: string }
   { value: 'needs', label: '필수', hint: '식비·주거·통신 등' },
   { value: 'wants', label: '원함', hint: '쇼핑·여가·외식 등' },
   { value: 'savings', label: '저축', hint: '저축·투자성 지출' },
-  { value: 'unexpected', label: '예상밖', hint: '경조사·수리 등' },
+  { value: 'unexpected', label: '기타', hint: '경조사·수리 등' },
 ]
 
 interface CategoryFormProps {
@@ -22,7 +22,7 @@ interface CategoryFormProps {
 export default function CategoryForm({ initial, onSubmit, submitLabel = '저장', showEssentiality = false }: CategoryFormProps) {
   const [name, setName] = useState(initial?.name ?? '')
   const [icon, setIcon] = useState(initial?.icon ?? 'box')
-  const [essentiality, setEssentiality] = useState<Essentiality>(initial?.essentiality ?? 'wants')
+  const [essentiality, setEssentiality] = useState<Essentiality | ''>(initial?.essentiality ?? '')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -33,9 +33,13 @@ export default function CategoryForm({ initial, onSubmit, submitLabel = '저장'
       setError('카테고리 이름을 입력해주세요')
       return
     }
+    if (showEssentiality && !essentiality) {
+      setError('지출 성격을 선택해주세요')
+      return
+    }
     setSubmitting(true)
     try {
-      await onSubmit({ name: name.trim(), icon, essentiality })
+      await onSubmit({ name: name.trim(), icon, essentiality: showEssentiality ? essentiality as Essentiality : 'wants' })
     } catch (err) {
       setError(err instanceof Error ? err.message : '저장에 실패했습니다')
     } finally {
@@ -115,7 +119,7 @@ export default function CategoryForm({ initial, onSubmit, submitLabel = '저장'
             })}
           </div>
           <p className="text-[11px] text-[var(--color-text-sub)]">
-            {ESSENTIALITY_OPTIONS.find(o => o.value === essentiality)?.hint}
+            {ESSENTIALITY_OPTIONS.find(o => o.value === essentiality)?.hint ?? '보고서의 50/30/20 지출 구성에 그대로 반영됩니다.'}
           </p>
         </div>
       )}

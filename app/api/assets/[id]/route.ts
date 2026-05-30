@@ -46,13 +46,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     ? normalizeAssetBalance(nextGroupType, nextDisplayBalance)
     : null
 
-  const forceTrackDetail = (body.group_type ?? existing.rows[0].group_type) === 'loan'
-    || (body.group_type ?? existing.rows[0].group_type) === 'savings'
+  const resolvedGroupType = body.group_type ?? existing.rows[0].group_type
+  const forceTrackDetail = resolvedGroupType === 'loan' || resolvedGroupType === 'savings'
+  const forceSavingsTracking = resolvedGroupType === 'savings'
 
   await db.execute({
     sql: `UPDATE assets SET group_type=COALESCE(?,group_type), group_name=COALESCE(?,group_name), name=COALESCE(?,name),
           balance=COALESCE(?,balance), balance_date=COALESCE(?,balance_date), ord=COALESCE(?,ord), visible=COALESCE(?,visible),
           track_detail=CASE WHEN ? THEN 1 ELSE COALESCE(?,track_detail) END,
+          savings_tracking=CASE WHEN ? THEN 1 ELSE COALESCE(?,savings_tracking) END,
           principal=COALESCE(?,principal), interest_rate=COALESCE(?,interest_rate),
           start_date=COALESCE(?,start_date), end_date=COALESCE(?,end_date),
           payment_day=COALESCE(?,payment_day), monthly_payment=COALESCE(?,monthly_payment)
@@ -61,6 +63,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       body.group_type ?? null, body.group_name ?? null, body.name ?? null,
       nextBalance, body.balance_date ?? null, body.order ?? null, body.visible != null ? (body.visible ? 1 : 0) : null,
       forceTrackDetail, body.track_detail != null ? (body.track_detail ? 1 : 0) : null,
+      forceSavingsTracking, body.savings_tracking != null ? (body.savings_tracking ? 1 : 0) : null,
       body.principal ?? null, body.interest_rate ?? null,
       body.start_date ?? null, body.end_date ?? null,
       body.payment_day ?? null, body.monthly_payment ?? null,

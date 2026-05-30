@@ -18,7 +18,7 @@ export const ESSENTIALITY_COLOR: Record<'needs' | 'wants' | 'savings' | 'unexpec
   needs: '#3182f6',      // blue — 필수
   wants: '#8b5cf6',      // violet — 원함
   savings: '#03b26c',    // green — 저축
-  unexpected: '#fe9800', // orange — 예상밖
+  unexpected: '#fe9800', // orange — 기타
 }
 
 export function categoryColor(categoryId: string): string {

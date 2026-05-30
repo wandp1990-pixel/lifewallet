@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import db from '@/lib/db'
+import type { Essentiality } from '@/lib/types'
+
+const ESSENTIALITIES: Essentiality[] = ['needs', 'wants', 'savings', 'unexpected']
+
+function isEssentiality(value: unknown): value is Essentiality {
+  return typeof value === 'string' && ESSENTIALITIES.includes(value as Essentiality)
+}
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -7,6 +14,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const existing = await db.execute({ sql: 'SELECT * FROM categories WHERE id = ?', args: [id] })
   if (!existing.rows[0]) return NextResponse.json({ error: '해당 카테고리를 찾을 수 없습니다' }, { status: 404 })
+  if (body.essentiality !== undefined && !isEssentiality(body.essentiality)) {
+    return NextResponse.json({ error: '지출 성격을 확인해주세요' }, { status: 400 })
+  }
 
   await db.execute({
     sql: 'UPDATE categories SET name=COALESCE(?,name), icon=COALESCE(?,icon), ord=COALESCE(?,ord), visible=COALESCE(?,visible), essentiality=COALESCE(?,essentiality) WHERE id=?',

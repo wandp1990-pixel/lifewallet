@@ -40,7 +40,7 @@ export interface AnomalyItem {
 // 50/30/20 + 카케이보 4분류 지출 구성. 분류 규칙·표준 비교는 SCHEMA.md `MonthlyReport.essentialityBreakdown` 단일 소스.
 export interface EssentialityBucket {
   key: Essentiality
-  label: string        // 필수 / 원함 / 저축 / 예상밖
+  label: string        // 필수 / 원함 / 저축 / 기타
   amount: number       // 해당 분류 expense 합
   share: number        // 전체 expense 대비 % (도넛). expense 0이면 0
 }
@@ -752,7 +752,7 @@ const ESSENTIALITY_LABEL: Record<Essentiality, string> = {
   needs: '필수',
   wants: '원함',
   savings: '저축',
-  unexpected: '예상밖',
+  unexpected: '기타',
 }
 const ESSENTIALITY_ORDER: Essentiality[] = ['needs', 'wants', 'savings', 'unexpected']
 
@@ -786,9 +786,26 @@ function buildEssentialityBreakdown(
   }
 }
 
+// savings_tracking=true 자산의 이달 순변동 합계.
+// income/expense/asset → 해당 자산 직접 효과. transfer → to/from 양쪽 적용. 출금·인출도 반영.
+function getSavingsNetChange(transactions: Transaction[], assets: Asset[]): number {
+  const savingsIds = new Set(assets.filter(a => a.savings_tracking).map(a => a.id))
+  return transactions.reduce((sum, tx) => {
+    if (tx.type === 'income'  && savingsIds.has(tx.asset_id))    return sum + tx.amount
+    if (tx.type === 'expense' && savingsIds.has(tx.asset_id))    return sum - tx.amount
+    if (tx.type === 'asset'   && savingsIds.has(tx.asset_id))    return sum + tx.amount
+    if (tx.type === 'loan_repayment' && savingsIds.has(tx.to_asset_id)) return sum + tx.amount
+    if (tx.type === 'transfer') {
+      if (savingsIds.has(tx.to_asset_id))   sum += tx.amount
+      if (savingsIds.has(tx.from_asset_id)) sum -= (tx.amount + (tx.fee ?? 0))
+    }
+    return sum
+  }, 0)
+}
+
 // ── 저축 목표 on-track 판정 + 시뮬레이션 (Phase 8) ────────────
 // 판정·시뮬레이션 규칙은 SCHEMA.md `MonthlyReport.savingsSummary` 단일 소스.
-// 현 페이스(avgMonthlySavings)는 가계 전체 월 평균 저축액 — 여러 목표가 공유한다(근사). 목표별 required와 비교.
+// 현 페이스(avgMonthlySavings)는 savings 자산 순변동의 3개월 평균. 여러 목표가 공유하는 근사값.
 const SAVINGS_EXTRA_SIM = 100000 // 시뮬레이션용 월 추가 저축액(10만원). 대출 EXTRA_PAYMENT_SIM과 동일 기준.
 
 function buildSavingsGoalProjection(
@@ -845,7 +862,8 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
   const prev2Income = previousPreviousTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0)
   const prev2Expense = getExpenseAmount(previousPreviousTransactions)
   const balance = income - outflow
-  const savingsRate = income > 0 ? ratio(balance, income) : null
+  const savingsNetChange = getSavingsNetChange(transactions, assets)
+  const savingsRate = income > 0 ? ratio(savingsNetChange, income) : null
   const outflowRate = income > 0 ? ratio(outflow, income) : null
 
   // 3개월 rolling 윈도우 — 거래가 있는 달만 분모로 사용해 신규 사용자(데이터 1~2개월)의 평균 왜곡 방지.
@@ -856,10 +874,10 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
   const incomeVs3mRate = income3mAvg > 0 ? ((income - income3mAvg) / income3mAvg) * 100 : null
   const expenseVs3mRate = expense3mAvg > 0 ? ((expense - expense3mAvg) / expense3mAvg) * 100 : null
 
-  // 현 페이스 = 최근 3개월 평균 저축액(income - outflow). windowMonths 분모로 신규 사용자 왜곡 방지. (Phase 8)
-  const previousOutflow = getOutflowAmount(previousTransactions)
-  const prev2Outflow = getOutflowAmount(previousPreviousTransactions)
-  const avgMonthlySavings = Math.round((balance + (previousIncome - previousOutflow) + (prev2Income - prev2Outflow)) / windowMonths)
+  // 현 페이스 = 최근 3개월 savings 자산 순변동 평균. 출금 포함 순변동이므로 음수 가능. windowMonths 분모로 신규 사용자 왜곡 방지. (Phase 8)
+  const previousSavingsNetChange = getSavingsNetChange(previousTransactions, assets)
+  const prev2SavingsNetChange = getSavingsNetChange(previousPreviousTransactions, assets)
+  const avgMonthlySavings = Math.round((savingsNetChange + previousSavingsNetChange + prev2SavingsNetChange) / windowMonths)
 
   const expenseByCategory = new Map<string, { amount: number; count: number }>()
   for (const tx of transactions) {

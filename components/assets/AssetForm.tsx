@@ -40,6 +40,7 @@ interface FormState {
   balance_date: string
   visible: boolean
   track_detail: boolean
+  savings_tracking: boolean
   principal: string
   interest_rate: string
   start_date: string
@@ -58,6 +59,7 @@ function assetToForm(asset: Asset): FormState {
     balance_date: asset.balance_date ?? '',
     visible: asset.visible,
     track_detail: asset.track_detail,
+    savings_tracking: asset.savings_tracking,
     principal: asset.principal ? formatAmount(asset.principal) : '',
     interest_rate: asset.interest_rate ? String(asset.interest_rate) : '',
     start_date: asset.start_date ?? '',
@@ -75,6 +77,7 @@ const DEFAULT_FORM: FormState = {
   balance_date: todayStr(),
   visible: true,
   track_detail: false,
+  savings_tracking: false,
   principal: '',
   interest_rate: '',
   start_date: '',
@@ -131,6 +134,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
 
   const isLoan = form.group_type === 'loan'
   const forceTrackDetail = form.group_type === 'loan' || form.group_type === 'savings'
+  const forceSavingsTracking = form.group_type === 'savings'
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm(f => ({ ...f, [key]: value }))
@@ -150,6 +154,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
       balance_date: form.balance_date,
       visible: form.visible,
       track_detail: forceTrackDetail || form.track_detail,
+      savings_tracking: forceSavingsTracking || form.savings_tracking,
       ...(isLoan && {
         principal: parseNum(form.principal),
         interest_rate: parseFloat(form.interest_rate) || 0,
@@ -431,6 +436,20 @@ export default function AssetForm({ open, onClose, editing }: Props) {
             onClick={() => !forceTrackDetail && set('track_detail', !form.track_detail)}
             disabled={forceTrackDetail}
             label="상세 추적"
+          />
+        </div>
+
+        {/* 저축 추적 토글 (savings는 강제 ON) */}
+        <div className={`flex items-center justify-between py-0.5 ${forceSavingsTracking ? 'opacity-50' : ''}`}>
+          <div>
+            <p className="text-sm font-medium text-[var(--color-text)]">저축 추적</p>
+            <p className="text-xs text-[var(--color-text-sub)]">ON 시 재무보고서 저축 집계에 포함</p>
+          </div>
+          <ToggleSwitch
+            checked={forceSavingsTracking || form.savings_tracking}
+            onClick={() => !forceSavingsTracking && set('savings_tracking', !form.savings_tracking)}
+            disabled={forceSavingsTracking}
+            label="저축 추적"
           />
         </div>
 

@@ -25,7 +25,22 @@ async function updateAssetBalance(assetId: string, delta: number, txDate: string
   })
 }
 
-export async function initDb() {
+// initDb는 매 요청마다 호출되지만 마이그레이션은 인스턴스 수명 동안 한 번이면 충분하다.
+// Vercel Fluid Compute에서 함수 인스턴스가 재사용되면 promise가 캐시돼 Turso 왕복을 전부 스킵한다.
+// 실패 시 캐시를 비워 다음 요청이 재시도하도록 한다.
+let _initPromise: Promise<void> | null = null
+
+export function initDb(): Promise<void> {
+  if (!_initPromise) {
+    _initPromise = _doInit().catch(err => {
+      _initPromise = null
+      throw err
+    })
+  }
+  return _initPromise
+}
+
+async function _doInit() {
   await db.executeMultiple(`
     CREATE TABLE IF NOT EXISTS transactions (
       id            TEXT    PRIMARY KEY,
@@ -70,8 +85,9 @@ export async function initDb() {
       balance         INTEGER NOT NULL DEFAULT 0,
       balance_date    TEXT    NOT NULL DEFAULT '',
       ord             INTEGER NOT NULL DEFAULT 0,
-      visible         INTEGER NOT NULL DEFAULT 1,
-      track_detail    INTEGER NOT NULL DEFAULT 0,
+      visible           INTEGER NOT NULL DEFAULT 1,
+      track_detail      INTEGER NOT NULL DEFAULT 0,
+      savings_tracking  INTEGER NOT NULL DEFAULT 0,
       principal       INTEGER NOT NULL DEFAULT 0,
       interest_rate   REAL    NOT NULL DEFAULT 0,
       start_date      TEXT    NOT NULL DEFAULT '',
@@ -129,6 +145,7 @@ export async function initDb() {
       pinned     INTEGER NOT NULL DEFAULT 0,
       created_at TEXT    NOT NULL DEFAULT (datetime('now'))
     );
+
   `)
 
   const categoryColumns = await db.execute('PRAGMA table_info(categories)')
@@ -139,28 +156,20 @@ export async function initDb() {
   if (!columnNames.has('is_system')) {
     await db.execute('ALTER TABLE categories ADD COLUMN is_system INTEGER NOT NULL DEFAULT 0')
   }
-  // 50/30/20 필수성 분류 (Phase 7). 컬럼 신설 시 1회만 기본 카테고리 이름 기반 best-effort 백필.
-  // 매칭 안 되는 카테고리는 컬럼 기본값 'wants' 유지. 분류 규칙은 SCHEMA.md `categories.essentiality` / `MonthlyReport.essentialityBreakdown`.
+  // 50/30/20 필수성 분류 (Phase 7). 카테고리 관리에서 사용자가 명시적으로 관리한다.
+  // 분류 규칙은 SCHEMA.md `categories.essentiality` / `MonthlyReport.essentialityBreakdown`.
   if (!columnNames.has('essentiality')) {
     await db.execute("ALTER TABLE categories ADD COLUMN essentiality TEXT NOT NULL DEFAULT 'wants'")
-    const seed: { value: string; names: string[] }[] = [
-      { value: 'needs', names: ['식비', '교통', '통신', '주거', '월세', '관리비', '의료', '병원', '교육', '학원', '보험', '공과금', '세금'] },
-      { value: 'savings', names: ['저축', '투자', '적금', '예금', '펀드'] },
-      { value: 'unexpected', names: ['경조사', '수리', '경조'] },
-    ]
-    for (const { value, names } of seed) {
-      const like = names.map(() => 'name LIKE ?').join(' OR ')
-      await db.execute({
-        sql: `UPDATE categories SET essentiality = ? WHERE type = 'expense' AND (${like})`,
-        args: [value, ...names.map(name => `%${name}%`)],
-      })
-    }
   }
 
   const assetColumns = await db.execute('PRAGMA table_info(assets)')
   const assetColumnNames = new Set(assetColumns.rows.map(row => String((row as Record<string, unknown>).name ?? '')))
   if (!assetColumnNames.has('balance_date')) {
     await db.execute("ALTER TABLE assets ADD COLUMN balance_date TEXT NOT NULL DEFAULT ''")
+  }
+  if (!assetColumnNames.has('savings_tracking')) {
+    await db.execute('ALTER TABLE assets ADD COLUMN savings_tracking INTEGER NOT NULL DEFAULT 0')
+    await db.execute("UPDATE assets SET savings_tracking = 1 WHERE group_type = 'savings'")
   }
 
   // 하드코딩 시스템 카테고리 제거 마이그레이션 (is_system=1 이면 삭제, 연결 거래는 미분류로)
@@ -218,6 +227,7 @@ export function rowToAsset(row: Record<string, unknown>): Asset {
     order: row.ord as number,
     visible: Boolean(row.visible),
     track_detail: Boolean(row.track_detail),
+    savings_tracking: Boolean(row.savings_tracking),
     principal: row.principal as number | undefined,
     interest_rate: row.interest_rate as number | undefined,
     start_date: row.start_date as string | undefined,

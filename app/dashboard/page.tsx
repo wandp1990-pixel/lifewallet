@@ -48,29 +48,30 @@ export default function DashboardPage() {
 
   const months6 = useMemo(() => prevMonths(year, month, 6), [year, month])
 
-  // 6개월치 SWR 키 (훅 규칙 준수: 항상 6개 호출)
-  const keys = useMemo(() => months6.map(m => {
-    if (monthStartDay === null) return null
-    const { from, to } = getMonthRange(m.year, m.month, monthStartDay)
-    return ready ? `/api/transactions?from=${from}&to=${to}` : null
-  }), [months6, monthStartDay, ready])
+  // 6개월은 연속 구간이므로 전체 범위를 한 번에 조회한다 (월별 개별 호출 6 → 1).
+  const rangeKey = useMemo(() => {
+    if (monthStartDay === null || !ready) return null
+    const from = getMonthRange(months6[0].year, months6[0].month, monthStartDay).from
+    const to = getMonthRange(months6[5].year, months6[5].month, monthStartDay).to
+    return `/api/transactions?from=${from}&to=${to}`
+  }, [months6, monthStartDay, ready])
 
-  const r0 = useSWR<Transaction[]>(keys[0], fetcher)
-  const r1 = useSWR<Transaction[]>(keys[1], fetcher)
-  const r2 = useSWR<Transaction[]>(keys[2], fetcher)
-  const r3 = useSWR<Transaction[]>(keys[3], fetcher)
-  const r4 = useSWR<Transaction[]>(keys[4], fetcher)
-  const r5 = useSWR<Transaction[]>(keys[5], fetcher)
+  const { data: allTxs, isLoading } = useSWR<Transaction[]>(rangeKey, fetcher)
 
-  const swrResults = [r0, r1, r2, r3, r4, r5]
-  const txMap = useMemo(() => {
-    const map: Record<string, Transaction[]> = {}
-    keys.forEach((key, i) => { if (key && swrResults[i].data) map[key] = swrResults[i].data! })
-    return map
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [keys, r0.data, r1.data, r2.data, r3.data, r4.data, r5.data])
+  // 조회 결과를 월별 버킷으로 분할 (index 0 = 가장 오래된 달 … 5 = 이번 달).
+  const monthTxs = useMemo(() => {
+    const buckets: Transaction[][] = months6.map(() => [])
+    if (!allTxs || monthStartDay === null) return buckets
+    const ranges = months6.map(m => getMonthRange(m.year, m.month, monthStartDay))
+    for (const tx of allTxs) {
+      for (let i = 0; i < ranges.length; i++) {
+        if (tx.date >= ranges[i].from && tx.date <= ranges[i].to) { buckets[i].push(tx); break }
+      }
+    }
+    return buckets
+  }, [allTxs, months6, monthStartDay])
 
-  const loading = swrResults.some((r, i) => keys[i] !== null && !r.data && r.isLoading)
+  const loading = rangeKey !== null && !allTxs && isLoading
 
   function navMonth(dir: -1 | 1) {
     setMonth(prev => {
@@ -82,8 +83,8 @@ export default function DashboardPage() {
     })
   }
 
-  const currentTxs = txMap[keys[5] ?? ''] ?? []
-  const prevTxs = txMap[keys[4] ?? ''] ?? []
+  const currentTxs = monthTxs[5]
+  const prevTxs = monthTxs[4]
 
   const income = currentTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   const spending = getExpenseAmount(currentTxs)
@@ -110,23 +111,23 @@ export default function DashboardPage() {
     return Math.round(((s - ps) / Math.abs(ps)) * 100)
   })()
 
-  const sparkIncomes = keys.map((key, i) => ({
-    value: txMap[key ?? '']?.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0) ?? 0,
+  const sparkIncomes = monthTxs.map((txs, i) => ({
+    value: txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0),
     isActive: i === 5,
   }))
-  const sparkExpenses = keys.map((key, i) => ({
-    value: getOutflowAmount(txMap[key ?? ''] ?? []),
+  const sparkExpenses = monthTxs.map((txs, i) => ({
+    value: getOutflowAmount(txs),
     isActive: i === 5,
   }))
-  const sparkSavings = keys.map((key, i) => {
-    const inc = txMap[key ?? '']?.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0) ?? 0
-    const exp = getOutflowAmount(txMap[key ?? ''] ?? [])
+  const sparkSavings = monthTxs.map((txs, i) => {
+    const inc = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
+    const exp = getOutflowAmount(txs)
     return { value: inc - exp, isActive: i === 5 }
   })
-  const sparkManagedBalance = keys.map((_, i) => ({ value: managedBalance, isActive: i === 5 }))
+  const sparkManagedBalance = monthTxs.map((_, i) => ({ value: managedBalance, isActive: i === 5 }))
 
   const trendData = months6.map((m, i) => {
-    const txs = txMap[keys[i] ?? ''] ?? []
+    const txs = monthTxs[i]
     return {
       label: `${m.month}월`,
       income: txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0),

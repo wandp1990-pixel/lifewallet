@@ -48,6 +48,7 @@ export interface Asset {
   order: number
   visible: boolean
   track_detail: boolean
+  savings_tracking: boolean
   principal?: number
   interest_rate?: number
   start_date?: string
