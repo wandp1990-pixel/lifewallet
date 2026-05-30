@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import useSWR from 'swr'
-import { AlertTriangle, ChevronLeft, ChevronRight, CircleDollarSign, Landmark, PieChart as PieChartIcon, PiggyBank, Scale, Sparkles, Target, WalletCards } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, Landmark, PieChart as PieChartIcon, PiggyBank, Scale, Sparkles, Target, WalletCards } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer, ComposedChart, Area, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
 import { fetcher } from '@/lib/fetcher'
 import { getDisplayMonth, getMonthStartDay } from '@/lib/monthStart'
@@ -161,13 +161,42 @@ export default function MonthlyReportView() {
   )
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+// 모바일에서만 접기. PC(md:)는 접기 UI를 숨기고 항상 펼침 — 상세는 PAGES.md `/report` "섹션 접기 (모바일)" 단일 소스.
+function Section({
+  title,
+  summary,
+  defaultOpen = false,
+  children,
+}: {
+  title: string
+  summary?: ReactNode
+  defaultOpen?: boolean
+  children: ReactNode
+}) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
     <section className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div className="border-b border-[var(--color-border)] px-4 py-3 md:px-5 md:py-4">
-        <h2 className="text-[16px] font-bold text-[var(--color-text)]">{title}</h2>
-      </div>
-      {children}
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left md:cursor-default md:px-5 md:py-4"
+      >
+        <div className="flex min-w-0 items-center gap-2">
+          <h2 className="shrink-0 text-[16px] font-bold text-[var(--color-text)]">{title}</h2>
+          {summary ? (
+            <span className={cn('min-w-0 truncate text-[12px] tabular-nums text-[var(--color-text-sub)] md:hidden', open && 'hidden')}>
+              {summary}
+            </span>
+          ) : null}
+        </div>
+        <ChevronDown
+          size={18}
+          aria-hidden
+          className={cn('shrink-0 text-[var(--color-text-sub)] transition-transform md:hidden', open && 'rotate-180')}
+        />
+      </button>
+      <div className={cn('border-t border-[var(--color-border)] md:block', open ? 'block' : 'hidden')}>{children}</div>
     </section>
   )
 }
@@ -316,9 +345,13 @@ function EssentialityBreakdown({ report }: { report: MonthlyReport }) {
     { label: '원함 (wants)', ratio: e.wantsIncomeRatio, target: 30, dir: 'max', color: ESSENTIALITY_COLOR.wants },
     { label: '저축 (savings)', ratio: e.savingsRate, target: 20, dir: 'min', color: ESSENTIALITY_COLOR.savings },
   ]
+  const summary =
+    e.totalExpense === 0
+      ? '지출 없음'
+      : `필수 ${formatPercent(e.needsIncomeRatio, 0)} · 원함 ${formatPercent(e.wantsIncomeRatio, 0)} · 저축 ${formatPercent(e.savingsRate, 0)}`
 
   return (
-    <Section title="지출 구성 (50/30/20)">
+    <Section title="지출 구성 (50/30/20)" summary={summary}>
       {e.totalExpense === 0 ? (
         <p className="px-4 py-8 text-center text-sm text-[var(--color-text-sub)] md:px-5">이번 달 소비 지출이 없습니다.</p>
       ) : (
@@ -390,24 +423,26 @@ function EssentialityBreakdown({ report }: { report: MonthlyReport }) {
 }
 
 function CategoryAnalysis({ report }: { report: MonthlyReport }) {
+  const top = report.categoryAnalysis[0]
+  const summary = top ? `${report.categoryAnalysis.length}개 · 최다 ${top.name} ${formatAmount(top.amount)}원` : '지출 없음'
   return (
-    <Section title="지출 카테고리 분석">
+    <Section title="지출 카테고리 분석" summary={summary}>
       <div className="md:hidden">
         {report.categoryAnalysis.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-[var(--color-text-sub)]">이번 달 소비 지출이 없습니다.</p>
         ) : (
           <div className="divide-y divide-[var(--color-border)]">
             {report.categoryAnalysis.map((row, index) => (
-              <div key={row.categoryId || 'none'} className="px-4 py-4">
+              <div key={row.categoryId || 'none'} className="px-4 py-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-2">
                     <span className="shrink-0 text-[12px] font-semibold text-[var(--color-text-sub)]">{index + 1}</span>
-                    <CatIcon icon={row.icon} id={row.categoryId} size={30} />
+                    <CatIcon icon={row.icon} id={row.categoryId} size={28} />
                     <span className="min-w-0 truncate font-semibold text-[var(--color-text)]">{row.name}</span>
                   </div>
                   <span className="shrink-0 text-right text-[15px] font-bold tabular-nums text-[var(--color-text)]">{formatAmount(row.amount)}원</span>
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]">
+                <div className="mt-2.5 grid grid-cols-2 gap-1.5 text-[12px]">
                   <MobileMetric label="3개월 평균" value={row.avg3m > 0 ? `${formatAmount(row.avg3m)}원` : '-'} />
                   <MobileMetric label="평균 대비" value={formatSignedPercent(row.vsAvg3mRate)} className={row.vsAvg3mRate !== null ? toneClass(row.vsAvg3mRate, false) : undefined} />
                   <MobileMetric label="월예산" value={row.budget > 0 ? `${formatAmount(row.budget)}원` : '-'} />
@@ -471,8 +506,11 @@ const HEALTH_LEVEL: Record<MonthlyReport['healthMetrics'][number]['level'], { ba
 }
 
 function HealthMetrics({ report }: { report: MonthlyReport }) {
+  const danger = report.healthMetrics.filter(m => m.level === 'danger').length
+  const caution = report.healthMetrics.filter(m => m.level === 'caution').length
+  const summary = danger === 0 && caution === 0 ? '모두 안전' : `위험 ${danger} · 주의 ${caution}`
   return (
-    <Section title="재정 건강 지표">
+    <Section title="재정 건강 지표" summary={summary} defaultOpen>
       <div className="divide-y divide-[var(--color-border)]">
         {report.healthMetrics.map(metric => {
           const tone = HEALTH_LEVEL[metric.level]
@@ -487,7 +525,7 @@ function HealthMetrics({ report }: { report: MonthlyReport }) {
                   </span>
                 </div>
               </div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-sub)]">
+              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-sub)]">
                 <div
                   className={cn('h-full rounded-full transition-all', tone.bar)}
                   style={{ width: `${metric.level === 'none' ? 0 : Math.max(metric.gauge, 2)}%` }}
@@ -503,8 +541,12 @@ function HealthMetrics({ report }: { report: MonthlyReport }) {
 }
 
 function DebtStrategy({ report }: { report: MonthlyReport }) {
+  const summary =
+    report.debtStrategy.loans.length === 0
+      ? '등록된 대출 없음'
+      : `잔액 ${formatAmount(report.debtStrategy.totalBalance)}원 · 월 상환 ${formatAmount(report.debtStrategy.totalMonthlyPayment)}원`
   return (
-    <Section title="대출 통합 전략">
+    <Section title="대출 통합 전략" summary={summary}>
       <div className="px-4 py-4 md:px-5">
         <div className="grid grid-cols-2 gap-3 text-sm">
           <Metric label="잔액" value={`${formatAmount(report.debtStrategy.totalBalance)}원`} />
@@ -547,8 +589,11 @@ const SAVINGS_STATUS: Record<MonthlyReport['savingsSummary']['goals'][number]['s
 }
 
 function SavingsSummary({ report }: { report: MonthlyReport }) {
+  const s = report.savingsSummary
+  const progress = s.totalTarget > 0 ? (s.totalCurrent / s.totalTarget) * 100 : 0
+  const summary = s.goals.length === 0 ? '목표 없음' : `${s.goals.length}목표 · 달성 ${formatPercent(progress, 0)}`
   return (
-    <Section title="저축 현황">
+    <Section title="저축 현황" summary={summary}>
       <div className="px-4 py-4 md:px-5">
         <Metric label="목표 합계" value={`${formatAmount(report.savingsSummary.totalTarget)}원`} />
         <Metric label="현재 달성" value={`${formatAmount(report.savingsSummary.totalCurrent)}원`} className="mt-3" />
@@ -591,7 +636,10 @@ function SavingsSummary({ report }: { report: MonthlyReport }) {
 
 function NextMonthForecast({ report }: { report: MonthlyReport }) {
   return (
-    <Section title={`${report.nextMonthForecast.year}년 ${report.nextMonthForecast.month}월 예상 지출`}>
+    <Section
+      title={`${report.nextMonthForecast.year}년 ${report.nextMonthForecast.month}월 예상 지출`}
+      summary={`${formatAmount(report.nextMonthForecast.totalPlannedOutflow)}원`}
+    >
       <div className="px-4 py-4 md:px-5">
         <p className="break-words text-[24px] font-bold leading-tight tabular-nums text-[var(--color-text)] md:text-[26px]">{formatAmount(report.nextMonthForecast.totalPlannedOutflow)}원</p>
         <p className="mt-1 text-[12px] text-[var(--color-text-sub)]">
@@ -661,8 +709,9 @@ function CashflowTimeline({ report }: { report: MonthlyReport }) {
     outflow: row.outflow,
     mainItems: row.mainItems,
   }))
+  const summary = data.length === 0 ? '거래 없음' : `말 잔고 ${formatSignedAmount(data[data.length - 1].cumulative)}`
   return (
-    <Section title="캐시플로우">
+    <Section title="캐시플로우" summary={summary}>
       {data.length === 0 ? (
         <p className="px-4 py-10 text-center text-sm text-[var(--color-text-sub)]">이번 달 거래가 없습니다.</p>
       ) : (
@@ -694,17 +743,18 @@ function CashflowTimeline({ report }: { report: MonthlyReport }) {
 }
 
 function AnnualOutlook({ report }: { report: MonthlyReport }) {
+  const expectedSum = report.annualOutlook.reduce((s, r) => s + r.expectedBalance, 0)
   return (
-    <Section title="연간 전망">
+    <Section title="연간 전망" summary={`예상 잔액 합계 ${formatSignedAmount(expectedSum)}`}>
       <div className="md:hidden">
         <div className="divide-y divide-[var(--color-border)]">
           {report.annualOutlook.map(row => (
-            <div key={row.month} className="px-4 py-4">
+            <div key={row.month} className="px-4 py-3">
               <div className="flex items-start justify-between gap-3">
                 <p className="font-semibold text-[var(--color-text)]">{row.month}월</p>
                 <p className={cn('shrink-0 text-right text-[15px] font-bold tabular-nums', toneClass(row.expectedBalance))}>{formatSignedAmount(row.expectedBalance)}</p>
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]">
+              <div className="mt-2.5 grid grid-cols-2 gap-1.5 text-[12px]">
                 <MobileMetric label="실제 수입" value={row.actualIncome ? `${formatAmount(row.actualIncome)}원` : '-'} />
                 <MobileMetric label="실제 지출" value={row.actualOutflow ? `${formatAmount(row.actualOutflow)}원` : '-'} />
                 <MobileMetric label="생활비 예산" value={`${formatAmount(row.budgetedExpense)}원`} />
@@ -759,8 +809,10 @@ const ANOMALY_GROUPS: { key: AnomalyGroupKey; label: string; emoji: string; acce
 
 function AnomalyDetection({ report }: { report: MonthlyReport }) {
   const hasActivity = report.summary.income > 0 || report.summary.outflow > 0
+  const a = report.anomalies
+  const summary = `큰 지출 ${a.largeExpenses.length} · 신규 ${a.newRecurring.length} · 누락 ${a.missingRecurring.length}`
   return (
-    <Section title="이상치·패턴 탐지">
+    <Section title="이상치·패턴 탐지" summary={summary}>
       <div className="grid gap-px bg-[var(--color-border)] md:grid-cols-3">
         {ANOMALY_GROUPS.map(group => {
           const items = report.anomalies[group.key]
@@ -811,8 +863,9 @@ const RECOMMENDATION_SEVERITY: Record<MonthlyReport['recommendations'][number]['
 
 function ActionItems({ report }: { report: MonthlyReport }) {
   const hasActivity = report.summary.income > 0 || report.summary.outflow > 0
+  const summary = report.recommendations.length === 0 ? '권고 없음' : `권고 ${report.recommendations.length}건`
   return (
-    <Section title="실행 권고">
+    <Section title="실행 권고" summary={summary} defaultOpen>
       <div className="divide-y divide-[var(--color-border)]">
         {report.recommendations.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-[var(--color-text-sub)] md:px-5">
@@ -855,9 +908,9 @@ function Metric({ label, value, className }: { label: string; value: string; cla
 
 function MobileMetric({ label, value, danger, className }: { label: string; value: string; danger?: boolean; className?: string }) {
   return (
-    <div className="min-w-0 rounded-lg bg-[var(--color-surface-sub)] px-3 py-2">
+    <div className="min-w-0 rounded-md bg-[var(--color-surface-sub)] px-2.5 py-1.5">
       <p className="text-[11px] text-[var(--color-text-sub)]">{label}</p>
-      <p className={cn('mt-1 break-words text-[13px] font-semibold tabular-nums text-[var(--color-text)]', danger && 'text-[var(--color-expense)]', className)}>{value}</p>
+      <p className={cn('mt-0.5 break-words text-[13px] font-semibold tabular-nums text-[var(--color-text)]', danger && 'text-[var(--color-expense)]', className)}>{value}</p>
     </div>
   )
 }
