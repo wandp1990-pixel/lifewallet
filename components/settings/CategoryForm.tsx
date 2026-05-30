@@ -1,18 +1,28 @@
 'use client'
 
 import { useState, type FormEvent } from 'react'
-import type { Category } from '@/lib/types'
+import type { Category, Essentiality } from '@/lib/types'
 import CatIcon, { ICON_KEYS, ICON_LABELS } from '@/components/ui/CatIcon'
 
+// 50/30/20 + 카케이보 4분류. 라벨·색상 단일 소스는 DESIGN_SYSTEM.md "필수성 분류 색상".
+const ESSENTIALITY_OPTIONS: { value: Essentiality; label: string; hint: string }[] = [
+  { value: 'needs', label: '필수', hint: '식비·주거·통신 등' },
+  { value: 'wants', label: '원함', hint: '쇼핑·여가·외식 등' },
+  { value: 'savings', label: '저축', hint: '저축·투자성 지출' },
+  { value: 'unexpected', label: '예상밖', hint: '경조사·수리 등' },
+]
+
 interface CategoryFormProps {
-  initial?: Pick<Category, 'name' | 'icon'>
-  onSubmit: (values: { name: string; icon: string }) => Promise<void> | void
+  initial?: Pick<Category, 'name' | 'icon'> & { essentiality?: Essentiality }
+  onSubmit: (values: { name: string; icon: string; essentiality: Essentiality }) => Promise<void> | void
   submitLabel?: string
+  showEssentiality?: boolean
 }
 
-export default function CategoryForm({ initial, onSubmit, submitLabel = '저장' }: CategoryFormProps) {
+export default function CategoryForm({ initial, onSubmit, submitLabel = '저장', showEssentiality = false }: CategoryFormProps) {
   const [name, setName] = useState(initial?.name ?? '')
   const [icon, setIcon] = useState(initial?.icon ?? 'box')
+  const [essentiality, setEssentiality] = useState<Essentiality>(initial?.essentiality ?? 'wants')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -25,7 +35,7 @@ export default function CategoryForm({ initial, onSubmit, submitLabel = '저장'
     }
     setSubmitting(true)
     try {
-      await onSubmit({ name: name.trim(), icon })
+      await onSubmit({ name: name.trim(), icon, essentiality })
     } catch (err) {
       setError(err instanceof Error ? err.message : '저장에 실패했습니다')
     } finally {
@@ -80,6 +90,35 @@ export default function CategoryForm({ initial, onSubmit, submitLabel = '저장'
           선택됨: {ICON_LABELS[icon as keyof typeof ICON_LABELS] ?? icon}
         </p>
       </div>
+
+      {/* 필수성 분류 (지출 카테고리 전용) — 보고서 50/30/20 지출 구성에 사용 */}
+      {showEssentiality && (
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium text-[var(--color-text-body)]">지출 성격</span>
+          <div className="grid grid-cols-4 gap-2">
+            {ESSENTIALITY_OPTIONS.map(opt => {
+              const selected = essentiality === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setEssentiality(opt.value)}
+                  className={`flex flex-col items-center gap-0.5 rounded-xl border px-2 py-2 transition-colors ${
+                    selected
+                      ? 'bg-[var(--color-primary-subtle)] border-[var(--color-primary)]'
+                      : 'bg-[var(--color-surface-sub)] border-transparent hover:border-[var(--color-border-strong)]'
+                  }`}
+                >
+                  <span className={`text-[13px] font-semibold ${selected ? 'text-[var(--color-primary)]' : 'text-[var(--color-text)]'}`}>{opt.label}</span>
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-[11px] text-[var(--color-text-sub)]">
+            {ESSENTIALITY_OPTIONS.find(o => o.value === essentiality)?.hint}
+          </p>
+        </div>
+      )}
 
       {error && (
         <p className="text-[13px] text-[var(--color-expense)]" role="alert">{error}</p>

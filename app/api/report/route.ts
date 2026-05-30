@@ -51,12 +51,15 @@ export async function GET(req: NextRequest) {
   const currentRange = getMonthRange(year, month, monthStartDay)
   const previous = previousMonth(year, month)
   const previousRange = getMonthRange(previous.year, previous.month, monthStartDay)
+  const previousPrevious = previousMonth(previous.year, previous.month)
+  const previousPreviousRange = getMonthRange(previousPrevious.year, previousPrevious.month, monthStartDay)
   const annualFrom = getMonthRange(year, 1, monthStartDay).from
   const annualTo = getMonthRange(year, 12, monthStartDay).to
 
   const [
     transactionRows,
     previousTransactionRows,
+    previousPreviousTransactionRows,
     annualTransactionRows,
     categoryRows,
     budgetRows,
@@ -67,8 +70,9 @@ export async function GET(req: NextRequest) {
   ] = await Promise.all([
     db.execute({ sql: 'SELECT * FROM transactions WHERE date >= ? AND date <= ? ORDER BY date ASC, created_at ASC', args: [currentRange.from, currentRange.to] }),
     db.execute({ sql: 'SELECT * FROM transactions WHERE date >= ? AND date <= ? ORDER BY date ASC, created_at ASC', args: [previousRange.from, previousRange.to] }),
+    db.execute({ sql: 'SELECT * FROM transactions WHERE date >= ? AND date <= ? ORDER BY date ASC, created_at ASC', args: [previousPreviousRange.from, previousPreviousRange.to] }),
     db.execute({ sql: 'SELECT * FROM transactions WHERE date >= ? AND date <= ? ORDER BY date ASC, created_at ASC', args: [annualFrom, annualTo] }),
-    db.execute('SELECT id,type,name,icon,ord as "order",visible,is_system FROM categories ORDER BY ord ASC'),
+    db.execute('SELECT id,type,name,icon,ord as "order",visible,is_system,essentiality FROM categories ORDER BY ord ASC'),
     db.execute('SELECT * FROM budgets'),
     db.execute('SELECT * FROM assets ORDER BY ord ASC'),
     db.execute('SELECT * FROM savings_goals ORDER BY created_at DESC'),
@@ -82,6 +86,7 @@ export async function GET(req: NextRequest) {
     monthStartDay,
     transactions: transactionRows.rows as unknown as Transaction[],
     previousTransactions: previousTransactionRows.rows as unknown as Transaction[],
+    previousPreviousTransactions: previousPreviousTransactionRows.rows as unknown as Transaction[],
     annualTransactions: annualTransactionRows.rows as unknown as Transaction[],
     categories: categoryRows.rows.map(row => ({
       ...(row as unknown as Category),

@@ -30,11 +30,12 @@ export async function POST(req: NextRequest) {
     order: body.order ?? 0,
     visible: true,
     is_system: false,
+    essentiality: body.essentiality ?? 'wants',
   }
 
   await db.execute({
-    sql: 'INSERT INTO categories (id,type,name,icon,ord,visible,is_system) VALUES (?,?,?,?,?,?,?)',
-    args: [c.id, c.type, c.name, c.icon, c.order, 1, 0],
+    sql: 'INSERT INTO categories (id,type,name,icon,ord,visible,is_system,essentiality) VALUES (?,?,?,?,?,?,?,?)',
+    args: [c.id, c.type, c.name, c.icon, c.order, 1, 0, c.essentiality],
   })
 
   return NextResponse.json(c, { status: 201 })

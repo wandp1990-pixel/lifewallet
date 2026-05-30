@@ -3,11 +3,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import useSWR from 'swr'
-import { AlertTriangle, ChevronLeft, ChevronRight, CircleDollarSign, Landmark, PiggyBank, WalletCards } from 'lucide-react'
+import { AlertTriangle, ChevronLeft, ChevronRight, CircleDollarSign, Landmark, PieChart as PieChartIcon, PiggyBank, Scale, Sparkles, Target, WalletCards } from 'lucide-react'
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { fetcher } from '@/lib/fetcher'
 import { getDisplayMonth, getMonthStartDay } from '@/lib/monthStart'
 import type { MonthlyReport } from '@/lib/report'
 import { cn, formatAmount } from '@/lib/utils'
+import { ESSENTIALITY_COLOR } from '@/lib/colors'
 import CatIcon from '@/components/ui/CatIcon'
 
 function moveMonth(year: number, month: number, delta: -1 | 1) {
@@ -23,6 +25,12 @@ function formatSignedAmount(amount: number) {
 function formatPercent(value: number | null, digits = 1) {
   if (value === null || Number.isNaN(value)) return '-'
   return `${value.toFixed(digits)}%`
+}
+
+function formatSignedPercent(value: number | null, digits = 0) {
+  if (value === null || Number.isNaN(value)) return '-'
+  const sign = value > 0 ? '+' : ''
+  return `${sign}${value.toFixed(digits)}%`
 }
 
 function toneClass(value: number, positiveGood = true) {
@@ -127,9 +135,11 @@ export default function MonthlyReportView() {
           </div>
         ) : (
           <div className="space-y-6">
+            <KeyInsights report={report} />
             <Summary report={report} />
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
               <div className="space-y-6">
+                <EssentialityBreakdown report={report} />
                 <CategoryAnalysis report={report} />
                 <CashflowTimeline report={report} />
                 <AnnualOutlook report={report} />
@@ -141,7 +151,8 @@ export default function MonthlyReportView() {
                 <NextMonthForecast report={report} />
               </aside>
             </div>
-            <MonthlyEvents report={report} />
+            <AnomalyDetection report={report} />
+            <ActionItems report={report} />
           </div>
         )}
       </main>
@@ -160,16 +171,111 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
+type InsightCardConfig = {
+  kind: 'strength' | 'warning' | 'action'
+  label: string
+  icon: typeof Sparkles
+  emoji: string
+  accent: string
+  ring: string
+  emptyMessage: string
+}
+
+const INSIGHT_CARDS: InsightCardConfig[] = [
+  {
+    kind: 'strength',
+    label: '잘한 점',
+    icon: Sparkles,
+    emoji: '💪',
+    accent: 'text-[var(--color-income)]',
+    ring: 'border-[var(--color-income)]/30 bg-[var(--color-income)]/5',
+    emptyMessage: '이번 달 두드러진 강점이 아직 보이지 않습니다.',
+  },
+  {
+    kind: 'warning',
+    label: '주의',
+    icon: AlertTriangle,
+    emoji: '⚠️',
+    accent: 'text-[var(--color-warning)]',
+    ring: 'border-[var(--color-warning)]/30 bg-[var(--color-warning)]/5',
+    emptyMessage: '특별한 위험 신호는 감지되지 않았습니다.',
+  },
+  {
+    kind: 'action',
+    label: '다음 액션',
+    icon: Target,
+    emoji: '🎯',
+    accent: 'text-[var(--color-primary)]',
+    ring: 'border-[var(--color-primary)]/30 bg-[var(--color-primary)]/5',
+    emptyMessage: '권장할 액션이 아직 없습니다.',
+  },
+]
+
+function KeyInsights({ report }: { report: MonthlyReport }) {
+  const hasActivity = report.summary.income > 0 || report.summary.outflow > 0
+
+  return (
+    <section aria-label="핵심 인사이트" className="grid gap-3 md:grid-cols-1 xl:grid-cols-3">
+      {INSIGHT_CARDS.map(card => {
+        const list =
+          card.kind === 'strength'
+            ? report.insights.strengths
+            : card.kind === 'warning'
+              ? report.insights.warnings
+              : report.insights.actions
+        const item = list[0]
+        const Icon = card.icon
+        return (
+          <div
+            key={card.kind}
+            className={cn('flex min-h-[120px] flex-col rounded-lg border p-4 md:p-5', card.ring)}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span aria-hidden className="text-[18px]">{card.emoji}</span>
+                <span className={cn('text-[13px] font-semibold', card.accent)}>{card.label}</span>
+              </div>
+              <Icon size={16} className={cn('shrink-0', card.accent)} />
+            </div>
+            {item ? (
+              <div className="mt-3 flex flex-1 flex-col">
+                <p className="break-words text-[15px] font-bold leading-snug text-[var(--color-text)]">{item.title}</p>
+                {item.detail ? (
+                  <p className="mt-1 break-words text-[12px] leading-snug text-[var(--color-text-body)]">{item.detail}</p>
+                ) : null}
+                {item.metric ? (
+                  <p className={cn('mt-auto pt-2 text-[18px] font-bold tabular-nums', card.accent)}>{item.metric}</p>
+                ) : null}
+              </div>
+            ) : (
+              <p className="mt-3 break-words text-[12px] leading-snug text-[var(--color-text-sub)]">
+                {hasActivity ? card.emptyMessage : '거래를 입력하면 자동 분석이 시작됩니다.'}
+              </p>
+            )}
+          </div>
+        )
+      })}
+    </section>
+  )
+}
+
 function Summary({ report }: { report: MonthlyReport }) {
   const items = [
-    { label: '총 수입', value: `${formatAmount(report.summary.income)}원`, sub: `전월 대비 ${formatPercent(report.summary.incomeChangeRate)}`, icon: CircleDollarSign, color: 'text-[var(--color-income)]' },
-    { label: '소비 지출', value: `${formatAmount(report.summary.expense)}원`, sub: `전월 대비 ${formatPercent(report.summary.expenseChangeRate)}`, icon: WalletCards, color: 'text-[var(--color-expense)]' },
+    { label: '총 수입', value: `${formatAmount(report.summary.income)}원`, sub: `전월 ${formatPercent(report.summary.incomeChangeRate)} · 3개월 평균 ${formatSignedPercent(report.summary.incomeVs3mRate)}`, icon: CircleDollarSign, color: 'text-[var(--color-income)]' },
+    { label: '소비 지출', value: `${formatAmount(report.summary.expense)}원`, sub: `전월 ${formatPercent(report.summary.expenseChangeRate)} · 3개월 평균 ${formatSignedPercent(report.summary.expenseVs3mRate)}`, icon: WalletCards, color: 'text-[var(--color-expense)]' },
     { label: '총 지출', value: `${formatAmount(report.summary.outflow)}원`, sub: `대출 상환 ${formatAmount(report.summary.loanRepayment)}원 포함`, icon: Landmark, color: 'text-[var(--color-text)]' },
     { label: '잔액 / 저축률', value: formatSignedAmount(report.summary.balance), sub: formatPercent(report.summary.savingsRate), icon: PiggyBank, color: toneClass(report.summary.balance) },
+    {
+      label: '순자산',
+      value: formatSignedAmount(report.summary.netWorth),
+      sub: `자산 ${formatAmount(report.summary.totalAssets)}원 − 부채 ${formatAmount(report.summary.totalDebt)}원 · 월 변동 ${formatSignedAmount(report.summary.netWorthChange)}`,
+      icon: Scale,
+      color: toneClass(report.summary.netWorth),
+    },
   ]
 
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-5">
       {items.map(item => {
         const Icon = item.icon
         return (
@@ -184,6 +290,101 @@ function Summary({ report }: { report: MonthlyReport }) {
         )
       })}
     </div>
+  )
+}
+
+type StandardLeg = {
+  label: string
+  ratio: number | null
+  target: number
+  dir: 'max' | 'min'   // max: 표준 이하면 안전 / min: 표준 이상이면 안전
+  color: string
+}
+
+function legTone(leg: StandardLeg): { text: string; ok: boolean | null } {
+  if (leg.ratio === null) return { text: 'text-[var(--color-text-sub)]', ok: null }
+  const ok = leg.dir === 'max' ? leg.ratio <= leg.target : leg.ratio >= leg.target
+  return { text: ok ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]', ok }
+}
+
+function EssentialityBreakdown({ report }: { report: MonthlyReport }) {
+  const e = report.essentialityBreakdown
+  const donutData = e.buckets.filter(b => b.amount > 0)
+  const legs: StandardLeg[] = [
+    { label: '필수 (needs)', ratio: e.needsIncomeRatio, target: 50, dir: 'max', color: ESSENTIALITY_COLOR.needs },
+    { label: '원함 (wants)', ratio: e.wantsIncomeRatio, target: 30, dir: 'max', color: ESSENTIALITY_COLOR.wants },
+    { label: '저축 (savings)', ratio: e.savingsRate, target: 20, dir: 'min', color: ESSENTIALITY_COLOR.savings },
+  ]
+
+  return (
+    <Section title="지출 구성 (50/30/20)">
+      {e.totalExpense === 0 ? (
+        <p className="px-4 py-8 text-center text-sm text-[var(--color-text-sub)] md:px-5">이번 달 소비 지출이 없습니다.</p>
+      ) : (
+        <div className="grid gap-5 px-4 py-4 md:grid-cols-2 md:px-5">
+          {/* 도넛 + 범례: 지출 구성 (kakeibo 4분류) */}
+          <div className="flex items-center gap-4">
+            <div className="relative shrink-0">
+              <ResponsiveContainer width={128} height={128}>
+                <PieChart>
+                  <Pie data={donutData} dataKey="amount" nameKey="label" innerRadius={38} outerRadius={60} strokeWidth={0}>
+                    {donutData.map(b => <Cell key={b.key} fill={ESSENTIALITY_COLOR[b.key]} />)}
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                <PieChartIcon size={14} className="text-[var(--color-text-sub)]" />
+                <p className="mt-0.5 text-[10px] text-[var(--color-text-sub)]">지출 구성</p>
+              </div>
+            </div>
+            <ul className="flex-1 space-y-1.5">
+              {e.buckets.map(b => (
+                <li key={b.key} className="flex items-center gap-2 text-[12px]">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: ESSENTIALITY_COLOR[b.key] }} />
+                  <span className="flex-1 truncate text-[var(--color-text-body)]">{b.label}</span>
+                  <span className="shrink-0 tabular-nums text-[var(--color-text-sub)]">{formatPercent(b.share, 0)}</span>
+                  <span className="w-20 shrink-0 text-right tabular-nums font-medium text-[var(--color-text)]">{formatAmount(b.amount)}원</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* 50/30/20 표준 대비 (수입 기준) */}
+          <div className="flex flex-col justify-center gap-3">
+            <p className="text-[12px] text-[var(--color-text-sub)]">수입 대비 배분 · 50/30/20 표준 비교</p>
+            {legs.map(leg => {
+              const tone = legTone(leg)
+              const targetLabel = leg.dir === 'max' ? `표준 ≤${leg.target}%` : `표준 ≥${leg.target}%`
+              return (
+                <div key={leg.label}>
+                  <div className="flex items-center justify-between gap-2 text-[12px]">
+                    <span className="text-[var(--color-text-body)]">{leg.label}</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className={cn('font-bold tabular-nums', tone.text)}>{formatPercent(leg.ratio, 0)}</span>
+                      <span className="text-[11px] text-[var(--color-text-sub)]">{targetLabel}</span>
+                    </span>
+                  </div>
+                  <div className="relative mt-1.5 h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-sub)]">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${leg.ratio === null ? 0 : Math.max(Math.min(leg.ratio, 100), 0)}%`, backgroundColor: leg.color }}
+                    />
+                    <span
+                      className="absolute top-1/2 h-2.5 w-px -translate-y-1/2 bg-[var(--color-text-sub)]"
+                      style={{ left: `${Math.min(leg.target, 100)}%` }}
+                      aria-hidden
+                    />
+                  </div>
+                </div>
+              )
+            })}
+            <p className="text-[11px] leading-snug text-[var(--color-text-sub)]">
+              저축은 잔액(수입−지출) 기준입니다. 카테고리별 필수성은 카테고리 관리에서 조정할 수 있습니다.
+            </p>
+          </div>
+        </div>
+      )}
+    </Section>
   )
 }
 
@@ -206,6 +407,8 @@ function CategoryAnalysis({ report }: { report: MonthlyReport }) {
                   <span className="shrink-0 text-right text-[15px] font-bold tabular-nums text-[var(--color-text)]">{formatAmount(row.amount)}원</span>
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]">
+                  <MobileMetric label="3개월 평균" value={row.avg3m > 0 ? `${formatAmount(row.avg3m)}원` : '-'} />
+                  <MobileMetric label="평균 대비" value={formatSignedPercent(row.vsAvg3mRate)} className={row.vsAvg3mRate !== null ? toneClass(row.vsAvg3mRate, false) : undefined} />
                   <MobileMetric label="월예산" value={row.budget > 0 ? `${formatAmount(row.budget)}원` : '-'} />
                   <MobileMetric label="예산 대비" value={formatPercent(row.budgetRate)} danger={row.overBudget} />
                   <MobileMetric label="비중" value={formatPercent(row.share)} />
@@ -217,12 +420,14 @@ function CategoryAnalysis({ report }: { report: MonthlyReport }) {
         )}
       </div>
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[760px] text-left text-sm">
+        <table className="w-full min-w-[920px] text-left text-sm">
           <thead className="bg-[var(--color-surface-sub)] text-[12px] text-[var(--color-text-body)]">
             <tr>
               <th className="px-5 py-3 font-semibold">순위</th>
               <th className="px-5 py-3 font-semibold">카테고리</th>
               <th className="px-5 py-3 text-right font-semibold">지출액</th>
+              <th className="px-5 py-3 text-right font-semibold">3개월 평균</th>
+              <th className="px-5 py-3 text-right font-semibold">평균 대비</th>
               <th className="px-5 py-3 text-right font-semibold">월예산</th>
               <th className="px-5 py-3 text-right font-semibold">예산 대비</th>
               <th className="px-5 py-3 text-right font-semibold">비중</th>
@@ -231,7 +436,7 @@ function CategoryAnalysis({ report }: { report: MonthlyReport }) {
           </thead>
           <tbody>
             {report.categoryAnalysis.length === 0 ? (
-              <tr><td colSpan={7} className="px-5 py-10 text-center text-[var(--color-text-sub)]">이번 달 소비 지출이 없습니다.</td></tr>
+              <tr><td colSpan={9} className="px-5 py-10 text-center text-[var(--color-text-sub)]">이번 달 소비 지출이 없습니다.</td></tr>
             ) : report.categoryAnalysis.map((row, index) => (
               <tr key={row.categoryId || 'none'} className="border-t border-[var(--color-border)]">
                 <td className="px-5 py-3 text-[var(--color-text-sub)]">{index + 1}</td>
@@ -242,6 +447,8 @@ function CategoryAnalysis({ report }: { report: MonthlyReport }) {
                   </span>
                 </td>
                 <td className="px-5 py-3 text-right tabular-nums">{formatAmount(row.amount)}원</td>
+                <td className="px-5 py-3 text-right tabular-nums text-[var(--color-text-body)]">{row.avg3m > 0 ? `${formatAmount(row.avg3m)}원` : '-'}</td>
+                <td className={cn('px-5 py-3 text-right tabular-nums', row.vsAvg3mRate !== null ? toneClass(row.vsAvg3mRate, false) : 'text-[var(--color-text-body)]')}>{formatSignedPercent(row.vsAvg3mRate)}</td>
                 <td className="px-5 py-3 text-right tabular-nums text-[var(--color-text-body)]">{row.budget > 0 ? `${formatAmount(row.budget)}원` : '-'}</td>
                 <td className={cn('px-5 py-3 text-right tabular-nums', row.overBudget && 'font-semibold text-[var(--color-expense)]')}>{formatPercent(row.budgetRate)}</td>
                 <td className="px-5 py-3 text-right tabular-nums text-[var(--color-text-body)]">{formatPercent(row.share)}</td>
@@ -255,25 +462,40 @@ function CategoryAnalysis({ report }: { report: MonthlyReport }) {
   )
 }
 
-function HealthMetrics({ report }: { report: MonthlyReport }) {
-  const metrics = [
-    ['저축률', formatPercent(report.healthMetrics.savingsRate), report.healthMetrics.savingsRate === null || report.healthMetrics.savingsRate >= 0],
-    ['지출률', formatPercent(report.healthMetrics.outflowRate), report.healthMetrics.outflowRate === null || report.healthMetrics.outflowRate <= 90],
-    ['예산 소진율', formatPercent(report.healthMetrics.budgetUsageRate), (report.healthMetrics.budgetUsageRate ?? 0) <= 100],
-    ['부채 비율', formatPercent(report.healthMetrics.debtRatio), (report.healthMetrics.debtRatio ?? 0) <= 50],
-    ['고정비 비중', formatPercent(report.healthMetrics.fixedCostRate), (report.healthMetrics.fixedCostRate ?? 0) <= 50],
-    ['비상금 추정', report.healthMetrics.emergencyFundMonths === null ? '-' : `${report.healthMetrics.emergencyFundMonths.toFixed(1)}개월`, (report.healthMetrics.emergencyFundMonths ?? 0) >= 3],
-  ]
+const HEALTH_LEVEL: Record<MonthlyReport['healthMetrics'][number]['level'], { bar: string; text: string; label: string }> = {
+  safe: { bar: 'bg-[var(--color-income)]', text: 'text-[var(--color-income)]', label: '안전' },
+  caution: { bar: 'bg-[var(--color-warning)]', text: 'text-[var(--color-warning)]', label: '주의' },
+  danger: { bar: 'bg-[var(--color-expense)]', text: 'text-[var(--color-expense)]', label: '위험' },
+  none: { bar: 'bg-[var(--color-text-sub)]', text: 'text-[var(--color-text-sub)]', label: '데이터 부족' },
+}
 
+function HealthMetrics({ report }: { report: MonthlyReport }) {
   return (
     <Section title="재정 건강 지표">
       <div className="divide-y divide-[var(--color-border)]">
-        {metrics.map(([label, value, ok]) => (
-          <div key={label.toString()} className="flex items-center justify-between px-5 py-3">
-            <span className="text-[13px] text-[var(--color-text-body)]">{label}</span>
-            <span className={cn('text-[14px] font-semibold tabular-nums', ok ? 'text-[var(--color-text)]' : 'text-[var(--color-expense)]')}>{value}</span>
-          </div>
-        ))}
+        {report.healthMetrics.map(metric => {
+          const tone = HEALTH_LEVEL[metric.level]
+          return (
+            <div key={metric.key} className="px-4 py-3 md:px-5">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[13px] text-[var(--color-text-body)]">{metric.label}</span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="text-[14px] font-bold tabular-nums text-[var(--color-text)]">{metric.display}</span>
+                  <span className={cn('rounded-full bg-[var(--color-surface-sub)] px-2 py-0.5 text-[11px] font-semibold', tone.text)}>
+                    {tone.label}
+                  </span>
+                </div>
+              </div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-sub)]">
+                <div
+                  className={cn('h-full rounded-full transition-all', tone.bar)}
+                  style={{ width: `${metric.level === 'none' ? 0 : Math.max(metric.gauge, 2)}%` }}
+                />
+              </div>
+              <p className="mt-1 text-[11px] text-[var(--color-text-sub)]">{metric.target}</p>
+            </div>
+          )
+        })}
       </div>
     </Section>
   )
@@ -314,31 +536,53 @@ function DebtStrategy({ report }: { report: MonthlyReport }) {
   )
 }
 
+// 저축 목표 페이스 판정 배지 — 정의는 SCHEMA.md `MonthlyReport.savingsSummary` 단일 소스.
+const SAVINGS_STATUS: Record<MonthlyReport['savingsSummary']['goals'][number]['status'], { text: string; bar: string; label: string } | null> = {
+  on_track: { text: 'text-[var(--color-income)]', bar: 'bg-[var(--color-income)]', label: '정상 페이스' },
+  at_risk: { text: 'text-[var(--color-warning)]', bar: 'bg-[var(--color-warning)]', label: '주의' },
+  behind: { text: 'text-[var(--color-expense)]', bar: 'bg-[var(--color-expense)]', label: '부족' },
+  achieved: { text: 'text-[var(--color-income)]', bar: 'bg-[var(--color-income)]', label: '달성' },
+  no_deadline: null,
+}
+
 function SavingsSummary({ report }: { report: MonthlyReport }) {
   return (
     <Section title="저축 현황">
       <div className="px-4 py-4 md:px-5">
         <Metric label="목표 합계" value={`${formatAmount(report.savingsSummary.totalTarget)}원`} />
         <Metric label="현재 달성" value={`${formatAmount(report.savingsSummary.totalCurrent)}원`} className="mt-3" />
+        <Metric label="현 페이스 (월 평균 저축)" value={formatSignedAmount(report.savingsSummary.avgMonthlySavings)} className="mt-3" />
       </div>
       <div className="divide-y divide-[var(--color-border)]">
         {report.savingsSummary.goals.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-[var(--color-text-sub)] md:px-5">등록된 저축 목표가 없습니다.</p>
-        ) : report.savingsSummary.goals.map(goal => (
-          <div key={goal.id} className="px-4 py-4 md:px-5">
-            <div className="flex justify-between gap-3 text-sm">
-              <span className="min-w-0 truncate font-medium text-[var(--color-text)]">{goal.name}</span>
-              <span className="shrink-0 tabular-nums text-[var(--color-text-body)]">{formatPercent(goal.progress, 0)}</span>
+        ) : report.savingsSummary.goals.map(goal => {
+          const status = SAVINGS_STATUS[goal.status]
+          const barColor = status?.bar ?? 'bg-[var(--color-income)]'
+          return (
+            <div key={goal.id} className="px-4 py-4 md:px-5">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="min-w-0 truncate font-medium text-[var(--color-text)]">{goal.name}</span>
+                <div className="flex shrink-0 items-center gap-2">
+                  {status && (
+                    <span className={cn('rounded-full bg-[var(--color-surface-sub)] px-2 py-0.5 text-[11px] font-semibold', status.text)}>{status.label}</span>
+                  )}
+                  <span className="tabular-nums text-[var(--color-text-body)]">{formatPercent(goal.progress, 0)}</span>
+                </div>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--color-surface-sub)]">
+                <div className={cn('h-full', barColor)} style={{ width: `${Math.min(goal.progress, 100)}%` }} />
+              </div>
+              <p className="mt-2 text-[12px] text-[var(--color-text-sub)]">
+                남은 금액 {formatAmount(goal.remainingAmount)}원
+                {goal.requiredMonthlySavings !== null ? ` · 월 ${formatAmount(goal.requiredMonthlySavings)}원 필요` : ''}
+              </p>
+              {goal.simulationHint && (
+                <p className="mt-1 text-[12px] font-medium text-[var(--color-text-body)]">💡 {goal.simulationHint}</p>
+              )}
             </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--color-surface-sub)]">
-              <div className="h-full bg-[var(--color-income)]" style={{ width: `${Math.min(goal.progress, 100)}%` }} />
-            </div>
-            <p className="mt-2 text-[12px] text-[var(--color-text-sub)]">
-              남은 금액 {formatAmount(goal.remainingAmount)}원
-              {goal.requiredMonthlySavings !== null ? ` · 월 ${formatAmount(goal.requiredMonthlySavings)}원 필요` : ''}
-            </p>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </Section>
   )
@@ -485,18 +729,96 @@ function AnnualOutlook({ report }: { report: MonthlyReport }) {
   )
 }
 
-function MonthlyEvents({ report }: { report: MonthlyReport }) {
+type AnomalyGroupKey = 'largeExpenses' | 'newRecurring' | 'missingRecurring'
+
+const ANOMALY_GROUPS: { key: AnomalyGroupKey; label: string; emoji: string; accent: string; empty: string; numbered: boolean }[] = [
+  { key: 'largeExpenses', label: '이번 달 큰 지출', emoji: '💸', accent: 'text-[var(--color-expense)]', empty: '이번 달 큰 지출 거래가 없습니다.', numbered: true },
+  { key: 'newRecurring', label: '신규 정기성 패턴', emoji: '🔁', accent: 'text-[var(--color-primary)]', empty: '새로 감지된 정기 패턴이 없습니다.', numbered: false },
+  { key: 'missingRecurring', label: '사라진 정기 결제', emoji: '🔕', accent: 'text-[var(--color-warning)]', empty: '이번 달 누락된 정기 결제가 없습니다.', numbered: false },
+]
+
+function AnomalyDetection({ report }: { report: MonthlyReport }) {
+  const hasActivity = report.summary.income > 0 || report.summary.outflow > 0
   return (
-    <Section title="이번 달 특이사항">
-      <div className="grid gap-3 p-4 md:grid-cols-2 md:p-5">
-        {report.events.length === 0 ? (
-          <p className="text-sm text-[var(--color-text-sub)]">자동 감지된 특이사항이 없습니다.</p>
-        ) : report.events.map(event => (
-          <div key={event} className="flex gap-3 rounded-lg bg-[var(--color-surface-sub)] p-3 text-sm text-[var(--color-text)]">
-            <AlertTriangle size={17} className="mt-0.5 shrink-0 text-[var(--color-warning)]" />
-            <span>{event}</span>
-          </div>
-        ))}
+    <Section title="이상치·패턴 탐지">
+      <div className="grid gap-px bg-[var(--color-border)] md:grid-cols-3">
+        {ANOMALY_GROUPS.map(group => {
+          const items = report.anomalies[group.key]
+          return (
+            <div key={group.key} className="bg-[var(--color-surface)] px-4 py-4 md:px-5">
+              <div className="flex items-center gap-2">
+                <span aria-hidden className="text-[15px]">{group.emoji}</span>
+                <h3 className={cn('text-[13px] font-semibold', group.accent)}>{group.label}</h3>
+              </div>
+              {items.length === 0 ? (
+                <p className="mt-3 text-[12px] leading-snug text-[var(--color-text-sub)]">
+                  {hasActivity ? group.empty : '거래를 입력하면 패턴 분석이 시작됩니다.'}
+                </p>
+              ) : (
+                <ul className="mt-3 space-y-3">
+                  {items.map((item, index) => (
+                    <li key={item.id} className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          {group.numbered ? (
+                            <span className="shrink-0 text-[11px] font-bold tabular-nums text-[var(--color-text-sub)]">{index + 1}</span>
+                          ) : null}
+                          <p className="min-w-0 truncate text-[13px] font-semibold text-[var(--color-text)]">{item.title}</p>
+                        </div>
+                        <p className="mt-0.5 break-words text-[11px] leading-snug text-[var(--color-text-sub)]">{item.detail}</p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className="text-[13px] font-bold tabular-nums text-[var(--color-text)]">{formatAmount(item.amount)}원</p>
+                        {item.metric ? <p className={cn('mt-0.5 text-[11px] font-semibold', group.accent)}>{item.metric}</p> : null}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </Section>
+  )
+}
+
+const RECOMMENDATION_SEVERITY: Record<MonthlyReport['recommendations'][number]['severity'], { dot: string; text: string; label: string }> = {
+  high: { dot: 'bg-[var(--color-expense)]', text: 'text-[var(--color-expense)]', label: '높음' },
+  medium: { dot: 'bg-[var(--color-warning)]', text: 'text-[var(--color-warning)]', label: '중간' },
+  low: { dot: 'bg-[var(--color-primary)]', text: 'text-[var(--color-primary)]', label: '낮음' },
+}
+
+function ActionItems({ report }: { report: MonthlyReport }) {
+  const hasActivity = report.summary.income > 0 || report.summary.outflow > 0
+  return (
+    <Section title="실행 권고">
+      <div className="divide-y divide-[var(--color-border)]">
+        {report.recommendations.length === 0 ? (
+          <p className="px-4 py-8 text-center text-sm text-[var(--color-text-sub)] md:px-5">
+            {hasActivity ? '지금 시급히 권장할 액션이 없습니다. 좋은 흐름을 유지하세요.' : '거래를 입력하면 맞춤 권고가 표시됩니다.'}
+          </p>
+        ) : report.recommendations.map((rec, index) => {
+          const tone = RECOMMENDATION_SEVERITY[rec.severity]
+          return (
+            <div key={rec.id} className="flex gap-3 px-4 py-4 md:px-5">
+              <span className="mt-0.5 shrink-0 text-[12px] font-bold tabular-nums text-[var(--color-text-sub)]">{index + 1}</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="min-w-0 break-words font-semibold text-[var(--color-text)]">{rec.title}</p>
+                  <span className={cn('inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--color-surface-sub)] px-2 py-0.5 text-[11px] font-semibold', tone.text)}>
+                    <span className={cn('h-1.5 w-1.5 rounded-full', tone.dot)} aria-hidden />
+                    {tone.label}
+                  </span>
+                </div>
+                <p className="mt-1 break-words text-[13px] leading-snug text-[var(--color-text-body)]">{rec.detail}</p>
+                {rec.metric ? (
+                  <p className={cn('mt-2 text-[14px] font-bold tabular-nums', tone.text)}>{rec.metric}</p>
+                ) : null}
+              </div>
+            </div>
+          )
+        })}
       </div>
     </Section>
   )

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ChevronUp, ChevronDown, Plus } from 'lucide-react'
 import { useStore } from '@/lib/store'
-import type { Category } from '@/lib/types'
+import type { Category, Essentiality } from '@/lib/types'
 import SlideUpSheet from '@/components/ui/SlideUpSheet'
 import CatIcon from '@/components/ui/CatIcon'
 import CategoryForm from './CategoryForm'
@@ -45,7 +45,7 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
     setSheetOpen(true)
   }
 
-  function handleSubmit(values: { name: string; icon: string }) {
+  function handleSubmit(values: { name: string; icon: string; essentiality: Essentiality }) {
     if (editing) {
       setLocalItems(prev => prev.map(item =>
         item.id === editing.id ? { ...item, ...values } : item
@@ -62,6 +62,7 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
         order: nextOrder,
         visible: true,
         is_system: false,
+        essentiality: values.essentiality,
         _isNew: true,
       }])
     }
@@ -104,7 +105,7 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
         const res = await fetch('/api/categories', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: item.name, icon: item.icon, type, order: item.order }),
+          body: JSON.stringify({ name: item.name, icon: item.icon, type, order: item.order, essentiality: item.essentiality }),
         })
         if (!res.ok) throw new Error('카테고리 추가에 실패했습니다')
         tempToReal.set(item.id, await res.json())
@@ -117,13 +118,13 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
           .filter(item => {
             if (item._isNew) return false
             const orig = origMap.get(item.id)
-            return orig && (orig.name !== item.name || orig.icon !== item.icon || orig.order !== item.order)
+            return orig && (orig.name !== item.name || orig.icon !== item.icon || orig.order !== item.order || orig.essentiality !== item.essentiality)
           })
           .map(item =>
             fetch(`/api/categories/${item.id}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name: item.name, icon: item.icon, order: item.order }),
+              body: JSON.stringify({ name: item.name, icon: item.icon, order: item.order, essentiality: item.essentiality }),
             })
           )
       )
@@ -256,9 +257,10 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
         title={editing ? '카테고리 수정' : '카테고리 추가'}
       >
         <CategoryForm
-          initial={editing ? { name: editing.name, icon: editing.icon } : undefined}
+          initial={editing ? { name: editing.name, icon: editing.icon, essentiality: editing.essentiality } : undefined}
           onSubmit={handleSubmit}
           submitLabel={editing ? '수정' : '추가'}
+          showEssentiality={type === 'expense'}
         />
       </SlideUpSheet>
     </div>

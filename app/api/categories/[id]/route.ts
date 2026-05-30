@@ -9,8 +9,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!existing.rows[0]) return NextResponse.json({ error: '해당 카테고리를 찾을 수 없습니다' }, { status: 404 })
 
   await db.execute({
-    sql: 'UPDATE categories SET name=COALESCE(?,name), icon=COALESCE(?,icon), ord=COALESCE(?,ord), visible=COALESCE(?,visible) WHERE id=?',
-    args: [body.name ?? null, body.icon ?? null, body.order ?? null, body.visible === undefined ? null : body.visible ? 1 : 0, id],
+    sql: 'UPDATE categories SET name=COALESCE(?,name), icon=COALESCE(?,icon), ord=COALESCE(?,ord), visible=COALESCE(?,visible), essentiality=COALESCE(?,essentiality) WHERE id=?',
+    args: [body.name ?? null, body.icon ?? null, body.order ?? null, body.visible === undefined ? null : body.visible ? 1 : 0, body.essentiality ?? null, id],
   })
 
   const updated = await db.execute({ sql: 'SELECT * FROM categories WHERE id = ?', args: [id] })

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { getDisplayMonth, getMonthRange, getMonthStartDay } from './monthStart'
-import type { Transaction, Category, Asset, Budget, SavingsGoal, WishlistItem } from './types'
+import type { Transaction, Category, Asset, Budget, SavingsGoal, WishlistItem, Memo } from './types'
 
 interface StoreState {
   transactions: Transaction[]
@@ -11,6 +11,7 @@ interface StoreState {
   budgets: Budget[]
   savingsGoals: SavingsGoal[]
   wishlist: WishlistItem[]
+  memos: Memo[]
   ready: boolean
 }
 
@@ -40,6 +41,10 @@ interface StoreActions {
   updateWishlistItem: (w: WishlistItem) => void
   deleteWishlistItem: (id: string) => void
 
+  addMemo: (m: Memo) => void
+  updateMemo: (m: Memo) => void
+  deleteMemo: (id: string) => void
+
   refresh: () => Promise<void>
 }
 
@@ -59,6 +64,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     budgets: [],
     savingsGoals: [],
     wishlist: [],
+    memos: [],
     ready: false,
   })
 
@@ -67,15 +73,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const monthStartDay = getMonthStartDay()
     const { year, month } = getDisplayMonth(now, monthStartDay)
     const { from, to } = getMonthRange(year, month, monthStartDay)
-    const [transactions, categories, assets, budgets, savingsGoals, wishlist] = await Promise.all([
+    const [transactions, categories, assets, budgets, savingsGoals, wishlist, memos] = await Promise.all([
       fetchJson<Transaction[]>(`/api/transactions?from=${from}&to=${to}`),
       fetchJson<Category[]>('/api/categories'),
       fetchJson<Asset[]>('/api/assets'),
       fetchJson<Budget[]>('/api/budget'),
       fetchJson<SavingsGoal[]>('/api/savings'),
       fetchJson<WishlistItem[]>('/api/wishlist'),
+      fetchJson<Memo[]>('/api/memos'),
     ])
-    setState({ transactions, categories, assets, budgets, savingsGoals, wishlist, ready: true })
+    setState({ transactions, categories, assets, budgets, savingsGoals, wishlist, memos, ready: true })
   }
 
   useEffect(() => { refresh() }, [])
@@ -113,6 +120,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     addWishlistItem: (w) => setState(s => ({ ...s, wishlist: [...s.wishlist, w] })),
     updateWishlistItem: (w) => setState(s => ({ ...s, wishlist: s.wishlist.map(x => x.id === w.id ? w : x) })),
     deleteWishlistItem: (id) => setState(s => ({ ...s, wishlist: s.wishlist.filter(x => x.id !== id) })),
+
+    addMemo: (m) => setState(s => ({ ...s, memos: [m, ...s.memos] })),
+    updateMemo: (m) => setState(s => ({ ...s, memos: s.memos.map(x => x.id === m.id ? m : x) })),
+    deleteMemo: (id) => setState(s => ({ ...s, memos: s.memos.filter(x => x.id !== id) })),
 
     refresh,
   }

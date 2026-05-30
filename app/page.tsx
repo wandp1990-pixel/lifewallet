@@ -5,15 +5,17 @@ import useSWR from 'swr'
 import { ChevronLeft, ChevronRight, ArrowUpDown, Repeat, Search, Plus } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { getExpenseAmount, getOutflowAmount, isLoanReceivedTransaction } from '@/lib/finance'
-import type { Transaction, RecurringTransaction } from '@/lib/types'
+import type { Transaction, RecurringTransaction, Memo } from '@/lib/types'
 import { formatAmount } from '@/lib/utils'
 import { getDisplayMonth, getMonthStartDay, getMonthRange } from '@/lib/monthStart'
 import { fetcher } from '@/lib/fetcher'
 import ListTab from '@/components/ledger/ListTab'
 import CalendarTab from '@/components/ledger/CalendarTab'
 import MonthlyTab from '@/components/ledger/MonthlyTab'
+import MemoTab from '@/components/ledger/MemoTab'
 import { SkeletonCard, SkeletonSummaryCard } from '@/components/ui/Skeleton'
 import AddTransactionSheet from '@/components/transaction/AddTransactionSheet'
+import MemoForm from '@/components/memo/MemoForm'
 
 type ViewType = 'list' | 'calendar' | 'monthly' | 'summary' | 'memo'
 type FilterType = 'all' | 'income' | 'expense' | 'transfer' | 'loan_repayment' | 'loan_received'
@@ -34,7 +36,7 @@ const TABS: { id: ViewType; label: string }[] = [
 
 
 export default function LedgerPage() {
-  const { categories, assets } = useStore()
+  const { categories, assets, memos } = useStore()
 
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
@@ -50,6 +52,8 @@ export default function LedgerPage() {
   const [addSheetOpen, setAddSheetOpen] = useState(false)
   const [editSheetTx, setEditSheetTx] = useState<Transaction | null>(null)
   const [applyingId, setApplyingId] = useState<string | null>(null)
+  const [memoFormOpen, setMemoFormOpen] = useState(false)
+  const [editingMemo, setEditingMemo] = useState<Memo | null>(null)
 
   // 월별 탭 전용: 연도 단위 탐색 + 연간 거래 데이터
   const [yearlyYear, setYearlyYear] = useState(now.getFullYear())
@@ -383,8 +387,8 @@ export default function LedgerPage() {
         )}
       </div>
 
-      {/* 스크롤 영역 — 탭 콘텐츠만 스크롤 */}
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      {/* 스크롤 영역 — 탭 콘텐츠만 스크롤 (달력 탭은 한 화면에 맞춤 → 스크롤 없음) */}
+      <div className={`min-h-0 flex-1 overscroll-contain ${view === 'calendar' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
       {/* 탭 콘텐츠 */}
       {loading ? (
         <div className="px-4 pt-3 pb-4 space-y-3">
@@ -439,18 +443,25 @@ export default function LedgerPage() {
           )}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center py-20 text-[var(--color-text-sub)]">
-          <p className="text-[15px] font-medium">준비 중입니다</p>
-          <p className="text-sm mt-1">메모 기능이 곧 추가될 예정이에요</p>
-        </div>
+        <MemoTab
+          memos={memos}
+          year={year}
+          month={month}
+          onSelect={memo => { setEditingMemo(memo); setMemoFormOpen(true) }}
+        />
       )}
       </div>
 
-      {/* FAB — 바텀 탭(60px) + safe area + 여백(16px) */}
-      <div className="fixed right-4 z-40 md:hidden" style={{ bottom: 'calc(var(--bottom-nav-total) + var(--fab-gap))' }}>
+      {/* FAB — 바텀 탭(60px) + safe area + 여백(16px). 메모 탭에서는 새 메모, 그 외엔 거래 추가 */}
+      {/* 메모 탭은 PC에도 추가 버튼이 필요하므로 md:hidden 해제 */}
+      <div className={`fixed right-4 z-40 ${view === 'memo' ? '' : 'md:hidden'}`} style={{ bottom: 'calc(var(--bottom-nav-total) + var(--fab-gap))' }}>
         <button
-          onClick={() => setAddSheetOpen(true)}
+          onClick={() => {
+            if (view === 'memo') { setEditingMemo(null); setMemoFormOpen(true) }
+            else setAddSheetOpen(true)
+          }}
           className="h-[var(--fab-size)] w-[var(--fab-size)] rounded-full bg-[var(--color-primary)] flex items-center justify-center shadow-[0px_4px_16px_rgba(49,130,246,0.4)] active:scale-95 transition-transform"
+          aria-label={view === 'memo' ? '새 메모' : '거래 추가'}
         >
           <Plus size={20} className="text-white" />
         </button>
@@ -463,6 +474,13 @@ export default function LedgerPage() {
         transactionId={editSheetTx?.id}
         onClose={() => { setAddSheetOpen(false); setEditSheetTx(null) }}
         onSaved={() => { setEditSheetTx(null); mutateTx() }}
+      />
+
+      <MemoForm
+        open={memoFormOpen}
+        editing={editingMemo}
+        defaultDate={isCurrentMonth ? new Date().toISOString().slice(0, 10) : `${currentMonthKey}-01`}
+        onClose={() => { setMemoFormOpen(false); setEditingMemo(null) }}
       />
     </div>
   )
