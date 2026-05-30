@@ -245,12 +245,9 @@ function KeyInsights({ report }: { report: MonthlyReport }) {
   const hasActivity = report.summary.income > 0 || report.summary.outflow > 0
 
   return (
-    // 모바일: 가로 스냅 캐러셀(카드 폭 78%, 다음 카드 peek) — 첫 화면 세로 점유 축소. PC(md:↑): 세로 그리드.
+    // 모바일: 2열 그리드 — 잘한 점·주의 위 한 줄, 다음 액션 아래 전체 폭. PC(xl:↑): 3열.
     // 상세는 PAGES.md `/report` "핵심 인사이트 카드 동작 규칙" / "모바일 레이아웃" 단일 소스.
-    <section
-      aria-label="핵심 인사이트"
-      className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:grid md:grid-cols-1 md:overflow-visible md:px-0 md:pb-0 xl:grid-cols-3"
-    >
+    <section aria-label="핵심 인사이트" className="grid grid-cols-2 gap-3 xl:grid-cols-3">
       {INSIGHT_CARDS.map(card => {
         const list =
           card.kind === 'strength'
@@ -263,7 +260,11 @@ function KeyInsights({ report }: { report: MonthlyReport }) {
         return (
           <div
             key={card.kind}
-            className={cn('flex min-h-[104px] w-[78%] shrink-0 snap-start flex-col rounded-lg border p-3.5 md:min-h-[120px] md:w-auto md:p-5', card.ring)}
+            className={cn(
+              'flex min-h-[100px] flex-col rounded-lg border p-3.5 md:p-5',
+              card.kind === 'action' && 'col-span-2 xl:col-span-1',
+              card.ring,
+            )}
           >
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
