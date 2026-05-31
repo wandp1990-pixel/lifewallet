@@ -84,7 +84,8 @@ export default function MonthlyReportView() {
 
   return (
     <div className="min-h-full bg-[var(--color-surface)]">
-      <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+      {/* 월 네비게이션 고정 — 긴 보고서를 스크롤하면서 월을 바로 바꿀 수 있도록 헤더(타이틀·기준기간·월 이동)를 상단 sticky. 상세는 PAGES.md `/report` "헤더" 단일 소스. */}
+      <header className="sticky top-0 z-20 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
         <div className="mx-auto flex max-w-[1200px] flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between md:gap-4 md:px-5 md:py-5">
           <div className="min-w-0">
             <h1 className="text-[22px] font-bold text-[var(--color-text)] md:text-[24px]">재무 보고서</h1>
