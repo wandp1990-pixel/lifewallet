@@ -11,6 +11,7 @@ import type { MonthlyReport } from '@/lib/report'
 import { cn, formatAmount } from '@/lib/utils'
 import { ESSENTIALITY_COLOR } from '@/lib/colors'
 import CatIcon from '@/components/ui/CatIcon'
+import AiAnalysis from '@/components/report/AiAnalysis'
 
 function moveMonth(year: number, month: number, delta: -1 | 1) {
   if (delta === -1) return month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 }
@@ -155,6 +156,8 @@ export default function MonthlyReportView() {
             {/* E. 실행 + 보조 그래프 */}
             <ActionItems report={report} />
             <CashflowTimeline report={report} />
+            {/* F. AI 서술형 분석 (financial-advisor 스킬 연동, 월별 저장) — PAGES.md `/report` "AI 재무 분석" */}
+            <AiAnalysis report={report} year={year} month={month} />
           </div>
         )}
       </main>

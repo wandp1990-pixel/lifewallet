@@ -146,6 +146,16 @@ async function _doInit() {
       created_at TEXT    NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS ai_reports (
+      id         TEXT    PRIMARY KEY,
+      year       INTEGER NOT NULL,
+      month      INTEGER NOT NULL,
+      content    TEXT    NOT NULL DEFAULT '',
+      created_at TEXT    NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT    NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(year, month)
+    );
+
   `)
 
   const categoryColumns = await db.execute('PRAGMA table_info(categories)')

@@ -97,6 +97,16 @@ export interface Memo {
   created_at: string
 }
 
+// financial-advisor 스킬이 작성한 서술형 AI 재무 분석. (year, month)당 1개. → SCHEMA.md `AiReport`
+export interface AiReport {
+  id: string
+  year: number
+  month: number
+  content: string    // 마크다운 본문
+  created_at: string
+  updated_at: string
+}
+
 export interface RecurringTransaction {
   id: string
   type: TransactionType
