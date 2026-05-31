@@ -60,6 +60,37 @@ export function getLoanRepaymentPrincipal(
   return tx.amount - (tx.fee ?? 0)
 }
 
+/**
+ * 한 거래가 특정 자산(assetId) 잔액에 적용하는 부호 있는 변동량.
+ * `db.ts`의 applyTransactionBalance와 동일 규칙의 단일 소스 — 한쪽을 바꾸면 반드시 같이 맞춘다.
+ * 잔액에 영향이 없으면(해당 자산이 거래 당사자가 아니면) 0.
+ * 부채 자산도 normalize된 잔액(음수) 기준 동일 부호로 동작한다.
+ */
+export function assetBalanceDelta(
+  tx: Pick<Transaction, 'type' | 'amount' | 'fee' | 'asset_id' | 'from_asset_id' | 'to_asset_id'>,
+  assetId: string
+): number {
+  const fee = tx.fee ?? 0
+  switch (tx.type) {
+    case 'income':
+      return tx.asset_id === assetId ? tx.amount : 0
+    case 'expense':
+      return tx.asset_id === assetId ? -tx.amount : 0
+    case 'asset':
+      return tx.asset_id === assetId ? tx.amount : 0
+    case 'transfer':
+      if (tx.from_asset_id === assetId) return -(tx.amount + fee)
+      if (tx.to_asset_id === assetId) return tx.amount
+      return 0
+    case 'loan_repayment':
+      if (tx.from_asset_id === assetId) return -tx.amount
+      if (tx.to_asset_id === assetId) return getLoanRepaymentPrincipal(tx)
+      return 0
+    default:
+      return 0
+  }
+}
+
 export interface LoanPayoffEstimate {
   balance: number
   monthlyInterest: number

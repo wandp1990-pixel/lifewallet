@@ -1,6 +1,6 @@
 import { createClient } from '@libsql/client'
 import type { Transaction, Asset } from './types'
-import { DEBT_TYPES, getLoanRepaymentPrincipal, normalizeAssetBalance } from './finance'
+import { DEBT_TYPES, assetBalanceDelta, normalizeAssetBalance } from './finance'
 
 const db = createClient({
   url: process.env.TURSO_DATABASE_URL!,
@@ -190,20 +190,15 @@ export async function applyTransactionBalance(
   tx: Pick<Transaction, 'date' | 'type' | 'amount' | 'fee' | 'asset_id' | 'from_asset_id' | 'to_asset_id'>
 ) {
   await initDb()
-  const { date, type, amount, fee, asset_id, from_asset_id, to_asset_id } = tx
-  if (type === 'income') {
-    await updateAssetBalance(asset_id, amount, date)
-  } else if (type === 'expense') {
-    await updateAssetBalance(asset_id, -amount, date)
-  } else if (type === 'transfer') {
-    await updateAssetBalance(from_asset_id, -(amount + (fee ?? 0)), date)
-    await updateAssetBalance(to_asset_id, amount, date)
-  } else if (type === 'loan_repayment') {
-    const principalAmount = getLoanRepaymentPrincipal(tx as Pick<Transaction, 'type' | 'amount' | 'fee'>)
-    await updateAssetBalance(from_asset_id, -amount, date)
-    await updateAssetBalance(to_asset_id, principalAmount, date)
-  } else if (type === 'asset') {
-    await updateAssetBalance(asset_id, amount, date)
+  const { date, asset_id, from_asset_id, to_asset_id } = tx
+  // 거래 당사자 자산들에 대해 정본 헬퍼(assetBalanceDelta)로 부호 델타를 계산해 반영.
+  // 부호 규칙은 finance.ts의 assetBalanceDelta가 단일 소스 — UI 러닝 밸런스와 공유한다.
+  const affectedIds = [asset_id, from_asset_id, to_asset_id].filter(
+    (id, i, arr) => id && arr.indexOf(id) === i
+  )
+  for (const id of affectedIds) {
+    const delta = assetBalanceDelta(tx, id)
+    if (delta !== 0) await updateAssetBalance(id, delta, date)
   }
 }
 

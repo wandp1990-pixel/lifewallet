@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation'
 import { ChevronLeft, Pencil } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { formatAmount, formatDate } from '@/lib/utils'
-import { estimateLoanPayoff, getDebtBalance, getLoanRepaymentPrincipal, isDebtAssetType, isExpenseLikeType } from '@/lib/finance'
+import { assetBalanceDelta, estimateLoanPayoff, getDebtBalance, getLoanRepaymentPrincipal, isDebtAssetType } from '@/lib/finance'
 import AssetForm from '@/components/assets/AssetForm'
-import type { Transaction } from '@/lib/types'
+import type { Asset, Transaction } from '@/lib/types'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -32,6 +32,15 @@ function LoanDetail({ assetId }: { assetId: string }) {
     annualInterestRate: asset.interest_rate ?? 0,
     monthlyPayment: asset.monthly_payment ?? 0,
     paymentDay: asset.payment_day ?? 0,
+  })
+
+  // 상환 직후 남은 잔액(러닝). repayments는 최신순 — 위에서부터 현재 잔액, 아래로 갈수록 상환 전이라 잔액이 큼.
+  let remainingDebt = getDebtBalance(asset.balance)
+  const repayRows = repayments.map(tx => {
+    const principal = getLoanRepaymentPrincipal(tx)
+    const after = remainingDebt
+    remainingDebt += principal
+    return { tx, principal, after }
   })
 
   return (
@@ -113,9 +122,7 @@ function LoanDetail({ assetId }: { assetId: string }) {
             상환 내역이 없습니다
           </div>
         ) : (
-          repayments.map(tx => {
-            const principal = getLoanRepaymentPrincipal(tx)
-            return (
+          repayRows.map(({ tx, principal, after }) => (
               <div key={tx.id} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--color-border)] last:border-b-0">
                 <div className="min-w-0">
                   <p className="text-sm text-[var(--color-text-body)]">{tx.content || '대출 상환'}</p>
@@ -124,10 +131,12 @@ function LoanDetail({ assetId }: { assetId: string }) {
                     {tx.fee > 0 ? ` · 원금 ${formatAmount(principal)}원 · 이자 ${formatAmount(tx.fee)}원` : ''}
                   </p>
                 </div>
-                <span className="shrink-0 text-sm font-semibold text-[var(--color-expense)]">-{formatAmount(tx.amount)}원</span>
+                <div className="shrink-0 text-right">
+                  <span className="text-sm font-semibold text-[var(--color-expense)]">-{formatAmount(tx.amount)}원</span>
+                  <p className="text-xs text-[var(--color-text-sub)]">남은 잔액 {formatAmount(after)}원</p>
+                </div>
               </div>
-            )
-          })
+          ))
         )}
       </div>
     </div>
@@ -196,7 +205,7 @@ function SavingsDetail({ assetId }: { assetId: string }) {
       </div>
 
       {/* 입출금 내역 */}
-      <BalanceHistory assetId={assetId} transactions={history} />
+      <BalanceHistory asset={asset} transactions={history} />
     </div>
   )
 }
@@ -208,46 +217,86 @@ function dDay(dateStr: string): string {
   return `목표일 ${Math.abs(diff)}일 지남`
 }
 
-function BalanceHistory({ assetId, transactions }: { assetId: string; transactions: Transaction[] }) {
+function BalanceHistory({ asset, transactions }: { asset: Asset; transactions: Transaction[] }) {
+  const isDebt = isDebtAssetType(asset.group_type)
+  // 헤더 잔액 표기와 동일 규칙(부채는 절댓값)으로 잔액을 표시.
+  const showBalance = (v: number) => formatAmount(isDebt ? getDebtBalance(v) : v)
+
+  const cut = asset.balance_date
+  // 기준일 이후 거래만 잔액에 반영(잔액 자동 계산 로직과 동일). 그 외는 참고용.
+  const post = transactions.filter(t => !cut || t.date > cut)
+  const pre = transactions.filter(t => cut && t.date <= cut)
+
+  // post는 최신순(API: date DESC). 위에서부터 "거래 직후 잔액" = 현재 잔액에서 더 최신 거래 델타를 뺀 값.
+  let running = asset.balance
+  const postRows = post.map(tx => {
+    const delta = assetBalanceDelta(tx, asset.id)
+    const after = running
+    running -= delta
+    return { tx, delta, after }
+  })
+  const baselineAmount = running // 모든 post 델타를 되돌린 값 = 기준일 시점 잔액
+
+  const deltaSpan = (delta: number) => {
+    const sign = delta > 0 ? '+' : delta < 0 ? '-' : ''
+    const color = delta > 0 ? 'text-[var(--color-income)]' : delta < 0 ? 'text-[var(--color-expense)]' : 'text-[var(--color-text-sub)]'
+    return <span className={`text-sm font-semibold ${color}`}>{sign}{formatAmount(Math.abs(delta))}원</span>
+  }
+
   return (
     <div className="bg-[var(--color-surface-sub)] rounded-2xl overflow-hidden">
       <div className="px-4 py-3 border-b border-[var(--color-border)]">
         <p className="text-sm font-semibold text-[var(--color-text)]">잔액 변동 이력</p>
       </div>
-      {transactions.length === 0 ? (
-        <div className="px-4 py-6 text-center text-sm text-[var(--color-text-sub)]">
-          내역이 없습니다
+
+      {postRows.map(({ tx, delta, after }) => (
+        <div key={tx.id} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--color-border)]">
+          <div className="min-w-0">
+            <p className="text-sm text-[var(--color-text-body)] truncate">{tx.content || (tx.type === 'asset' ? '잔액 조정' : tx.type)}</p>
+            <p className="text-xs text-[var(--color-text-sub)]">{formatDate(tx.date)}</p>
+          </div>
+          <div className="shrink-0 text-right">
+            {deltaSpan(delta)}
+            <p className="text-xs text-[var(--color-text-sub)]">잔액 {showBalance(after)}원</p>
+          </div>
         </div>
-      ) : (
-        transactions.map(tx => {
-          const isOut = isExpenseLikeType(tx.type) || tx.from_asset_id === assetId
-          const isAsset = tx.type === 'asset'
-          const amountSign = isAsset
-            ? (tx.amount >= 0 ? '+' : '')
-            : isOut ? '-' : '+'
-          const amountColor = isAsset
-            ? (tx.amount >= 0 ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]')
-            : isOut
-              ? 'text-[var(--color-expense)]'
-              : 'text-[var(--color-income)]'
-          return (
-            <div key={tx.id} className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] last:border-b-0">
-              <div>
-                <p className="text-sm text-[var(--color-text-body)]">{tx.content || (tx.type === 'asset' ? '잔액 조정' : tx.type)}</p>
+      ))}
+
+      {/* 기준선 행 — 시작점 */}
+      <div className="flex items-center justify-between gap-3 px-4 py-3 bg-[var(--color-surface)]">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-[var(--color-text)]">초기 잔액</p>
+          <p className="text-xs text-[var(--color-text-sub)]">
+            {cut ? `기준일 ${formatDate(cut)}` : '기준일 없음'}
+          </p>
+        </div>
+        <span className="shrink-0 text-sm font-semibold text-[var(--color-text)]">{showBalance(baselineAmount)}원</span>
+      </div>
+
+      {/* 기준일 이전 거래 — 잔액 미반영(참고) */}
+      {pre.length > 0 && (
+        <>
+          <div className="px-4 py-2 border-t border-[var(--color-border)] bg-[var(--color-surface-sub)]">
+            <p className="text-xs text-[var(--color-text-sub)]">기준일 이전 · 잔액 미반영</p>
+          </div>
+          {pre.map(tx => (
+            <div key={tx.id} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--color-border)] last:border-b-0 opacity-60">
+              <div className="min-w-0">
+                <p className="text-sm text-[var(--color-text-body)] truncate">{tx.content || (tx.type === 'asset' ? '잔액 조정' : tx.type)}</p>
                 <p className="text-xs text-[var(--color-text-sub)]">{formatDate(tx.date)}</p>
               </div>
-              <span className={`text-sm font-semibold ${amountColor}`}>
-                {amountSign}{formatAmount(Math.abs(tx.amount))}원
-              </span>
+              {deltaSpan(assetBalanceDelta(tx, asset.id))}
             </div>
-          )
-        })
+          ))}
+        </>
       )}
     </div>
   )
 }
 
 function GenericDetail({ assetId }: { assetId: string }) {
+  const { assets } = useStore()
+  const asset = assets.find(a => a.id === assetId)
   const [transactions, setTransactions] = useState<Transaction[]>([])
 
   useEffect(() => {
@@ -256,7 +305,8 @@ function GenericDetail({ assetId }: { assetId: string }) {
       .then((txs: Transaction[]) => setTransactions(txs))
   }, [assetId])
 
-  return <BalanceHistory assetId={assetId} transactions={transactions} />
+  if (!asset) return null
+  return <BalanceHistory asset={asset} transactions={transactions} />
 }
 
 export default function AssetDetailPage({ params }: Props) {
