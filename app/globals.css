@@ -69,9 +69,22 @@
 }
 
 :root {
-  --bottom-nav-height: 60px;
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
-  --bottom-nav-total: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
+
+  /* 떠 있는 캡슐형 바텀 네비 (flex shrink-0 — fixed 아님) */
+  --bottom-nav-bar: 56px;          /* 캡슐 자체 높이 */
+  --bottom-nav-gap-top: 8px;       /* 캡슐 위 여백 */
+  --bottom-nav-gap-bottom: 12px;   /* 캡슐 아래 여백 (홈 인디케이터와 분리) */
+  --bottom-nav-height: var(--bottom-nav-bar); /* 하위 호환 별칭 */
+
+  /* 바텀 네비가 차지하는 총 세로 영역.
+     flex 구조에선 nav 래퍼 실제 높이와 같고,
+     fixed 저장바/FAB가 캡슐을 피해 띄울 기준값으로 재사용된다. */
+  --bottom-nav-total: calc(
+    var(--bottom-nav-bar) + var(--bottom-nav-gap-top) +
+    var(--bottom-nav-gap-bottom) + var(--safe-area-bottom)
+  );
+
   --fab-size: 48px;
   --fab-gap: 16px;
   --fab-clearance: calc(var(--fab-size) + var(--fab-gap) + 12px);

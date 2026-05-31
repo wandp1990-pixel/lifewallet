@@ -20,8 +20,16 @@ export default function BottomNav() {
   const pathname = usePathname()
 
   return (
-    <>
-      <div className="flex h-[60px] px-2">
+    <nav
+      className="px-3"
+      style={{
+        paddingTop: 'var(--bottom-nav-gap-top)',
+        // iPhone 홈 인디케이터 safe area를 캡슐 아래 여백에 합산
+        paddingBottom: 'calc(var(--bottom-nav-gap-bottom) + var(--safe-area-bottom))',
+      }}
+    >
+      {/* 떠 있는 캡슐 바 */}
+      <div className="flex h-[var(--bottom-nav-bar)] items-stretch gap-1 rounded-[22px] border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 shadow-e3">
         {MOBILE_NAV.map(id => {
           const item = NAV_ITEMS[id]
           const active = id === 'settings'
@@ -32,8 +40,10 @@ export default function BottomNav() {
               key={item.href}
               href={item.href}
               className={[
-                'flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors',
-                active ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-sub)]',
+                'flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl text-[11px] font-medium transition-colors',
+                active
+                  ? 'bg-[var(--color-primary-subtle)] text-[var(--color-primary)]'
+                  : 'text-[var(--color-text-sub)]',
               ].join(' ')}
             >
               {item.icon(active, 'mobile')}
@@ -42,8 +52,6 @@ export default function BottomNav() {
           )
         })}
       </div>
-      {/* iPhone 홈 인디케이터 safe area 확보 */}
-      <div style={{ height: 'var(--safe-area-bottom)' }} />
-    </>
+    </nav>
   )
 }

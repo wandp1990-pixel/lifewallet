@@ -12,26 +12,29 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <SideNav />
       </aside>
 
-      {/* 메인 콘텐츠 */}
-      {/* main: overflow-hidden → 스크롤 불가, rubber-band 원천 차단 */}
-      {/* pt: safe-area-inset-top + bg-surface → 상태바 영역 흰색 통일 */}
-      <main
-        className="flex-1 overflow-hidden bg-[var(--color-surface)] pb-[var(--bottom-nav-total)] md:pb-0"
-        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
-      >
-        {/* 실제 스크롤 컨테이너 — 설정 등 자체 스크롤 없는 페이지의 폴백 */}
-        <div
-          className="h-full overflow-y-auto"
-          style={{ overscrollBehavior: 'none' }}
+      {/* 모바일: 세로 컬럼(콘텐츠 + 바텀 네비) / PC: 메인 영역 */}
+      <div className="flex flex-1 min-w-0 flex-col">
+        {/* main: overflow-hidden → 스크롤 불가, rubber-band 원천 차단 */}
+        {/* pt: safe-area-inset-top + bg-surface → 상태바 영역 흰색 통일 */}
+        <main
+          className="flex-1 min-h-0 overflow-hidden bg-[var(--color-surface)]"
+          style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
         >
-          {children}
-        </div>
-      </main>
+          {/* 실제 스크롤 컨테이너 — 설정 등 자체 스크롤 없는 페이지의 폴백 */}
+          <div
+            className="h-full overflow-y-auto"
+            style={{ overscrollBehavior: 'none' }}
+          >
+            {children}
+          </div>
+        </main>
 
-      {/* 모바일 바텀 네비 — md 미만에서만 표시 */}
-      <nav className="md:hidden fixed bottom-[-10px] inset-x-0 z-50 border-t border-[var(--color-border)] bg-[var(--color-surface)]">
-        <BottomNav />
-      </nav>
+        {/* 모바일 바텀 네비 — flex shrink-0(fixed 아님). 캡슐 스타일은 BottomNav가 소유.
+            main이 실제로 줄어들어 콘텐츠와 겹치지 않으므로 main에 pb 보정 불필요. */}
+        <div className="md:hidden shrink-0 bg-[var(--color-surface)]">
+          <BottomNav />
+        </div>
+      </div>
     </div>
   )
 }
