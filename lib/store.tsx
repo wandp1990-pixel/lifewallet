@@ -50,10 +50,19 @@ interface StoreActions {
 
 const StoreContext = createContext<(StoreState & StoreActions) | null>(null)
 
-async function fetchJson<T>(url: string): Promise<T> {
-  const res = await fetch(url)
-  if (!res.ok) throw new Error(`fetch error: ${url}`)
-  return res.json()
+// 일시적 실패(Turso 콜드스타트·순간 네트워크 끊김)를 짧은 재시도로 흡수한다.
+// 이게 없으면 한 번의 순간 실패가 Promise.allSettled에서 영구 빈 데이터로 고착된다. → LF3
+async function fetchJson<T>(url: string, retries = 2): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const res = await fetch(url)
+      if (!res.ok) throw new Error(`fetch error: ${url} (${res.status})`)
+      return res.json()
+    } catch (err) {
+      if (attempt >= retries) throw err
+      await new Promise(r => setTimeout(r, 400 * (attempt + 1)))
+    }
+  }
 }
 
 export function StoreProvider({ children }: { children: ReactNode }) {
@@ -68,12 +77,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     ready: false,
   })
 
-  const refresh = async () => {
+  // allSettled로 부분 실패를 허용한다: 7개 중 하나가 끝까지 실패해도 나머지는 반영하고,
+  // 실패 항목은 빈 배열로 덮어쓰지 않고 이전 상태를 유지한다. 실패가 남으면 백그라운드에서
+  // 자가 복구를 시도한다(최대 3회). → LF3
+  const load = async (retriesLeft = 3): Promise<void> => {
     const now = new Date()
     const monthStartDay = getMonthStartDay()
     const { year, month } = getDisplayMonth(now, monthStartDay)
     const { from, to } = getMonthRange(year, month, monthStartDay)
-    const [transactions, categories, assets, budgets, savingsGoals, wishlist, memos] = await Promise.all([
+    const results = await Promise.allSettled([
       fetchJson<Transaction[]>(`/api/transactions?from=${from}&to=${to}`),
       fetchJson<Category[]>('/api/categories'),
       fetchJson<Asset[]>('/api/assets'),
@@ -82,10 +94,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       fetchJson<WishlistItem[]>('/api/wishlist'),
       fetchJson<Memo[]>('/api/memos'),
     ])
-    setState({ transactions, categories, assets, budgets, savingsGoals, wishlist, memos, ready: true })
+    const [txR, catR, astR, budR, savR, wishR, memoR] = results
+    setState(s => ({
+      transactions: txR.status === 'fulfilled' ? txR.value : s.transactions,
+      categories: catR.status === 'fulfilled' ? catR.value : s.categories,
+      assets: astR.status === 'fulfilled' ? astR.value : s.assets,
+      budgets: budR.status === 'fulfilled' ? budR.value : s.budgets,
+      savingsGoals: savR.status === 'fulfilled' ? savR.value : s.savingsGoals,
+      wishlist: wishR.status === 'fulfilled' ? wishR.value : s.wishlist,
+      memos: memoR.status === 'fulfilled' ? memoR.value : s.memos,
+      ready: true,
+    }))
+    if (results.some(r => r.status === 'rejected') && retriesLeft > 0) {
+      setTimeout(() => { load(retriesLeft - 1) }, 2000)
+    }
   }
 
-  useEffect(() => { refresh() }, [])
+  const refresh = () => load()
+
+  useEffect(() => { load() }, [])
 
   const actions: StoreActions = {
     addTransaction: (t) => setState(s => ({ ...s, transactions: [t, ...s.transactions] })),

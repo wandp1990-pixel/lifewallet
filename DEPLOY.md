@@ -61,6 +61,7 @@ curl -L -s https://lifewallet-eight.vercel.app
 | Turso 연결 에러 | 환경변수 미등록 | `vercel env ls` 로 `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` 확인 |
 | `vercel` 명령이 DNS/network 에러 | 로컬 샌드박스 또는 네트워크 제한 | 권한 승인을 요청해 네트워크 허용 상태로 같은 명령 재실행 |
 | Production 배포가 4~5초 만에 Error | 빌드 설정 또는 환경변수 문제 가능성 높음 | `vercel inspect <배포 URL>` 또는 Vercel 로그로 실패 원인 확인 후, `next.config.*`면 [F6](../../PITFALLS.md#f6), 환경변수면 `vercel env ls` 확인 |
+| 라우트 핸들러에 `Cache-Control: stale-while-revalidate` 걸어도 클라이언트엔 `private, max-age=0`만 도착 | 해당 라우트가 `export const dynamic = 'force-dynamic'`이면 Vercel이 응답의 `stale-while-revalidate`/`s-maxage`를 정규화해 제거함 (2026-05-30 `/api/categories` 확인) | `force-dynamic`을 유지한 채로는 SWR HTTP 캐시 불가. 캐시가 꼭 필요하면 ① `force-dynamic` 제거 + `revalidate` 사용(빌드/ISR 캐시), 또는 ② 단일 테넌트라 CDN 캐시가 허용되면 `public, s-maxage=N`으로 전환(수정 직후 무효화는 별도 처리). 둘 다 staleness 트레이드오프 검토 필수 |
 
 ## 배포 연동 방식
 

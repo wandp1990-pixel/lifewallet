@@ -179,7 +179,7 @@ export default function StatisticsView() {
   if (!ready || monthStartDay === null) return null
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)]">
+    <div className="min-h-screen bg-[var(--color-surface)]">
       {/* 헤더 */}
       <div className="sticky top-0 z-30 bg-[var(--color-surface)] border-b border-[var(--color-border)] shadow-[0_1px_0_rgba(0,0,0,0.02)]">
         <div className="flex items-center justify-between px-4 py-3">
@@ -395,7 +395,7 @@ function BudgetView({
   return (
     <div className="px-4 pt-4 space-y-4">
       {/* 전체 요약 */}
-      <div className="bg-[var(--color-surface)] rounded-2xl p-4 shadow-[0px_2px_8px_rgba(0,0,0,0.08)]">
+      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4 shadow-[0px_2px_8px_rgba(0,0,0,0.08)]">
         <div className="flex justify-between text-[13px] text-[var(--color-text-sub)] mb-2">
           <span>총 예산 {formatAmount(totalBudget)}원</span>
           <span>소비 {formatAmount(total)}원</span>
@@ -426,7 +426,7 @@ function BudgetView({
       </div>
 
       {/* 카테고리별 */}
-      <div className="bg-[var(--color-surface)] rounded-2xl shadow-[0px_2px_8px_rgba(0,0,0,0.08)] divide-y divide-[var(--color-border)]">
+      <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-[0px_2px_8px_rgba(0,0,0,0.08)] divide-y divide-[var(--color-border)]">
         {stats.map(({ cat, budget, spent, isDirect, pct, over }) => (
           <div key={cat.id} className="px-4 py-3">
             <div className="flex items-center justify-between mb-1.5">
@@ -523,7 +523,7 @@ function ContentView({
           {contentType === 'expense' ? '지출 내역이 없습니다' : '수입 내역이 없습니다'}
         </div>
       ) : (
-        <div className="px-4 space-y-0 bg-[var(--color-surface)] rounded-t-2xl shadow-[0px_2px_8px_rgba(0,0,0,0.08)]">
+        <div className="px-4 space-y-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-t-2xl shadow-[0px_2px_8px_rgba(0,0,0,0.08)]">
           {stats.map((s, i) => (
             <div
               key={`${s.label}-${i}`}

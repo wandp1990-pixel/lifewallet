@@ -13,6 +13,7 @@ import { fetcher } from '@/lib/fetcher'
 import type { Transaction } from '@/lib/types'
 import KpiCard from '@/components/dashboard/KpiCard'
 import TrendChart from '@/components/dashboard/TrendChart'
+import ThemeToggle from '@/components/ui/ThemeToggle'
 import CategoryChart from '@/components/dashboard/CategoryChart'
 import BudgetProgress from '@/components/dashboard/BudgetProgress'
 import RecentList from '@/components/dashboard/RecentList'
@@ -168,6 +169,7 @@ export default function DashboardPage() {
               <ChevronRight size={18} className="text-[var(--color-text-sub)]" />
             </button>
           </div>
+          <ThemeToggle />
           <button
             onClick={() => router.push('/transaction/new')}
             className="flex h-9 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl bg-[var(--color-primary)] px-3 text-sm font-semibold text-white"

@@ -16,6 +16,7 @@ import MemoTab from '@/components/ledger/MemoTab'
 import { SkeletonCard, SkeletonSummaryCard } from '@/components/ui/Skeleton'
 import AddTransactionSheet from '@/components/transaction/AddTransactionSheet'
 import MemoForm from '@/components/memo/MemoForm'
+import ThemeToggle from '@/components/ui/ThemeToggle'
 
 type ViewType = 'list' | 'calendar' | 'monthly' | 'summary' | 'memo'
 type FilterType = 'all' | 'income' | 'expense' | 'transfer' | 'loan_repayment' | 'loan_received'
@@ -209,13 +210,7 @@ export default function LedgerPage() {
             <Search size={20} className={searchOpen ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-sub)]'} />
           </button>
           <h1 className="text-[17px] font-bold text-[var(--color-text)]">가계부</h1>
-          <button
-            onClick={() => setSort(s => s === 'newest' ? 'oldest' : 'newest')}
-            className="p-2 -mr-2 rounded-xl hover:bg-[var(--color-surface-sub)] transition-colors"
-            title={sort === 'newest' ? '최신순' : '오래된순'}
-          >
-            <ArrowUpDown size={18} className="text-[var(--color-text-sub)]" />
-          </button>
+          <ThemeToggle />
         </div>
 
         {/* 검색/필터 패널 */}
@@ -246,6 +241,27 @@ export default function LedgerPage() {
                 <option value="">모든 분류</option>
                 {filterableCategories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
               </select>
+            </div>
+            {/* 정렬 토글 (상단 버튼에서 이동) */}
+            <div className="flex items-center justify-between pt-0.5">
+              <span className="flex items-center gap-1.5 text-[13px] text-[var(--color-text-sub)]">
+                <ArrowUpDown size={14} /> 정렬
+              </span>
+              <div className="flex rounded-lg bg-[var(--color-surface-sub)] p-0.5">
+                {(['newest', 'oldest'] as SortType[]).map(s => (
+                  <button
+                    key={s}
+                    onClick={() => setSort(s)}
+                    className={`px-3 py-1 text-[12px] font-medium rounded-md transition-colors ${
+                      sort === s
+                        ? 'bg-[var(--color-surface)] text-[var(--color-text)] shadow-[var(--shadow-seg)]'
+                        : 'text-[var(--color-text-sub)]'
+                    }`}
+                  >
+                    {s === 'newest' ? '최신순' : '오래된순'}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}

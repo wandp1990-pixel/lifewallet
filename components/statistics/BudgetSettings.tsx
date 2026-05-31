@@ -117,7 +117,7 @@ export default function BudgetSettings() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)]">
+    <div className="min-h-screen bg-[var(--color-surface)]">
       {/* 헤더 */}
       <div className="sticky top-0 z-10 bg-[var(--color-surface)] border-b border-[var(--color-border)]">
         <div className="flex items-center gap-3 px-4 py-3">
@@ -138,7 +138,7 @@ export default function BudgetSettings() {
       </div>
 
       <div className="max-w-2xl mx-auto px-4 pt-4 pb-36">
-        <div className="bg-[var(--color-surface)] rounded-2xl shadow-[0px_2px_8px_rgba(0,0,0,0.08)] divide-y divide-[var(--color-border)]">
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl shadow-[0px_2px_8px_rgba(0,0,0,0.08)] divide-y divide-[var(--color-border)]">
           {expenseCategories.map(cat => {
             const fallback = getBudgetForMonth(budgets, cat.id, year, month)
             const isDirect = isDirectBudget(budgets, cat.id, year, month)
@@ -195,7 +195,7 @@ export default function BudgetSettings() {
 
       {/* 토스트 */}
       {toast && (
-        <div className="fixed left-1/2 -translate-x-1/2 bg-[var(--color-text)] text-white text-[14px] font-medium px-4 py-3 rounded-xl shadow-e3 z-50 whitespace-nowrap" style={{ bottom: 'calc(var(--bottom-nav-total) + 80px)' }}>
+        <div className="fixed left-1/2 -translate-x-1/2 bg-[var(--color-text)] text-[var(--color-surface)] text-[14px] font-medium px-4 py-3 rounded-xl shadow-e3 z-50 whitespace-nowrap" style={{ bottom: 'calc(var(--bottom-nav-total) + 80px)' }}>
           {toast}
         </div>
       )}

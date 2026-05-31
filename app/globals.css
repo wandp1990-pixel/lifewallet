@@ -39,10 +39,28 @@
 }
 
 .dark {
+  /* Primary — hue 유지, 다크 표면 대비 보정 */
+  --color-primary-hover: #4a90f7;
+  --color-primary-subtle: #1c2c44;
+
+  /* 재무 시맨틱 base(income/expense/warning)는 brand hue 유지.
+     subtle 배경 / strong 텍스트는 라이트와 명암 반전 */
+  --color-income-subtle: #10231a;
+  --color-income-strong: #3ddc97;
+  --color-expense-subtle: #2a1719;
+  --color-warning-subtle: #2a2015;
+  --color-warning-strong: #f5c97a;
+
+  /* 중립 */
   --color-bg: #0f1115;
   --color-surface: #22262a;
+  --color-surface-sub: #2a2f34;
   --color-border: #292d32;
+  --color-border-strong: #3a4047;
   --color-text: #fafafa;
+  --color-text-body: #b0b8c1;
+  --color-text-sub: #8b95a1;
+  --color-text-placeholder: #6b7684;
 }
 
 * {

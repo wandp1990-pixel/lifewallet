@@ -83,7 +83,7 @@ export default function MonthlyReportView() {
   if (year === null || month === null || monthStartDay === null) return null
 
   return (
-    <div className="min-h-full bg-[var(--color-bg)]">
+    <div className="min-h-full bg-[var(--color-surface)]">
       <header className="border-b border-[var(--color-border)] bg-[var(--color-surface)]">
         <div className="mx-auto flex max-w-[1200px] flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between md:gap-4 md:px-5 md:py-5">
           <div className="min-w-0">
