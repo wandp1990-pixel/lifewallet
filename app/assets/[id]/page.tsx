@@ -34,14 +34,19 @@ function LoanDetail({ assetId }: { assetId: string }) {
     paymentDay: asset.payment_day ?? 0,
   })
 
-  // 상환 직후 남은 잔액(러닝). repayments는 최신순 — 위에서부터 현재 잔액, 아래로 갈수록 상환 전이라 잔액이 큼.
+  // 상환 직후 남은 잔액(러닝). 기준일(balance_date) 이후 상환만 잔액에 반영 — 잔액 변동 이력과 동일 규칙.
+  // repayments는 최신순 — 위에서부터 현재 잔액, 아래로 갈수록 상환 전이라 잔액이 큼.
+  const repayCut = asset.balance_date
+  const postRepays = repayments.filter(t => !repayCut || t.date > repayCut)
+  const preRepays = repayments.filter(t => repayCut && t.date <= repayCut)
   let remainingDebt = getDebtBalance(asset.balance)
-  const repayRows = repayments.map(tx => {
+  const repayRows = postRepays.map(tx => {
     const principal = getLoanRepaymentPrincipal(tx)
     const after = remainingDebt
     remainingDebt += principal
     return { tx, principal, after }
   })
+  const baselineDebt = remainingDebt // 기준일 시점 남은 잔액
 
   return (
     <div className="space-y-4">
@@ -122,8 +127,9 @@ function LoanDetail({ assetId }: { assetId: string }) {
             상환 내역이 없습니다
           </div>
         ) : (
-          repayRows.map(({ tx, principal, after }) => (
-              <div key={tx.id} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--color-border)] last:border-b-0">
+          <>
+            {repayRows.map(({ tx, principal, after }) => (
+              <div key={tx.id} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--color-border)]">
                 <div className="min-w-0">
                   <p className="text-sm text-[var(--color-text-body)]">{tx.content || '대출 상환'}</p>
                   <p className="text-xs text-[var(--color-text-sub)]">
@@ -136,7 +142,40 @@ function LoanDetail({ assetId }: { assetId: string }) {
                   <p className="text-xs text-[var(--color-text-sub)]">남은 잔액 {formatAmount(after)}원</p>
                 </div>
               </div>
-          ))
+            ))}
+
+            {/* 기준선 — 기준일 시점 남은 잔액 */}
+            {repayCut && (
+              <div className="flex items-center justify-between gap-3 px-4 py-3 bg-[var(--color-surface)]">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-[var(--color-text)]">기준일 잔액</p>
+                  <p className="text-xs text-[var(--color-text-sub)]">기준일 {formatDate(repayCut)}</p>
+                </div>
+                <span className="shrink-0 text-sm font-semibold text-[var(--color-expense)]">{formatAmount(baselineDebt)}원</span>
+              </div>
+            )}
+
+            {/* 기준일 이전 상환 — 잔액 미반영(참고) */}
+            {preRepays.length > 0 && (
+              <>
+                <div className="px-4 py-2 border-t border-[var(--color-border)] bg-[var(--color-surface-sub)]">
+                  <p className="text-xs text-[var(--color-text-sub)]">기준일 이전 · 잔액 미반영</p>
+                </div>
+                {preRepays.map(tx => (
+                  <div key={tx.id} className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--color-border)] last:border-b-0 opacity-60">
+                    <div className="min-w-0">
+                      <p className="text-sm text-[var(--color-text-body)]">{tx.content || '대출 상환'}</p>
+                      <p className="text-xs text-[var(--color-text-sub)]">
+                        {formatDate(tx.date)}
+                        {tx.fee > 0 ? ` · 원금 ${formatAmount(getLoanRepaymentPrincipal(tx))}원 · 이자 ${formatAmount(tx.fee)}원` : ''}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-sm font-semibold text-[var(--color-expense)]">-{formatAmount(tx.amount)}원</span>
+                  </div>
+                ))}
+              </>
+            )}
+          </>
         )}
       </div>
     </div>
