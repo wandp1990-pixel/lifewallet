@@ -28,7 +28,8 @@ export default function BottomNav() {
         paddingBottom: 'calc(var(--bottom-nav-gap-bottom) + var(--safe-area-bottom))',
       }}
     >
-      {/* 떠 있는 캡슐 바 */}
+      {/* 떠 있는 캡슐 바 — LifeQuest BottomNav와 동일 구조(레이아웃·높이·그림자·배경칩·점).
+          색만 단일 primary로 치환(LifeQuest는 탭별 색). */}
       <div className="flex h-[var(--bottom-nav-bar)] items-center justify-around rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2 shadow-[0_12px_34px_rgba(31,41,55,0.16)]">
         {MOBILE_NAV.map(id => {
           const item = NAV_ITEMS[id]
@@ -40,9 +41,9 @@ export default function BottomNav() {
               key={item.href}
               href={item.href}
               className={[
-                'flex min-h-[48px] min-w-[56px] flex-col items-center justify-center gap-0.5 rounded-2xl px-2 text-[11px] font-bold transition-colors',
+                'relative flex min-h-14 min-w-[56px] flex-col items-center justify-center gap-0.5 rounded-2xl px-2 py-2 text-[11px] font-bold transition-all duration-200',
                 active
-                  ? 'text-[var(--color-primary)]'
+                  ? 'bg-[var(--color-primary-subtle)] text-[var(--color-primary)] shadow-sm'
                   : 'text-[var(--color-text-sub)]',
               ].join(' ')}
             >
