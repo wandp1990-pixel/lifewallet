@@ -11,7 +11,8 @@ export interface NavItem {
   matchMode?: 'exact' | 'startsWith'
 }
 
-const size = (variant: 'desktop' | 'mobile') => variant === 'desktop' ? 20 : 22
+// 데스크톱 사이드네비·모바일 바텀바 모두 20px (LifeQuest와 통일)
+const size = (_variant: 'desktop' | 'mobile') => 20
 
 export const NAV_ITEMS = {
   daily: {

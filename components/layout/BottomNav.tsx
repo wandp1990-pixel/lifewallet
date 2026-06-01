@@ -29,7 +29,7 @@ export default function BottomNav() {
       }}
     >
       {/* 떠 있는 캡슐 바 */}
-      <div className="flex h-[var(--bottom-nav-bar)] items-stretch gap-1 rounded-[22px] border border-[var(--color-border)] bg-[var(--color-surface)] px-1.5 shadow-e3">
+      <div className="flex h-[var(--bottom-nav-bar)] items-stretch gap-1 rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2 shadow-e3">
         {MOBILE_NAV.map(id => {
           const item = NAV_ITEMS[id]
           const active = id === 'settings'
@@ -40,7 +40,7 @@ export default function BottomNav() {
               key={item.href}
               href={item.href}
               className={[
-                'flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl text-[11px] font-medium transition-colors',
+                'flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl text-[11px] font-bold transition-colors',
                 active
                   ? 'bg-[var(--color-primary-subtle)] text-[var(--color-primary)]'
                   : 'text-[var(--color-text-sub)]',
