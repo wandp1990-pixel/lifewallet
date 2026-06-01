@@ -5,6 +5,8 @@ import SideNav from './SideNav'
 import BottomNav from './BottomNav'
 
 export default function AppLayout({ children }: { children: ReactNode }) {
+  // 셸 높이·overflow·스크롤 구조 수정 전 필독: DESIGN.md "앱 셸 — 고정·스크롤·높이 아키텍처"
+  // (문서는 html/body에서 overflow-hidden으로 잠그고, 셸은 h-dvh, 스크롤은 내부 컨테이너만)
   return (
     <div className="flex h-dvh overflow-hidden">
       {/* PC 사이드바 — md 이상에서만 표시 */}
