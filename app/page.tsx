@@ -7,7 +7,7 @@ import { useStore } from '@/lib/store'
 import { getExpenseAmount, getOutflowAmount, isLoanReceivedTransaction } from '@/lib/finance'
 import type { Transaction, RecurringTransaction, Memo } from '@/lib/types'
 import { formatAmount } from '@/lib/utils'
-import { getDisplayMonth, getMonthStartDay, getMonthRange } from '@/lib/monthStart'
+import { getDateInDisplayMonth, getDisplayMonth, getMonthStartDay, getMonthRange } from '@/lib/monthStart'
 import { fetcher } from '@/lib/fetcher'
 import ListTab from '@/components/ledger/ListTab'
 import CalendarTab from '@/components/ledger/CalendarTab'
@@ -35,6 +35,9 @@ const TABS: { id: ViewType; label: string }[] = [
   { id: 'memo', label: '메모' },
 ]
 
+function localDateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
 
 export default function LedgerPage() {
   const { categories, assets, memos } = useStore()
@@ -91,7 +94,12 @@ export default function LedgerPage() {
     : getDisplayMonth(now, monthStartDay)
   const currentMonthKey = `${year}-${String(month).padStart(2, '0')}`
   const isCurrentMonth = year === currentDisplayMonth.year && month === currentDisplayMonth.month
-  const pendingRecurring = recurringList.filter(r => r.enabled && r.last_applied_month !== currentMonthKey)
+  const todayKey = localDateKey(now)
+  const pendingRecurring = recurringList.filter(r => {
+    if (!r.enabled || r.last_applied_month === currentMonthKey || monthStartDay === null) return false
+    const dueDate = getDateInDisplayMonth(year, month, r.day_of_month, monthStartDay)
+    return dueDate <= todayKey
+  })
 
   async function applyRecurring(r: RecurringTransaction) {
     setApplyingId(r.id)
@@ -380,7 +388,7 @@ export default function LedgerPage() {
           <div className="mx-4 mt-0 mb-2 rounded-2xl border border-[var(--color-primary)] bg-[var(--color-primary)]/5 p-3 space-y-2">
           <div className="flex items-center gap-2">
             <Repeat size={14} className="text-[var(--color-primary)]" />
-            <p className="text-[13px] font-semibold text-[var(--color-primary)]">이번 달 미적용 반복 거래 {pendingRecurring.length}건</p>
+            <p className="text-[13px] font-semibold text-[var(--color-primary)]">오늘까지 미적용 반복 거래 {pendingRecurring.length}건</p>
           </div>
           {pendingRecurring.map(r => (
             <div key={r.id} className="flex items-center justify-between bg-[var(--color-surface)] rounded-xl px-3 py-2">
