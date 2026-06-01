@@ -6,7 +6,7 @@ import BottomNav from './BottomNav'
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-full">
+    <div className="flex h-dvh overflow-hidden">
       {/* PC 사이드바 — md 이상에서만 표시 */}
       <aside className="hidden md:flex md:flex-col md:w-[240px] md:shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)]">
         <SideNav />
