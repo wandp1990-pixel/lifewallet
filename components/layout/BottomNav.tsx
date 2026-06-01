@@ -42,7 +42,7 @@ export default function BottomNav() {
               className={[
                 'flex min-h-[48px] min-w-[56px] flex-col items-center justify-center gap-0.5 rounded-2xl px-2 text-[11px] font-bold transition-colors',
                 active
-                  ? 'bg-[var(--color-primary-subtle)] text-[var(--color-primary)]'
+                  ? 'text-[var(--color-primary)]'
                   : 'text-[var(--color-text-sub)]',
               ].join(' ')}
             >
