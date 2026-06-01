@@ -72,7 +72,7 @@
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
 
   /* 떠 있는 캡슐형 바텀 네비 (flex shrink-0 — fixed 아님) */
-  --bottom-nav-bar: 56px;          /* 캡슐 자체 높이 */
+  --bottom-nav-bar: 64px;          /* 캡슐 자체 높이 (LifeQuest 캡슐 두께에 맞춰 56→64) */
   --bottom-nav-gap-top: 8px;       /* 캡슐 위 여백 */
   --bottom-nav-gap-bottom: 12px;   /* 캡슐 아래 여백 (홈 인디케이터와 분리) */
   --bottom-nav-height: var(--bottom-nav-bar); /* 하위 호환 별칭 */
