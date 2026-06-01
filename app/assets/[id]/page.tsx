@@ -355,6 +355,13 @@ export default function AssetDetailPage({ params }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false)
 
   const asset = assets.find(a => a.id === id)
+  const shouldRedirectToAssets = ready && asset && !asset.track_detail
+
+  useEffect(() => {
+    if (shouldRedirectToAssets) {
+      router.replace('/assets')
+    }
+  }, [router, shouldRedirectToAssets])
 
   if (!ready) {
     return (
@@ -372,8 +379,7 @@ export default function AssetDetailPage({ params }: Props) {
     )
   }
 
-  if (!asset.track_detail) {
-    router.replace('/assets')
+  if (shouldRedirectToAssets) {
     return null
   }
 
