@@ -104,6 +104,13 @@ function reconstructBalanceAsOf(
   return { balance: asset.balance - delta, uncertain: false }
 }
 
+// 보고 월 말(asOf) 시점에 아직 개설되지 않은 자산(시작일이 asOf보다 뒤)은 그 달에 존재하지 않았으므로
+// 시점 집계(부채 목록·totalAssets/totalDebt/netWorth)에서 제외한다. (예: 4월 실행 대출이 3월 보고서에 잡히는 문제)
+// 시작일(start_date)이 없으면 개설 시점을 판별할 수 없으므로 어쩔 수 없이 포함한다. → DESIGN.md LF5
+function existedAsOf(asset: Asset, asOf: string): boolean {
+  return !asset.start_date || asset.start_date <= asOf
+}
+
 export interface MonthlyReport {
   period: {
     year: number
@@ -883,6 +890,7 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
   const balanceAsOfByAsset = new Map<string, number>()
   let pointInTimeUncertain = false
   for (const asset of assets) {
+    if (!existedAsOf(asset, to)) continue // 보고월에 미존재(시작일이 보고월 이후) → 시점 집계 제외
     const recon = reconstructBalanceAsOf(asset, laterDeltaByAsset, to)
     balanceAsOfByAsset.set(asset.id, recon.balance)
     if (asset.visible && recon.uncertain) pointInTimeUncertain = true
@@ -951,7 +959,7 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
   const reportDate = new Date(`${year}-${String(month).padStart(2, '0')}-01T00:00:00`)
   const reportDateKey = `${year}-${String(month).padStart(2, '0')}-01`
   const loanTransactions = transactions.filter(t => t.type === 'loan_repayment')
-  const loanAssets = assets.filter(asset => asset.group_type === 'loan')
+  const loanAssets = assets.filter(asset => asset.group_type === 'loan' && existedAsOf(asset, to))
   const loans = loanAssets.map(asset => {
     const related = loanTransactions.filter(tx => tx.to_asset_id === asset.id)
     const paidThisMonth = related.reduce((sum, tx) => sum + tx.amount, 0)
@@ -1017,7 +1025,7 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
   const totalBudget = categories
     .filter(category => category.type === 'expense')
     .reduce((sum, category) => sum + getBudgetForMonth(budgets, category.id, year, month), 0)
-  const visibleAssets = assets.filter(asset => asset.visible)
+  const visibleAssets = assets.filter(asset => asset.visible && existedAsOf(asset, to))
   const totalAssets = visibleAssets
     .filter(asset => !isDebtAssetType(asset.group_type))
     .reduce((sum, asset) => sum + balanceAsOf(asset), 0)
