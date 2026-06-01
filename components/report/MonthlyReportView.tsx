@@ -157,7 +157,7 @@ export default function MonthlyReportView() {
             <ActionItems report={report} />
             <CashflowTimeline report={report} />
             {/* F. AI 서술형 분석 (financial-advisor 스킬 연동, 월별 저장) — PAGES.md `/report` "AI 재무 분석" */}
-            <AiAnalysis report={report} year={year} month={month} />
+            <AiAnalysis report={report} year={year} month={month} monthStartDay={monthStartDay} />
           </div>
         )}
       </main>
