@@ -6,7 +6,8 @@
     "dev": "next dev",
     "dev:fresh": "rm -rf .next && next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "tsx scripts/report_spec_check.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

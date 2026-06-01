@@ -1,8 +1,14 @@
 import { getBudgetForMonth } from './budget'
 import { assetBalanceDelta, estimateLoanPayoff, getDebtBalance, getExpenseAmount, getLoanRepaymentAmount, getOutflowAmount, isDebtAssetType } from './finance'
 import { getMonthRange } from './monthStart'
-import type { Asset, Budget, Category, Essentiality, RecurringTransaction, SavingsGoal, Transaction, WishlistItem } from './types'
+import type { Asset, AssetGroupType, Budget, Category, Essentiality, RecurringTransaction, SavingsGoal, Transaction, WishlistItem } from './types'
 import { formatAmount } from './utils'
+
+// 유동자산(비상자금 분자) 그룹 타입 — 즉시 인출 가능한 현금성. (REPORT_SPEC §5a)
+const LIQUID_GROUP_TYPES: AssetGroupType[] = ['cash', 'bank', 'savings']
+
+// 부채 전략 섹션 대상 그룹 타입 — loan + card + 마이너스통장. insurance는 '상환' 부채로 모호해 제외. (REPORT_SPEC §3)
+const DEBT_STRATEGY_TYPES: AssetGroupType[] = ['loan', 'card', 'minus_account']
 
 export type InsightKind = 'strength' | 'warning' | 'action'
 
@@ -109,6 +115,31 @@ function reconstructBalanceAsOf(
 // 시작일(start_date)이 없으면 개설 시점을 판별할 수 없으므로 어쩔 수 없이 포함한다. → DESIGN.md LF5
 function existedAsOf(asset: Asset, asOf: string): boolean {
   return !asset.start_date || asset.start_date <= asOf
+}
+
+// 거래 배열의 자산별 부호 델타 합 맵. 시점 잔액 복원용. 부호 규칙은 finance.ts assetBalanceDelta 단일 소스.
+function buildDeltaMap(transactions: Transaction[]): Map<string, number> {
+  const map = new Map<string, number>()
+  for (const tx of transactions) {
+    const ids = [tx.asset_id, tx.from_asset_id, tx.to_asset_id].filter((id, i, arr) => id && arr.indexOf(id) === i)
+    for (const id of ids) {
+      map.set(id, (map.get(id) ?? 0) + assetBalanceDelta(tx, id))
+    }
+  }
+  return map
+}
+
+// asOf 시점의 순자산 = visible·existedAsOf 자산의 (비부채 잔액 합 − 부채 잔액 합). 잔액은 deltaMap으로 복원. (REPORT_SPEC §1.5/§1.6)
+function netWorthAsOf(assets: Asset[], deltaMap: Map<string, number>, asOf: string): number {
+  let total = 0
+  let debt = 0
+  for (const asset of assets) {
+    if (!asset.visible || !existedAsOf(asset, asOf)) continue
+    const bal = reconstructBalanceAsOf(asset, deltaMap, asOf).balance
+    if (isDebtAssetType(asset.group_type)) debt += getDebtBalance(bal)
+    else total += bal
+  }
+  return total - debt
 }
 
 export interface MonthlyReport {
@@ -577,7 +608,7 @@ function buildHealthMetrics(input: HealthMetricInput): HealthMetric[] {
       debtServiceRatio,
       debtServiceRatio === null ? '-' : cappedPercent(debtServiceRatio, 100),
       debtServiceRatio === null ? 'none' : debtServiceRatio <= 30 ? 'safe' : debtServiceRatio <= 40 ? 'caution' : 'danger',
-      50, '안전 30% 이하',
+      50, '안전 30% 이하 · 대출 상환 기준',
     ),
     // 예산 소진율 — 한국FP학회 항목 아님, 기존 유지 (안전 ≤100% / 주의 100~120% / 위험 >120%)
     makeHealthMetric(
@@ -593,7 +624,7 @@ function buildHealthMetrics(input: HealthMetricInput): HealthMetric[] {
       fixedCostRate,
       fixedCostRate === null ? '-' : cappedPercent(fixedCostRate, 100),
       fixedCostRate === null ? 'none' : fixedCostRate <= 50 ? 'safe' : fixedCostRate <= 70 ? 'caution' : 'danger',
-      100, '권장 50% 이하',
+      100, '권장 50% 이하 · 등록 반복거래 기준',
     ),
   ]
 }
@@ -913,13 +944,14 @@ function buildEssentialityBreakdown(
 }
 
 // savings_tracking=true 자산의 이달 순변동 합계.
-// income/expense/asset → 해당 자산 직접 효과. transfer → to/from 양쪽 적용. 출금·인출도 반영.
+// income/expense → 해당 자산 직접 효과. transfer → to/from 양쪽 적용. 출금·인출도 반영.
+// `asset`(잔액 조정) 거래는 평가손익·수기보정이라 '적립'이 아니므로 제외 — 저축률은 실제 적립만 반영. (REPORT_SPEC §0.1b)
+// 평가증가는 순자산 증감(시점차, REPORT_SPEC §1.6)이 별도로 잡는다.
 function getSavingsNetChange(transactions: Transaction[], assets: Asset[]): number {
   const savingsIds = new Set(assets.filter(a => a.savings_tracking).map(a => a.id))
   return transactions.reduce((sum, tx) => {
     if (tx.type === 'income'  && savingsIds.has(tx.asset_id))    return sum + tx.amount
     if (tx.type === 'expense' && savingsIds.has(tx.asset_id))    return sum - tx.amount
-    if (tx.type === 'asset'   && savingsIds.has(tx.asset_id))    return sum + tx.amount
     if (tx.type === 'loan_repayment' && savingsIds.has(tx.to_asset_id)) return sum + tx.amount
     if (tx.type === 'transfer') {
       if (savingsIds.has(tx.to_asset_id))   sum += tx.amount
@@ -929,9 +961,15 @@ function getSavingsNetChange(transactions: Transaction[], assets: Asset[]): numb
   }, 0)
 }
 
+// 단일 자산의 순변동 합(부호 델타). 저축 목표 페이스 계산용. `asset`(잔액 조정) 거래는 적립이 아니므로 제외(REPORT_SPEC §0.1b/§4).
+function getAssetNetChange(transactions: Transaction[], assetId: string): number {
+  return transactions.reduce((sum, tx) => (tx.type === 'asset' ? sum : sum + assetBalanceDelta(tx, assetId)), 0)
+}
+
 // ── 저축 목표 on-track 판정 + 시뮬레이션 (Phase 8) ────────────
 // 판정·시뮬레이션 규칙은 SCHEMA.md `MonthlyReport.savingsSummary` 단일 소스.
-// 현 페이스(avgMonthlySavings)는 savings 자산 순변동의 3개월 평균. 여러 목표가 공유하는 근사값.
+// 페이스는 목표별로 산정한다(REPORT_SPEC §4): 연결 자산 3개월 평균 순변동을 잔여액 비중 안분, 미연결 목표는 avgMonthlySavings 폴백.
+// 요약 카드의 avgMonthlySavings는 savings 자산 순변동 3개월 평균(전체 페이스 요약값).
 const SAVINGS_EXTRA_SIM = 100000 // 시뮬레이션용 월 추가 저축액(10만원). 대출 EXTRA_PAYMENT_SIM과 동일 기준.
 
 function buildSavingsGoalProjection(
@@ -978,13 +1016,7 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
   const { from, to } = getMonthRange(year, month, monthStartDay)
 
   // 시점 잔액 복원 — 보고 월 말(to) 이후 거래의 부호 델타를 자산별로 합산해두고, 현재 잔액에서 역산한다.
-  const laterDeltaByAsset = new Map<string, number>()
-  for (const tx of laterTransactions) {
-    const ids = [tx.asset_id, tx.from_asset_id, tx.to_asset_id].filter((id, i, arr) => id && arr.indexOf(id) === i)
-    for (const id of ids) {
-      laterDeltaByAsset.set(id, (laterDeltaByAsset.get(id) ?? 0) + assetBalanceDelta(tx, id))
-    }
-  }
+  const laterDeltaByAsset = buildDeltaMap(laterTransactions)
   const balanceAsOfByAsset = new Map<string, number>()
   let pointInTimeUncertain = false
   for (const asset of assets) {
@@ -1057,11 +1089,24 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
   const reportDate = new Date(`${year}-${String(month).padStart(2, '0')}-01T00:00:00`)
   const reportDateKey = `${year}-${String(month).padStart(2, '0')}-01`
   const loanTransactions = transactions.filter(t => t.type === 'loan_repayment')
+  // loanAssets(loan 한정)는 예측·권고·연간 전망의 대출 상환 투영에 사용(monthly_payment·interest 필드 의존).
   const loanAssets = assets.filter(asset => asset.group_type === 'loan' && existedAsOf(asset, to))
-  const loans = loanAssets.map(asset => {
-    const related = loanTransactions.filter(tx => tx.to_asset_id === asset.id)
-    const paidThisMonth = related.reduce((sum, tx) => sum + tx.amount, 0)
-    const interestThisMonth = related.reduce((sum, tx) => sum + (tx.fee ?? 0), 0)
+  // 부채 전략 섹션 대상: loan + card + 마이너스통장. (REPORT_SPEC §3)
+  const debtStrategyAssets = assets.filter(asset => DEBT_STRATEGY_TYPES.includes(asset.group_type) && existedAsOf(asset, to))
+  const loans = debtStrategyAssets.map(asset => {
+    const isLoanType = asset.group_type === 'loan'
+    // loan은 loan_repayment 거래(to_asset_id)로 상환 추적(이자=fee). card·마통은 '부채자산으로의 이체'로 상환 추적(이자 모델 없음). (REPORT_SPEC §3)
+    let paidThisMonth: number
+    let interestThisMonth: number
+    if (isLoanType) {
+      const related = loanTransactions.filter(tx => tx.to_asset_id === asset.id)
+      paidThisMonth = related.reduce((sum, tx) => sum + tx.amount, 0)
+      interestThisMonth = related.reduce((sum, tx) => sum + (tx.fee ?? 0), 0)
+    } else {
+      const repayments = transactions.filter(tx => tx.type === 'transfer' && tx.to_asset_id === asset.id)
+      paidThisMonth = repayments.reduce((sum, tx) => sum + tx.amount, 0)
+      interestThisMonth = 0
+    }
     // 잔액은 현재 스냅샷이 아니라 보고 월 말 복원값 사용 (과거 달 보고서 정확도).
     const reconBalance = balanceAsOf(asset)
     const balanceValue = getDebtBalance(reconBalance)
@@ -1100,12 +1145,49 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
     }
   }).sort((a, b) => b.interestRate - a.interestRate || a.balance - b.balance)
 
+  // 목표별 페이스 — 연결 자산(asset_id)의 3개월 평균 순변동을, 같은 자산을 공유하는 목표끼리 remainingAmount 비중으로 안분. (REPORT_SPEC §4)
+  const goalRemaining = (g: SavingsGoal) => Math.max(g.target_amount - g.current_amount, 0)
+  const remainingSumByAsset = new Map<string, number>()
+  for (const g of savingsGoals) {
+    if (!g.asset_id) continue
+    remainingSumByAsset.set(g.asset_id, (remainingSumByAsset.get(g.asset_id) ?? 0) + goalRemaining(g))
+  }
+  const sharedGoalCountByAsset = new Map<string, number>()
+  for (const g of savingsGoals) {
+    if (!g.asset_id) continue
+    sharedGoalCountByAsset.set(g.asset_id, (sharedGoalCountByAsset.get(g.asset_id) ?? 0) + 1)
+  }
+  const assetPaceCache = new Map<string, number>()
+  const assetMonthlyPace = (assetId: string): number => {
+    const cached = assetPaceCache.get(assetId)
+    if (cached !== undefined) return cached
+    const net = getAssetNetChange(transactions, assetId)
+      + getAssetNetChange(previousTransactions, assetId)
+      + getAssetNetChange(previousPreviousTransactions, assetId)
+    const pace = Math.round(net / windowMonths)
+    assetPaceCache.set(assetId, pace)
+    return pace
+  }
+
   const savingsGoalsReport = savingsGoals.map(goal => {
-    const remainingAmount = Math.max(goal.target_amount - goal.current_amount, 0)
+    const remainingAmount = goalRemaining(goal)
     const requiredMonthlySavings = goal.target_date
       ? Math.ceil(remainingAmount / monthsBetween(reportDate, new Date(`${goal.target_date}T00:00:00`)))
       : null
-    const projection = buildSavingsGoalProjection(remainingAmount, requiredMonthlySavings, avgMonthlySavings)
+    // 목표별 페이스: asset_id 있으면 연결 자산 페이스를 잔여액 비중 안분(합 0이면 균등), 없으면 전체 평균 폴백.
+    let goalPace: number
+    if (goal.asset_id) {
+      const assetPace = assetMonthlyPace(goal.asset_id)
+      const totalRemaining = remainingSumByAsset.get(goal.asset_id) ?? 0
+      if (totalRemaining > 0) {
+        goalPace = Math.round(assetPace * (remainingAmount / totalRemaining))
+      } else {
+        goalPace = Math.round(assetPace / (sharedGoalCountByAsset.get(goal.asset_id) ?? 1))
+      }
+    } else {
+      goalPace = avgMonthlySavings
+    }
+    const projection = buildSavingsGoalProjection(remainingAmount, requiredMonthlySavings, goalPace)
     return {
       id: goal.id,
       name: goal.name,
@@ -1131,8 +1213,15 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
   const totalDebt = visibleAssets
     .filter(asset => isDebtAssetType(asset.group_type))
     .reduce((sum, asset) => sum + getDebtBalance(balanceAsOf(asset)), 0)
+  // 비상자금 분자 = 즉시 인출 가능한 유동자산만(현금·은행·저축). 투자·보험·기타 제외. (REPORT_SPEC §5a)
+  const liquidAssets = visibleAssets
+    .filter(asset => LIQUID_GROUP_TYPES.includes(asset.group_type))
+    .reduce((sum, asset) => sum + balanceAsOf(asset), 0)
   const netWorth = totalAssets - totalDebt
-  const netWorthChange = balance
+  // 순자산 증감 = 보고월 말 순자산 − 전월 말 순자산 (시점차). 전월 말 잔액은 "전월말 이후 거래"(=이번 달 + later)의
+  // 델타로 복원. 수지 근사 폐기 — 대출 원금상환(부채↓)·자산 평가조정이 순자산에 올바르게 반영된다. (REPORT_SPEC §1.6)
+  const prevNetWorth = netWorthAsOf(assets, buildDeltaMap([...transactions, ...laterTransactions]), previousRange.to)
+  const netWorthChange = netWorth - prevNetWorth
   const recurringOutflowThisMonth = recurringTransactions
     .filter(tx => tx.enabled && (tx.type === 'expense' || tx.type === 'loan_repayment'))
     .reduce((sum, tx) => sum + tx.amount, 0)
@@ -1193,6 +1282,30 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
     }
   })
 
+  // 연간 전망 대출상환 (REPORT_SPEC §7): 과거·현재 달=실제 부채상환, 미래 달=완납추정 투영.
+  const debtStrategyAssetIds = new Set(debtStrategyAssets.map(a => a.id))
+  const actualDebtPayments = (txs: Transaction[]): number => txs.reduce((sum, tx) => {
+    if (tx.type === 'loan_repayment') return sum + tx.amount                                       // loan 상환
+    if (tx.type === 'transfer' && debtStrategyAssetIds.has(tx.to_asset_id)) return sum + tx.amount // card·마통 상환 이체
+    return sum
+  }, 0)
+  const loanProjections = loanAssets.map(asset => {
+    const payoff = estimateLoanPayoff({
+      balance: balanceAsOf(asset),
+      annualInterestRate: asset.interest_rate ?? 0,
+      monthlyPayment: asset.monthly_payment ?? 0,
+      paymentDay: asset.payment_day ?? 0,
+      fromDate: reportDateKey,
+    })
+    return { monthlyPayment: asset.monthly_payment ?? 0, estimatedMonths: payoff.estimatedMonths }
+  })
+  // 보고월로부터 offset개월 뒤 미래 달의 투영 대출상환 — 완납 추정(estimatedMonths) 이내 달에만 월상환 계상. null(추정불가)은 지속 상환으로 본다.
+  const projectedLoanPayments = (offset: number): number => loanProjections.reduce((sum, p) => {
+    if (p.monthlyPayment <= 0) return sum
+    if (p.estimatedMonths === null || offset <= p.estimatedMonths) return sum + p.monthlyPayment
+    return sum
+  }, 0)
+
   const annualOutlook = Array.from({ length: 12 }, (_, index) => {
     const targetMonth = index + 1
     const range = getMonthRange(year, targetMonth, monthStartDay)
@@ -1202,7 +1315,10 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
     const budgetedExpense = categories
       .filter(category => category.type === 'expense')
       .reduce((sum, category) => sum + getBudgetForMonth(budgets, category.id, year, targetMonth), 0)
-    const loanPayments = loanAssets.reduce((sum, asset) => sum + (asset.monthly_payment ?? 0), 0)
+    // 과거·현재 달(targetMonth ≤ 보고월): 실제 부채상환. 미래 달: 완납추정 투영. (REPORT_SPEC §7)
+    const loanPayments = targetMonth <= month
+      ? actualDebtPayments(monthTransactions)
+      : projectedLoanPayments(targetMonth - month)
     const monthEvents = wishlist
       .filter(item => !item.is_done && item.target_date && inRange(item.target_date, range.from, range.to))
       .map(item => item.name)
@@ -1221,9 +1337,9 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
 
   const expenseChangeRateValue = changeRate(expense, previousExpense)
   const debtRatioValue = totalAssets > 0 ? ratio(totalDebt, totalAssets) : null
-  // 비상자금 개월수 분모는 단일 월 지출이 아니라 3개월 평균 지출(expense3mAvg) — 희소한 달의 분모 폭증을 막고
-  // summary의 3개월 rolling 기준과 일관. 단일 소스: SCHEMA.md `MonthlyReport.healthMetrics` "비상자금".
-  const emergencyFundMonthsValue = expense3mAvg > 0 ? totalAssets / expense3mAvg : null
+  // 비상자금 개월수 = 유동자산 / 3개월 평균 지출(expense3mAvg). 분자는 유동자산만(REPORT_SPEC §5a),
+  // 분모는 단일 월이 아닌 3개월 평균이라 희소한 달의 분모 폭증을 막고 summary의 3개월 rolling과 일관.
+  const emergencyFundMonthsValue = expense3mAvg > 0 ? liquidAssets / expense3mAvg : null
   // 총부채상환비율 = 월 부채상환액 / 월 총소득. 카드 결제는 별도 거래로 모델링되지 않아
   // 현재 추적 가능한 월 부채상환액 = loan_repayment 합(loanRepayment)으로 근사한다.
   const debtServiceRatioValue = income > 0 ? ratio(loanRepayment, income) : null
