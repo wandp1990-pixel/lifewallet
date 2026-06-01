@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Repeat } from 'lucide-react'
 import { isDebtAssetType, validateTransactionInput } from '@/lib/finance'
 import { useStore } from '@/lib/store'
-import { todayStr } from '@/lib/utils'
-import type { Transaction } from '@/lib/types'
+import { formatAmount, todayStr } from '@/lib/utils'
+import { getDisplayMonth, getMonthStartDay } from '@/lib/monthStart'
+import type { RecurringTransaction, Transaction } from '@/lib/types'
 import CatIcon from '@/components/ui/CatIcon'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
@@ -64,12 +66,25 @@ interface Props {
   open: boolean
   onClose: () => void
   onSaved?: () => void
+  onRecurringApplied?: () => void
   mode?: 'new' | 'edit'
   initial?: Transaction
   transactionId?: string
 }
 
-export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'new', initial, transactionId }: Props) {
+function isSheetTxType(type: string): type is TxType {
+  return type === 'expense' || type === 'income' || type === 'transfer' || type === 'loan_repayment'
+}
+
+function displayMonthKeyForDate(dateStr: string): string {
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(dateStr)
+    ? new Date(`${dateStr}T00:00:00`)
+    : new Date(dateStr)
+  const displayMonth = getDisplayMonth(Number.isNaN(date.getTime()) ? new Date() : date, getMonthStartDay())
+  return `${displayMonth.year}-${String(displayMonth.month).padStart(2, '0')}`
+}
+
+export default function AddTransactionSheet({ open, onClose, onSaved, onRecurringApplied, mode = 'new', initial, transactionId }: Props) {
   const { categories, assets } = useStore()
 
   const [type, setType] = useState<TxType>('expense')
@@ -87,6 +102,8 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [recurringList, setRecurringList] = useState<RecurringTransaction[]>([])
+  const [selectedRecurringId, setSelectedRecurringId] = useState('')
 
   const amount = parseInt(digits || '0', 10)
   const fee = parseInput(feeStr)
@@ -129,6 +146,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
       setDate(initial.date ?? todayStr())
       setContent(initial.content ?? '')
       setNote(initial.note ?? '')
+      setSelectedRecurringId('')
     } else {
       setType('expense')
       setDigits('')
@@ -140,6 +158,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
       setContent('')
       setNote('')
       setDate(todayStr())
+      setSelectedRecurringId('')
     }
     setSaving(false)
     setCatExpanded(false)
@@ -147,6 +166,16 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
     setDeleting(false)
     setDeleteError('')
   }, [open])
+
+  useEffect(() => {
+    if (!open || mode !== 'new') return
+    fetch('/api/recurring')
+      .then(r => r.ok ? r.json() : [])
+      .then((data: RecurringTransaction[]) => {
+        setRecurringList(Array.isArray(data) ? data.filter(r => r.enabled && isSheetTxType(r.type)) : [])
+      })
+      .catch(() => setRecurringList([]))
+  }, [open, mode])
 
   useEffect(() => {
     if (!open) return
@@ -168,6 +197,21 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
       setToAssetId(selectableAssets.find(a => a.id !== fromAssetId)?.id ?? '')
       setFeeStr('')
     }
+  }
+
+  function applyRecurringTemplate(r: RecurringTransaction) {
+    if (!isSheetTxType(r.type)) return
+    setSelectedRecurringId(r.id)
+    setType(r.type)
+    setDigits(r.amount > 0 ? String(r.amount) : '')
+    setCatId(r.category_id ?? '')
+    setAssetId(r.asset_id ?? '')
+    setFromAssetId(r.from_asset_id ?? '')
+    setToAssetId(r.to_asset_id ?? '')
+    setFeeStr(r.fee > 0 ? r.fee.toLocaleString('ko-KR') : '')
+    setContent(r.content ?? '')
+    setNote(r.note ?? '')
+    setCatExpanded(false)
   }
 
   function onDigitPress(d: string) {
@@ -209,11 +253,20 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
         body: JSON.stringify(payload),
       })
       if (res.ok) {
+        if (mode === 'new' && selectedRecurringId) {
+          await fetch(`/api/recurring/${selectedRecurringId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ last_applied_month: displayMonthKeyForDate(date) }),
+          })
+          onRecurringApplied?.()
+        }
         onSaved?.()
         if (continueAdding) {
           setDigits('')
           setContent('')
           setNote('')
+          setSelectedRecurringId('')
           setSaving(false)
         } else {
           onClose()
@@ -256,6 +309,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
   if (!open) return null
 
   const visibleCats = catExpanded ? currentCats : currentCats.slice(0, 8)
+  const recurringOptions = recurringList.filter(r => isSheetTxType(r.type))
   const fromAssets = withSelectedAssets(type === 'loan_repayment' ? repaymentFromAssets : selectableAssets, assets, [fromAssetId])
   const toAssets = withSelectedAssets(type === 'loan_repayment'
     ? loanAssets.filter(a => a.id !== fromAssetId)
@@ -369,6 +423,33 @@ export default function AddTransactionSheet({ open, onClose, onSaved, mode = 'ne
 
         {/* Scrollable body */}
         <div className="min-h-0 flex-1 touch-pan-y space-y-4 overflow-y-auto overscroll-contain px-4 pb-2 pt-3">
+          {mode === 'new' && recurringOptions.length > 0 && (
+            <div>
+              <div className="mb-2 flex items-center gap-1.5">
+                <Repeat size={14} className="text-[var(--color-primary)]" />
+                <p className="text-[12px] font-medium text-[var(--color-text-sub)]">반복 거래</p>
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {recurringOptions.map(r => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => applyRecurringTemplate(r)}
+                    className={`min-w-[148px] rounded-xl border px-3 py-2 text-left transition-colors ${
+                      selectedRecurringId === r.id
+                        ? 'border-[var(--color-primary)] bg-[var(--color-primary-subtle)]'
+                        : 'border-[var(--color-border)] bg-[var(--color-surface-sub)]'
+                    }`}
+                  >
+                    <span className="block truncate text-[13px] font-semibold text-[var(--color-text)]">{r.content}</span>
+                    <span className="mt-0.5 block text-[11px] text-[var(--color-text-sub)]">
+                      매월 {r.day_of_month}일 · {formatAmount(r.amount)}원
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Category */}
           {showCategory && (

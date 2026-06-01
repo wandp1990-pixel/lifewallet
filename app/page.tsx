@@ -498,6 +498,7 @@ export default function LedgerPage() {
         transactionId={editSheetTx?.id}
         onClose={() => { setAddSheetOpen(false); setEditSheetTx(null) }}
         onSaved={() => { setEditSheetTx(null); mutateTx() }}
+        onRecurringApplied={() => { mutateRecurring() }}
       />
 
       <MemoForm
