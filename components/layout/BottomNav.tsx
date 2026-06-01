@@ -29,7 +29,7 @@ export default function BottomNav() {
       }}
     >
       {/* 떠 있는 캡슐 바 */}
-      <div className="flex h-[var(--bottom-nav-bar)] items-stretch gap-1 rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2 shadow-e3">
+      <div className="flex h-[var(--bottom-nav-bar)] items-center justify-around rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2 shadow-e3">
         {MOBILE_NAV.map(id => {
           const item = NAV_ITEMS[id]
           const active = id === 'settings'
@@ -40,14 +40,17 @@ export default function BottomNav() {
               key={item.href}
               href={item.href}
               className={[
-                'flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl text-[11px] font-bold transition-colors',
+                'flex min-h-[48px] min-w-[56px] flex-col items-center justify-center gap-0.5 rounded-2xl px-2 text-[11px] font-bold transition-colors',
                 active
                   ? 'bg-[var(--color-primary-subtle)] text-[var(--color-primary)]'
                   : 'text-[var(--color-text-sub)]',
               ].join(' ')}
             >
               {item.icon(active, 'mobile')}
-              {getMobileLabel(id)}
+              <span>{getMobileLabel(id)}</span>
+              {active && (
+                <span className="h-1 w-1 rounded-full bg-[var(--color-primary)]" />
+              )}
             </Link>
           )
         })}
