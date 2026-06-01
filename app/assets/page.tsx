@@ -7,28 +7,10 @@ import { useStore } from '@/lib/store'
 import { getDebtBalance, isDebtAssetType } from '@/lib/finance'
 import { formatAmount } from '@/lib/utils'
 import AssetForm from '@/components/assets/AssetForm'
+import { ASSET_GROUP_ORDER as GROUP_ORDER, ASSET_GROUP_LABELS as GROUP_LABELS } from '@/lib/assetGroups'
 import type { Asset, AssetGroupType } from '@/lib/types'
 
 type MenuAction = 'edit' | 'toggle-included' | 'delete'
-
-const GROUP_ORDER: AssetGroupType[] = [
-  'cash', 'bank', 'card', 'check_card', 'prepaid_card',
-  'savings', 'investment', 'minus_account', 'loan', 'insurance', 'other',
-]
-
-const GROUP_LABELS: Record<AssetGroupType, string> = {
-  cash: '현금',
-  bank: '은행',
-  card: '카드',
-  check_card: '체크카드',
-  prepaid_card: '선불카드',
-  savings: '저축',
-  investment: '투자',
-  minus_account: '마이너스통장',
-  loan: '대출',
-  insurance: '보험',
-  other: '기타',
-}
 
 export default function AssetsPage() {
   const router = useRouter()
