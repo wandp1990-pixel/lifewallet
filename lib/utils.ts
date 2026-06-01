@@ -3,7 +3,15 @@ export function formatAmount(amount: number): string {
 }
 
 export function formatDate(date: string): string {
-  return new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }).format(new Date(date))
+  const value = date?.trim()
+  if (!value) return '날짜 없음'
+
+  const parsed = /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? new Date(`${value}T00:00:00`)
+    : new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+
+  return new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' }).format(parsed)
 }
 
 export function todayStr(): string {

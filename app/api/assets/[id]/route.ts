@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import db, { initDb, rowToAsset } from '@/lib/db'
 import { getDebtBalance, isDebtAssetType, normalizeAssetBalance } from '@/lib/finance'
-import { generateId } from '@/lib/utils'
+import { generateId, todayStr } from '@/lib/utils'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await initDb()
@@ -71,7 +71,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     ],
   })
 
-  const balanceDate = body.balance_date ?? currentBalanceDate ?? new Date().toISOString().slice(0, 10)
+  const balanceDate = body.balance_date || currentBalanceDate || todayStr()
   if (body.balance !== undefined && !groupTypeChanged && nextBalance !== null && nextBalance !== currentBalance) {
     await db.execute({
       sql: `INSERT INTO transactions (id,date,type,amount,category_id,asset_id,content,note,from_asset_id,to_asset_id,fee,created_at)

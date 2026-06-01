@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     group_name: body.group_name ?? '',
     name: body.name,
     balance: normalizeAssetBalance(body.group_type, body.balance ?? 0),
-    balance_date: body.balance_date ?? todayStr(),
+    balance_date: body.balance_date || todayStr(),
     order: body.order ?? 0,
     visible: body.visible ?? true,
     track_detail: forceTrackDetail || (body.track_detail ?? false),
