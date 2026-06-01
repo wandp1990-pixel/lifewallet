@@ -95,7 +95,7 @@ annualOutlook에서 다음 달 actualOutflow 또는 expectedBalance 확인.
 - healthMetrics[].level 앱 산출값 그대로 사용, 재산정 금지
 - vsAvg3mRate=0: 데이터 1개월치라 평균=현재값. "변동 없음"으로 해석 금지
 - 저축 목표·위시리스트 없으면 해당 섹션 생략
-- **JSON 필드명을 보고서 본문에 절대 그대로 쓰지 말 것.** backtick(`)으로 감싸도 안 됨. actualOutflow·actualIncome·expectedBalance·annualOutlook·loanRepayment·essentiality·cashflowTimeline·healthMetrics 등 모든 영문 키는 한국어로 해석해 서술 (예: actualOutflow → "예상 총 유출", actualIncome → "예상 수입", annualOutlook → "연간 전망", nextMonthForecast → "다음 달 예상")
+- **JSON 필드명을 보고서 본문에 절대 그대로 쓰지 말 것.** 코드블록(\`)으로 감싸도 안 됨. actualOutflow·actualIncome·expectedBalance·annualOutlook·loanRepayment·essentiality·cashflowTimeline·healthMetrics 등 모든 영문 키는 한국어로 해석해 서술 (예: actualOutflow → "예상 총 유출", actualIncome → "예상 수입", annualOutlook → "연간 전망", nextMonthForecast → "다음 달 예상")
 
 ## 사용자 재무 우선순위
 1. 연체·긴급 의무 정상화
