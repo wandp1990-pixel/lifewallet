@@ -72,6 +72,7 @@ export default function AssetsPage() {
     () => trackDetailAssets.filter(a => isDebtAssetType(a.group_type)),
     [trackDetailAssets]
   )
+  const selectedMenuAsset = assets.find(a => a.id === menuOpen) ?? null
 
   function toggleCollapse(groupType: string) {
     setCollapsed(prev => {
@@ -300,33 +301,6 @@ export default function AssetsPage() {
                           >
                             <MoreHorizontal size={16} className="text-[var(--color-text-sub)]" />
                           </button>
-
-                          {/* 더보기 메뉴 */}
-                          {menuOpen === asset.id && (
-                            <>
-                              <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(null)} />
-                              <div className="absolute right-2 top-10 z-20 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-e3 overflow-hidden min-w-[120px]">
-                                <button
-                                  onClick={() => handleMenuAction(asset, 'edit')}
-                                  className="w-full px-4 py-2.5 text-sm text-left text-[var(--color-text)] hover:bg-[var(--color-surface-sub)] transition-colors"
-                                >
-                                  수정
-                                </button>
-                                <button
-                                  onClick={() => handleMenuAction(asset, 'toggle-included')}
-                                  className="w-full px-4 py-2.5 text-sm text-left text-[var(--color-text)] hover:bg-[var(--color-surface-sub)] transition-colors"
-                                >
-                                  {asset.visible ? '집계 제외' : '집계 포함'}
-                                </button>
-                                <button
-                                  onClick={() => handleMenuAction(asset, 'delete')}
-                                  className="w-full px-4 py-2.5 text-sm text-left text-[var(--color-expense)] hover:bg-[var(--color-surface-sub)] transition-colors"
-                                >
-                                  삭제
-                                </button>
-                              </div>
-                            </>
-                          )}
                         </div>
                       ))}
                     </div>
@@ -344,6 +318,40 @@ export default function AssetsPage() {
           onClose={() => { setSheetOpen(false); setEditing(null) }}
           editing={editing}
         />
+      )}
+
+      {selectedMenuAsset && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 px-3 pb-[max(12px,var(--safe-area-bottom))] md:items-center md:pb-0">
+          <button
+            type="button"
+            className="absolute inset-0"
+            aria-label="메뉴 닫기"
+            onClick={() => setMenuOpen(null)}
+          />
+          <div className="relative w-full max-w-sm overflow-hidden rounded-2xl bg-[var(--color-surface)] shadow-[0px_8px_24px_rgba(0,0,0,0.16)]">
+            <div className="border-b border-[var(--color-border)] px-4 py-3">
+              <p className="truncate text-sm font-semibold text-[var(--color-text)]">{selectedMenuAsset.name}</p>
+            </div>
+            <button
+              onClick={() => handleMenuAction(selectedMenuAsset, 'edit')}
+              className="w-full px-4 py-3 text-left text-sm text-[var(--color-text)] hover:bg-[var(--color-surface-sub)] transition-colors"
+            >
+              수정
+            </button>
+            <button
+              onClick={() => handleMenuAction(selectedMenuAsset, 'toggle-included')}
+              className="w-full px-4 py-3 text-left text-sm text-[var(--color-text)] hover:bg-[var(--color-surface-sub)] transition-colors"
+            >
+              {selectedMenuAsset.visible ? '집계 제외' : '집계 포함'}
+            </button>
+            <button
+              onClick={() => handleMenuAction(selectedMenuAsset, 'delete')}
+              className="w-full px-4 py-3 text-left text-sm text-[var(--color-expense)] hover:bg-[var(--color-surface-sub)] transition-colors"
+            >
+              삭제
+            </button>
+          </div>
+        </div>
       )}
 
       {deleteTarget && (
