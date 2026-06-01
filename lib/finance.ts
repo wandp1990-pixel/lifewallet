@@ -148,12 +148,14 @@ export function estimateLoanPayoff({
   const monthlyInterest = Math.round(debtBalance * monthlyRate)
 
   if (debtBalance <= 0) {
+    // 이미 완납된 대출은 실제 완납 시점을 이 함수가 알 수 없다. fromDate(보고 월 1일)를 찍으면
+    // 매달 보고서마다 "그 달에 완납됨"으로 오기록되므로 빈 문자열로 둔다(다른 종료 상태와 동일).
     return {
       balance: 0,
       monthlyInterest: 0,
       firstPrincipalPayment: 0,
       estimatedMonths: 0,
-      estimatedPayoffDate: fromDate,
+      estimatedPayoffDate: '',
       totalInterest: 0,
       status: 'paid_off',
     }

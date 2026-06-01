@@ -169,6 +169,7 @@ export interface MonthlyReport {
       estimatedPayoffDate: string
       totalInterestEstimate: number | null
       payoffStatus: 'paid_off' | 'not_configured' | 'payment_too_low' | 'ok'
+      paidOffThisMonth: boolean // 이번 달에 완납됨(잔액 0 + 당월상환 > 0). 과거에 이미 정리된 잔액 0 대출과 구분.
       priority: 'high_interest' | 'quick_close' | 'heavy_payment' | 'normal'
     }[]
     totalBalance: number
@@ -1094,6 +1095,7 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
       estimatedPayoffDate: payoff.estimatedPayoffDate,
       totalInterestEstimate: payoff.totalInterest,
       payoffStatus: payoff.status,
+      paidOffThisMonth: balanceValue <= 0 && paidThisMonth > 0,
       priority,
     }
   }).sort((a, b) => b.interestRate - a.interestRate || a.balance - b.balance)

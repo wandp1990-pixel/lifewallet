@@ -67,6 +67,10 @@ healthMetrics 기반 표. level에 따라 이모지 사용: safe=🟢, warning=�
 월 이자 = interestRate × balance / 12 로 계산 (0% 대출은 ₩0).
 표 아래 전략: 무이자 부채는 최소 상환, 여유분은 최고금리 대출에 집중.
 비상금 버퍼 확보 후 추가 상환 — 연체 방지가 우선.
+**완납 처리 규칙(중요):**
+- payoffStatus가 paid_off이면서 paidOffThisMonth=true인 대출만 "이번 달에 완납했다"고 서술할 수 있다.
+- payoffStatus가 paid_off인데 paidOffThisMonth=false인 대출은 **과거에 이미 정리된 부채**다. "이번 달 완납"으로 쓰지 말 것. 굳이 언급한다면 "이미 완납된 상태"로만 표기하거나, 활성 부채가 따로 있으면 표에서 생략해도 된다.
+- estimatedPayoffDate가 빈 문자열인 완납 대출은 완납 날짜를 임의로 만들어 쓰지 말 것.
 
 ### 7. 비상금 현황
 현재 개월수, 1단계 목표(₩1,300,000) 달성률.

@@ -48,7 +48,7 @@ function priorityLabel(priority: MonthlyReport['debtStrategy']['loans'][number][
 }
 
 function payoffLabel(loan: MonthlyReport['debtStrategy']['loans'][number]) {
-  if (loan.payoffStatus === 'paid_off') return '완납'
+  if (loan.payoffStatus === 'paid_off') return loan.paidOffThisMonth ? '이번 달 완납' : '완납 완료'
   if (loan.payoffStatus === 'ok') return `${loan.estimatedPayoffDate} (${loan.estimatedPayoffMonths}회)`
   if (loan.payoffStatus === 'payment_too_low') return '월 상환액 부족'
   return loan.endDate ? `등록 만기 ${loan.endDate}` : '월 상환액 미입력'
