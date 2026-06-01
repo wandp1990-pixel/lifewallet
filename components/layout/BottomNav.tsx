@@ -24,8 +24,8 @@ export default function BottomNav() {
       className="px-3"
       style={{
         paddingTop: 'var(--bottom-nav-gap-top)',
-        // iPhone 홈 인디케이터 safe area를 캡슐 아래 여백에 합산
-        paddingBottom: 'calc(var(--bottom-nav-gap-bottom) + var(--safe-area-bottom))',
+        // LifeQuest와 동일: 아래 여백 = max(최소 여백, 홈 인디케이터 safe area) — 합산 아님
+        paddingBottom: 'max(var(--bottom-nav-gap-bottom), var(--safe-area-bottom))',
       }}
     >
       {/* 떠 있는 캡슐 바 — LifeQuest BottomNav와 동일 구조(레이아웃·높이·그림자·배경칩·점).

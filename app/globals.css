@@ -73,16 +73,17 @@
 
   /* 떠 있는 캡슐형 바텀 네비 (flex shrink-0 — fixed 아님) */
   --bottom-nav-bar: 72px;          /* 캡슐 높이 = LifeQuest 버튼 min-h-14(56) + py-2(16) */
-  --bottom-nav-gap-top: 8px;       /* 캡슐 위 여백 */
-  --bottom-nav-gap-bottom: 12px;   /* 캡슐 아래 여백 (홈 인디케이터와 분리) */
+  --bottom-nav-gap-top: 0px;       /* 캡슐 위 여백 — LifeQuest nav는 top margin 0 */
+  --bottom-nav-gap-bottom: 12px;   /* 캡슐 아래 최소 여백 (LifeQuest 0.75rem) */
   --bottom-nav-height: var(--bottom-nav-bar); /* 하위 호환 별칭 */
 
   /* 바텀 네비가 차지하는 총 세로 영역.
      flex 구조에선 nav 래퍼 실제 높이와 같고,
-     fixed 저장바/FAB가 캡슐을 피해 띄울 기준값으로 재사용된다. */
+     fixed 저장바/FAB가 캡슐을 피해 띄울 기준값으로 재사용된다.
+     아래 여백은 LifeQuest와 동일하게 max(gap-bottom, safe-area) — 합산 아님. */
   --bottom-nav-total: calc(
     var(--bottom-nav-bar) + var(--bottom-nav-gap-top) +
-    var(--bottom-nav-gap-bottom) + var(--safe-area-bottom)
+    max(var(--bottom-nav-gap-bottom), var(--safe-area-bottom))
   );
 
   --fab-size: 48px;
