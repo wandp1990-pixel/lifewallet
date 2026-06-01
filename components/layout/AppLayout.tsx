@@ -30,8 +30,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </main>
 
         {/* 모바일 바텀 네비 — flex shrink-0(fixed 아님). 캡슐 스타일은 BottomNav가 소유.
-            main이 실제로 줄어들어 콘텐츠와 겹치지 않으므로 main에 pb 보정 불필요. */}
-        <div className="md:hidden shrink-0 bg-[var(--color-surface)]">
+            main이 실제로 줄어들어 콘텐츠와 겹치지 않으므로 main에 pb 보정 불필요.
+            래퍼 배경은 --color-bg(회색): 순백 캡슐이 대비로 떠 보이게 (LifeQuest "회색 위 흰 카드" 부유 원리). */}
+        <div className="md:hidden shrink-0 bg-[var(--color-bg)]">
           <BottomNav />
         </div>
       </div>

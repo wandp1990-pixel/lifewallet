@@ -29,7 +29,7 @@ export default function BottomNav() {
       }}
     >
       {/* 떠 있는 캡슐 바 */}
-      <div className="flex h-[var(--bottom-nav-bar)] items-center justify-around rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2 shadow-e3">
+      <div className="flex h-[var(--bottom-nav-bar)] items-center justify-around rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2 shadow-[0_12px_34px_rgba(31,41,55,0.16)]">
         {MOBILE_NAV.map(id => {
           const item = NAV_ITEMS[id]
           const active = id === 'settings'
