@@ -668,7 +668,7 @@ function NextMonthForecast({ report }: { report: MonthlyReport }) {
       </div>
       <div className="divide-y divide-[var(--color-border)]">
         {report.nextMonthForecast.items.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-[var(--color-text-sub)] md:px-5">다음 달 예정 지출 데이터가 없습니다.</p>
+          <p className="px-4 py-8 text-center text-sm text-[var(--color-text-sub)] md:px-5">다음 달 예정된 지출이 없어요.</p>
         ) : report.nextMonthForecast.items.slice(0, 8).map((item, index) => (
           <div key={`${item.source}-${item.label}-${index}`} className="flex items-center justify-between gap-3 px-4 py-3 text-sm md:px-5">
             <span className="min-w-0 truncate text-[var(--color-text-body)]">{item.source} · {item.label}</span>
@@ -684,7 +684,7 @@ function CashflowTooltip({ active, payload }: { active?: boolean; payload?: { pa
   if (!active || !payload || payload.length === 0) return null
   const row = payload[0].payload
   return (
-    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[12px] shadow-md">
+    <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[12px] shadow-e3">
       <p className="font-semibold text-[var(--color-text)]">{row.label}</p>
       <div className="mt-1 space-y-0.5">
         <p className="text-[var(--color-income)]">수입 {row.income ? `${formatAmount(row.income)}원` : '-'}</p>
