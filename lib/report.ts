@@ -1,5 +1,5 @@
 import { getBudgetForMonth } from './budget'
-import { estimateLoanPayoff, getDebtBalance, getExpenseAmount, getLoanRepaymentAmount, getOutflowAmount, isDebtAssetType } from './finance'
+import { assetBalanceDelta, estimateLoanPayoff, getDebtBalance, getExpenseAmount, getLoanRepaymentAmount, getOutflowAmount, isDebtAssetType } from './finance'
 import { getMonthRange } from './monthStart'
 import type { Asset, Budget, Category, Essentiality, RecurringTransaction, SavingsGoal, Transaction, WishlistItem } from './types'
 import { formatAmount } from './utils'
@@ -78,12 +78,30 @@ export interface MonthlyReportInput {
   previousTransactions: Transaction[]
   previousPreviousTransactions: Transaction[]
   annualTransactions: Transaction[]
+  // 보고 월 말일(period.to) 이후 ~ 현재까지의 모든 거래. 시점 잔액 복원에 사용 (reconstructBalanceAsOf).
+  laterTransactions: Transaction[]
   categories: Category[]
   budgets: Budget[]
   assets: Asset[]
   savingsGoals: SavingsGoal[]
   wishlist: WishlistItem[]
   recurringTransactions: RecurringTransaction[]
+}
+
+// 보고 월 말(asOf) 시점의 자산 잔액을 거래로 복원한다.
+// asset.balance는 "현재" 단일 스냅샷이므로, asOf 이후 거래의 부호 델타를 역산해 그 달 말 잔액을 구한다.
+// 수동 잔액 앵커(balance_date)가 asOf보다 뒤면 거래만으로 복원 불가 → uncertain.
+// 부호 규칙은 finance.ts assetBalanceDelta 단일 소스 (DB 쓰기·자산 상세 러닝밸런스와 공유).
+function reconstructBalanceAsOf(
+  asset: Asset,
+  laterDeltaByAsset: Map<string, number>,
+  asOf: string,
+): { balance: number; uncertain: boolean } {
+  if (asset.balance_date && asset.balance_date > asOf) {
+    return { balance: asset.balance, uncertain: true }
+  }
+  const delta = laterDeltaByAsset.get(asset.id) ?? 0
+  return { balance: asset.balance - delta, uncertain: false }
 }
 
 export interface MonthlyReport {
@@ -112,6 +130,9 @@ export interface MonthlyReport {
     totalDebt: number
     netWorth: number
     netWorthChange: number
+    // 시점 잔액(totalAssets/totalDebt/netWorth, 대출 balance)은 보고 월 말 기준으로 거래 역산 복원한 값.
+    // 수동 잔액 앵커가 보고 월보다 뒤인 자산이 있어 일부 복원이 불확실하면 true.
+    pointInTimeUncertain: boolean
   }
   categoryAnalysis: {
     categoryId: string
@@ -213,7 +234,7 @@ export interface MonthlyReport {
     // 50/30/20 표준 비교 (income 기준). income 0이면 null.
     needsIncomeRatio: number | null    // needs / income (표준 ≤50%)
     wantsIncomeRatio: number | null    // wants / income (표준 ≤30%)
-    savingsRate: number | null         // balance / income (=summary.savingsRate, 저축 레그 표준 ≥20%)
+    savingsRate: number | null         // savings 자산 순변동 / income (=summary.savingsRate, 저축 레그 표준 ≥20%)
   }
 }
 
@@ -848,8 +869,25 @@ function buildSavingsGoalProjection(
 }
 
 export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
-  const { year, month, monthStartDay, transactions, previousTransactions, previousPreviousTransactions, annualTransactions, categories, budgets, assets, savingsGoals, wishlist, recurringTransactions } = input
+  const { year, month, monthStartDay, transactions, previousTransactions, previousPreviousTransactions, annualTransactions, laterTransactions, categories, budgets, assets, savingsGoals, wishlist, recurringTransactions } = input
   const { from, to } = getMonthRange(year, month, monthStartDay)
+
+  // 시점 잔액 복원 — 보고 월 말(to) 이후 거래의 부호 델타를 자산별로 합산해두고, 현재 잔액에서 역산한다.
+  const laterDeltaByAsset = new Map<string, number>()
+  for (const tx of laterTransactions) {
+    const ids = [tx.asset_id, tx.from_asset_id, tx.to_asset_id].filter((id, i, arr) => id && arr.indexOf(id) === i)
+    for (const id of ids) {
+      laterDeltaByAsset.set(id, (laterDeltaByAsset.get(id) ?? 0) + assetBalanceDelta(tx, id))
+    }
+  }
+  const balanceAsOfByAsset = new Map<string, number>()
+  let pointInTimeUncertain = false
+  for (const asset of assets) {
+    const recon = reconstructBalanceAsOf(asset, laterDeltaByAsset, to)
+    balanceAsOfByAsset.set(asset.id, recon.balance)
+    if (asset.visible && recon.uncertain) pointInTimeUncertain = true
+  }
+  const balanceAsOf = (asset: Asset) => balanceAsOfByAsset.get(asset.id) ?? asset.balance
   const previous = previousMonth(year, month)
   const previousRange = getMonthRange(previous.year, previous.month, monthStartDay)
 
@@ -918,11 +956,13 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
     const related = loanTransactions.filter(tx => tx.to_asset_id === asset.id)
     const paidThisMonth = related.reduce((sum, tx) => sum + tx.amount, 0)
     const interestThisMonth = related.reduce((sum, tx) => sum + (tx.fee ?? 0), 0)
-    const balanceValue = getDebtBalance(asset.balance)
+    // 잔액은 현재 스냅샷이 아니라 보고 월 말 복원값 사용 (과거 달 보고서 정확도).
+    const reconBalance = balanceAsOf(asset)
+    const balanceValue = getDebtBalance(reconBalance)
     const monthlyPayment = asset.monthly_payment ?? 0
     const interestRate = asset.interest_rate ?? 0
     const payoff = estimateLoanPayoff({
-      balance: asset.balance,
+      balance: reconBalance,
       annualInterestRate: interestRate,
       monthlyPayment,
       paymentDay: asset.payment_day ?? 0,
@@ -980,10 +1020,10 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
   const visibleAssets = assets.filter(asset => asset.visible)
   const totalAssets = visibleAssets
     .filter(asset => !isDebtAssetType(asset.group_type))
-    .reduce((sum, asset) => sum + asset.balance, 0)
+    .reduce((sum, asset) => sum + balanceAsOf(asset), 0)
   const totalDebt = visibleAssets
     .filter(asset => isDebtAssetType(asset.group_type))
-    .reduce((sum, asset) => sum + getDebtBalance(asset.balance), 0)
+    .reduce((sum, asset) => sum + getDebtBalance(balanceAsOf(asset)), 0)
   const netWorth = totalAssets - totalDebt
   const netWorthChange = balance
   const recurringOutflowThisMonth = recurringTransactions
@@ -1141,6 +1181,7 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
       totalDebt,
       netWorth,
       netWorthChange,
+      pointInTimeUncertain,
     },
     categoryAnalysis,
     debtStrategy: {

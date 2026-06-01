@@ -61,6 +61,7 @@ export async function GET(req: NextRequest) {
     previousTransactionRows,
     previousPreviousTransactionRows,
     annualTransactionRows,
+    laterTransactionRows,
     categoryRows,
     budgetRows,
     assetRows,
@@ -72,6 +73,8 @@ export async function GET(req: NextRequest) {
     db.execute({ sql: 'SELECT * FROM transactions WHERE date >= ? AND date <= ? ORDER BY date ASC, created_at ASC', args: [previousRange.from, previousRange.to] }),
     db.execute({ sql: 'SELECT * FROM transactions WHERE date >= ? AND date <= ? ORDER BY date ASC, created_at ASC', args: [previousPreviousRange.from, previousPreviousRange.to] }),
     db.execute({ sql: 'SELECT * FROM transactions WHERE date >= ? AND date <= ? ORDER BY date ASC, created_at ASC', args: [annualFrom, annualTo] }),
+    // 보고 월 말 이후 ~ 현재까지 모든 거래 — 시점 잔액 복원용 (lib/report.ts reconstructBalanceAsOf)
+    db.execute({ sql: 'SELECT * FROM transactions WHERE date > ? ORDER BY date ASC, created_at ASC', args: [currentRange.to] }),
     db.execute('SELECT id,type,name,icon,ord as "order",visible,is_system,essentiality FROM categories ORDER BY ord ASC'),
     db.execute('SELECT * FROM budgets'),
     db.execute('SELECT * FROM assets ORDER BY ord ASC'),
@@ -88,6 +91,7 @@ export async function GET(req: NextRequest) {
     previousTransactions: previousTransactionRows.rows as unknown as Transaction[],
     previousPreviousTransactions: previousPreviousTransactionRows.rows as unknown as Transaction[],
     annualTransactions: annualTransactionRows.rows as unknown as Transaction[],
+    laterTransactions: laterTransactionRows.rows as unknown as Transaction[],
     categories: categoryRows.rows.map(row => ({
       ...(row as unknown as Category),
       visible: Boolean((row as Record<string, unknown>).visible),

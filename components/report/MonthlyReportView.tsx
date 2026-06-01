@@ -315,20 +315,28 @@ function Summary({ report }: { report: MonthlyReport }) {
   ]
 
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-5">
-      {items.map(item => {
-        const Icon = item.icon
-        return (
-          <div key={item.label} className="min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 md:p-4">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-[13px] font-medium text-[var(--color-text-body)]">{item.label}</p>
-              <Icon size={18} className={cn('shrink-0', item.color)} />
+    <div className="space-y-2.5">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-5">
+        {items.map(item => {
+          const Icon = item.icon
+          return (
+            <div key={item.label} className="min-w-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-3 md:p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[13px] font-medium text-[var(--color-text-body)]">{item.label}</p>
+                <Icon size={18} className={cn('shrink-0', item.color)} />
+              </div>
+              <p className={cn('mt-3 break-words text-[19px] font-bold leading-tight tabular-nums md:text-[24px]', item.color)}>{item.value}</p>
+              <p className="mt-1 text-[12px] text-[var(--color-text-sub)]">{item.sub}</p>
             </div>
-            <p className={cn('mt-3 break-words text-[19px] font-bold leading-tight tabular-nums md:text-[24px]', item.color)}>{item.value}</p>
-            <p className="mt-1 text-[12px] text-[var(--color-text-sub)]">{item.sub}</p>
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
+      {/* 시점 잔액 복원 불확실 캐비엇 — 잔액 기준일(balance_date)이 보고 월 이후인 자산이 있으면 표시. lib/report.ts pointInTimeUncertain */}
+      {report.summary.pointInTimeUncertain ? (
+        <p className="break-words text-[12px] leading-snug text-[var(--color-text-sub)]">
+          ⚠️ 잔액 기준일이 이 달 이후인 자산이 있어, 자산·부채·순자산의 시점 잔액 복원이 정확하지 않을 수 있습니다.
+        </p>
+      ) : null}
     </div>
   )
 }
