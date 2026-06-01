@@ -99,7 +99,8 @@ annualOutlook에서 다음 달 actualOutflow 또는 expectedBalance 확인.
 - 금액: ₩1,234,567 (원 단위)
 - 비율: 소수점 1자리
 - 모든 표 뒤 해석 1~2문장 필수
-- 특정 투자상품·주식·코인·보험사 추천 금지`
+- 특정 투자상품·주식·코인·보험사 추천 금지
+- 부채 표 우선순위 컬럼은 반드시 한국어로: high_interest→최우선(고금리), quick_close→빠른청산, heavy_payment→부담큰상환, normal→후순위`
 
 export interface GenerateResult {
   text: string
