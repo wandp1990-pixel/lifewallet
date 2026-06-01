@@ -294,15 +294,23 @@ function getCategoryName(categoryId: string, categories: Category[]) {
 
 interface InsightContext {
   hasActivity: boolean
-  savingsRate: number | null
-  outflowRate: number | null
-  emergencyFundMonths: number | null
-  debtRatio: number | null
+  income: number
+  expense: number
+  outflow: number
   balance: number
+  previousExpense: number
+  savingsRate: number | null
+  emergencyFundMonths: number | null
+  emergencyFundExpenseBase: number  // 비상자금 개월수 분모와 동일한 월 지출 기준(3개월 평균). 부족액 계산을 분모와 일치시킨다.
+  debtRatio: number | null
   expenseChangeRate: number | null
-  topOverBudgetCategory: { name: string; budgetRate: number } | null
-  highInterestLoan: { name: string; interestRate: number } | null
-  highBudgetRateCategory: { name: string; budgetRate: number } | null
+  incomeChangeRate: number | null
+  netWorth: number
+  netWorthChange: number
+  avgMonthlySavings: number
+  categoryAnalysis: MonthlyReport['categoryAnalysis']
+  highInterestLoan: { name: string; interestRate: number; balance: number } | null
+  savingsGoals: MonthlyReport['savingsSummary']['goals']
   nextMonthPlannedOutflow: number
 }
 
@@ -310,83 +318,158 @@ function formatLevelPercent(value: number) {
   return `${Math.round(value)}%`
 }
 
+function signedLevelPercent(value: number) {
+  return `${value > 0 ? '+' : ''}${Math.round(value)}%`
+}
+
+function wonText(value: number) {
+  return `${formatAmount(Math.round(value))}원`
+}
+
+function signedWonText(value: number) {
+  const rounded = Math.round(value)
+  return `${rounded > 0 ? '+' : rounded < 0 ? '-' : ''}${formatAmount(Math.abs(rounded))}원`
+}
+
+// 헤드라인 인사이트는 "보고서 전체에서 가장 중요한 것"을 점수순으로 끌어올린 요약이다.
+// 후보를 score와 함께 모아 정렬 후 카드별 상위 N개만 노출한다(1줄만 버리던 구버전 폐기).
+// 모든 항목은 구체 수치(원/%/개월)를 동반한다. 규칙·점수·폴백은 SCHEMA.md `MonthlyReport.insights` 단일 소스.
+type ScoredInsight = { score: number; insight: Insight }
+
+// 카드별 노출 개수. 잘한 점·주의는 좁은 2열이라 2개, 다음 액션은 전체 폭이라 3개.
+const INSIGHT_LIMIT: Record<InsightKind, number> = { strength: 2, warning: 2, action: 3 }
+
+function topInsights(pool: ScoredInsight[], limit: number): Insight[] {
+  return [...pool].sort((a, b) => b.score - a.score).slice(0, limit).map(s => s.insight)
+}
+
 function buildInsights(ctx: InsightContext): MonthlyReport['insights'] {
   if (!ctx.hasActivity) {
     return { strengths: [], warnings: [], actions: [] }
   }
 
-  const strengths: Insight[] = []
-  const warnings: Insight[] = []
-  const actions: Insight[] = []
+  const strengths: ScoredInsight[] = []
+  const warnings: ScoredInsight[] = []
+  const actions: ScoredInsight[] = []
 
-  if (ctx.savingsRate !== null && ctx.savingsRate >= 20) {
-    strengths.push({ kind: 'strength', title: '저축률이 안전 구간', detail: '한국FP학회 권장 20% 이상', metric: formatLevelPercent(ctx.savingsRate) })
+  // 파생 신호 (이미 계산된 categoryAnalysis·savingsGoals 재활용)
+  const topCategory = ctx.categoryAnalysis[0] ?? null
+  const spikeCategory = ctx.categoryAnalysis
+    .filter(c => c.vsAvg3mRate !== null && c.vsAvg3mRate >= 50 && c.avg3m > 0 && c.amount - c.avg3m >= 30000)
+    .sort((a, b) => (b.amount - b.avg3m) - (a.amount - a.avg3m))[0] ?? null
+  const reducerCategory = ctx.categoryAnalysis
+    .filter(c => c.vsAvg3mRate !== null && c.vsAvg3mRate <= -10 && c.avg3m > 0)
+    .sort((a, b) => (a.vsAvg3mRate ?? 0) - (b.vsAvg3mRate ?? 0))[0] ?? null
+  const budgetedCategories = ctx.categoryAnalysis.filter(c => c.budget > 0)
+  const overBudget = ctx.categoryAnalysis
+    .filter(c => c.overBudget && c.budgetRate !== null)
+    .sort((a, b) => (b.amount - b.budget) - (a.amount - a.budget))
+  const behindGoal = ctx.savingsGoals.find(g => (g.status === 'behind' || g.status === 'at_risk') && g.requiredMonthlySavings !== null)
+  const achievedGoal = ctx.savingsGoals.find(g => g.status === 'achieved')
+
+  // ── 잘한 점 (strengths) ─────────────────────────────────────
+  if (ctx.balance > 0) {
+    strengths.push({ score: 80 + Math.min(ctx.balance / 10000, 30), insight: { kind: 'strength', title: '이번 달 흑자', detail: `수입 ${wonText(ctx.income)} − 지출 ${wonText(ctx.outflow)}`, metric: signedWonText(ctx.balance) } })
   }
-  if (ctx.outflowRate !== null && ctx.outflowRate <= 70) {
-    strengths.push({ kind: 'strength', title: '가계수지 안전', detail: '수입의 70% 이하 지출', metric: formatLevelPercent(ctx.outflowRate) })
+  if (ctx.savingsRate !== null && ctx.savingsRate >= 20) {
+    strengths.push({ score: 90 + ctx.savingsRate, insight: { kind: 'strength', title: '저축률 안전 구간', detail: '한국FP학회 권장 20% 이상', metric: formatLevelPercent(ctx.savingsRate) } })
+  } else if (ctx.savingsRate !== null && ctx.savingsRate >= 10) {
+    strengths.push({ score: 55 + ctx.savingsRate, insight: { kind: 'strength', title: '저축률 양호', detail: '20% 안전 구간이 머지않았습니다', metric: formatLevelPercent(ctx.savingsRate) } })
   }
   if (ctx.emergencyFundMonths !== null && ctx.emergencyFundMonths >= 3 && ctx.emergencyFundMonths <= 6) {
-    strengths.push({ kind: 'strength', title: '비상금 안전 구간', detail: '월 지출 3~6개월치 확보', metric: `${ctx.emergencyFundMonths.toFixed(1)}개월` })
+    strengths.push({ score: 75, insight: { kind: 'strength', title: '비상금 안전 구간', detail: '월 지출 3~6개월치 확보', metric: `${ctx.emergencyFundMonths.toFixed(1)}개월` } })
+  } else if (ctx.emergencyFundMonths !== null && ctx.emergencyFundMonths > 6) {
+    strengths.push({ score: 55, insight: { kind: 'strength', title: '비상금 충분', detail: '권장 6개월분 이상 확보', metric: `${ctx.emergencyFundMonths.toFixed(1)}개월` } })
   }
   if (ctx.expenseChangeRate !== null && ctx.expenseChangeRate <= -5) {
-    strengths.push({ kind: 'strength', title: '지출이 줄었습니다', detail: '전월 대비 감소', metric: formatLevelPercent(ctx.expenseChangeRate) })
+    strengths.push({ score: 50 + Math.min(-ctx.expenseChangeRate, 30), insight: { kind: 'strength', title: '지출 감소', detail: `전월 대비 ${wonText(Math.max(ctx.previousExpense - ctx.expense, 0))} 줄였습니다`, metric: signedLevelPercent(ctx.expenseChangeRate) } })
+  }
+  if (ctx.incomeChangeRate !== null && ctx.incomeChangeRate >= 5) {
+    strengths.push({ score: 45, insight: { kind: 'strength', title: '수입 증가', detail: '전월 대비 수입이 늘었습니다', metric: signedLevelPercent(ctx.incomeChangeRate) } })
+  }
+  if (budgetedCategories.length > 0 && overBudget.length === 0) {
+    strengths.push({ score: 48, insight: { kind: 'strength', title: '예산 모두 준수', detail: `예산 설정한 ${budgetedCategories.length}개 카테고리 모두 예산 내`, metric: undefined } })
+  }
+  if (achievedGoal) {
+    strengths.push({ score: 60, insight: { kind: 'strength', title: `목표 달성: ${achievedGoal.name}`, detail: '저축 목표를 달성했습니다', metric: formatLevelPercent(achievedGoal.progress) } })
+  }
+  // 폴백 — 적자 달에도 노출할 상대적 긍정 신호 (잘한 점 빈 카드 방지)
+  if (ctx.netWorthChange > 0) {
+    strengths.push({ score: 40, insight: { kind: 'strength', title: '순자산 증가', detail: '이번 달 자산이 늘었습니다', metric: signedWonText(ctx.netWorthChange) } })
+  } else if (ctx.netWorth > 0) {
+    strengths.push({ score: 25, insight: { kind: 'strength', title: '순자산 플러스 유지', detail: `자산이 부채보다 ${wonText(ctx.netWorth)} 많습니다`, metric: signedWonText(ctx.netWorth) } })
+  }
+  if (reducerCategory && reducerCategory.vsAvg3mRate !== null) {
+    strengths.push({ score: 30, insight: { kind: 'strength', title: `${reducerCategory.name} 절약`, detail: `평소(${wonText(reducerCategory.avg3m)})보다 적게 썼습니다`, metric: signedLevelPercent(reducerCategory.vsAvg3mRate) } })
+  }
+  // 평소 수준을 유지한(±10% 이내, 예산 내) 최대 지출 카테고리 — 적자 달에도 노출할 안정 신호
+  const stableCategory = ctx.categoryAnalysis.find(c => !c.overBudget && c.vsAvg3mRate !== null && Math.abs(c.vsAvg3mRate) <= 10 && c.avg3m > 0)
+  if (stableCategory) {
+    strengths.push({ score: 18, insight: { kind: 'strength', title: `${stableCategory.name} 지출 안정`, detail: '평소 수준을 유지했습니다', metric: undefined } })
+  }
+  // 최후 폴백 — 그래도 강점이 하나도 없으면 기록 습관을 격려 (빈 카드 절대 방지)
+  if (strengths.length === 0) {
+    const expenseCount = ctx.categoryAnalysis.reduce((sum, c) => sum + c.count, 0)
+    if (expenseCount > 0) {
+      strengths.push({ score: 10, insight: { kind: 'strength', title: '기록을 이어가고 있어요', detail: '꾸준한 기록이 개선의 출발점입니다', metric: `${expenseCount}건` } })
+    }
   }
 
+  // ── 주의 (warnings) — 모든 항목이 금액/비율을 동반 ──────────────
   if (ctx.balance < 0) {
-    warnings.push({ kind: 'warning', title: '이번 달 잔액 음수', detail: '수입보다 지출이 많습니다', metric: undefined })
+    warnings.push({ score: 95 + Math.min(-ctx.balance / 10000, 30), insight: { kind: 'warning', title: '이번 달 적자', detail: `수입 ${wonText(ctx.income)} < 지출 ${wonText(ctx.outflow)}`, metric: signedWonText(ctx.balance) } })
   }
   if (ctx.savingsRate !== null && ctx.savingsRate < 0) {
-    warnings.push({ kind: 'warning', title: '저축률 음수', detail: '고정비·대출 상환 부담 점검 필요', metric: formatLevelPercent(ctx.savingsRate) })
+    warnings.push({ score: 78, insight: { kind: 'warning', title: '저축률 음수', detail: '고정비·대출 상환 부담을 점검하세요', metric: formatLevelPercent(ctx.savingsRate) } })
   }
   if (ctx.debtRatio !== null && ctx.debtRatio > 60) {
-    warnings.push({ kind: 'warning', title: '부채 비율 위험', detail: '총자산 대비 부채 60% 초과', metric: formatLevelPercent(ctx.debtRatio) })
+    warnings.push({ score: 80, insight: { kind: 'warning', title: '부채 비율 위험', detail: '총자산 대비 부채 60% 초과', metric: cappedPercent(ctx.debtRatio, 100) } })
   }
-  if (ctx.topOverBudgetCategory) {
-    warnings.push({
-      kind: 'warning',
-      title: `${ctx.topOverBudgetCategory.name} 예산 초과`,
-      detail: '월 예산을 넘어선 카테고리가 있습니다',
-      metric: formatLevelPercent(ctx.topOverBudgetCategory.budgetRate),
-    })
+  for (const cat of overBudget.slice(0, 2)) {
+    const overage = cat.amount - cat.budget
+    warnings.push({ score: 60 + Math.min(overage / 10000, 20), insight: { kind: 'warning', title: `${cat.name} 예산 초과`, detail: `예산 ${wonText(cat.budget)} 대비 ${wonText(overage)} 초과`, metric: formatLevelPercent(cat.budgetRate ?? 0) } })
   }
   if (ctx.expenseChangeRate !== null && ctx.expenseChangeRate >= 25) {
-    warnings.push({ kind: 'warning', title: '지출 급증', detail: '전월 대비 25% 이상 증가', metric: formatLevelPercent(ctx.expenseChangeRate) })
+    warnings.push({ score: 65, insight: { kind: 'warning', title: '지출 급증', detail: `전월 대비 ${wonText(Math.max(ctx.expense - ctx.previousExpense, 0))} 늘었습니다`, metric: signedLevelPercent(ctx.expenseChangeRate) } })
+  }
+  if (spikeCategory && spikeCategory.vsAvg3mRate !== null) {
+    warnings.push({ score: 55, insight: { kind: 'warning', title: `${spikeCategory.name} 지출 급증`, detail: `평소 ${wonText(spikeCategory.avg3m)} → ${wonText(spikeCategory.amount)}`, metric: signedLevelPercent(spikeCategory.vsAvg3mRate) } })
+  }
+  if (topCategory && topCategory.share > 40) {
+    warnings.push({ score: 45, insight: { kind: 'warning', title: '지출 편중', detail: `이번 달 지출의 상당 부분이 ${topCategory.name}에 집중`, metric: formatLevelPercent(topCategory.share) } })
   }
 
-  if (ctx.emergencyFundMonths !== null && ctx.emergencyFundMonths < 3) {
-    actions.push({
-      kind: 'action',
-      title: '비상금 확보 필요',
-      detail: '저축 목표에 우선 배정 권장',
-      metric: `${ctx.emergencyFundMonths.toFixed(1)}개월`,
-    })
-  }
+  // ── 다음 액션 (actions) — 목표 수치를 동반한 구체 행동 ──────────
   if (ctx.highInterestLoan) {
-    actions.push({
-      kind: 'action',
-      title: `고금리 대출 우선상환`,
-      detail: `${ctx.highInterestLoan.name} 추가 상환 검토`,
-      metric: `${ctx.highInterestLoan.interestRate.toFixed(1)}%`,
-    })
+    actions.push({ score: 82, insight: { kind: 'action', title: `${ctx.highInterestLoan.name} 우선상환`, detail: `금리 ${ctx.highInterestLoan.interestRate.toFixed(1)}% 고금리 · 잔액 ${wonText(ctx.highInterestLoan.balance)}`, metric: `${ctx.highInterestLoan.interestRate.toFixed(1)}%` } })
   }
-  if (ctx.highBudgetRateCategory) {
-    actions.push({
-      kind: 'action',
-      title: `${ctx.highBudgetRateCategory.name} 예산 조정`,
-      detail: '예산 상향 또는 지출 점검 필요',
-      metric: formatLevelPercent(ctx.highBudgetRateCategory.budgetRate),
-    })
+  if (ctx.emergencyFundMonths !== null && ctx.emergencyFundMonths < 3 && ctx.emergencyFundExpenseBase > 0) {
+    const shortfall = Math.max((3 - ctx.emergencyFundMonths) * ctx.emergencyFundExpenseBase, 0)
+    actions.push({ score: 75, insight: { kind: 'action', title: '비상금 우선 확보', detail: `월 지출 3개월분까지 ${wonText(shortfall)} 부족 — 저축 목표에 우선 배정`, metric: `${ctx.emergencyFundMonths.toFixed(1)}개월` } })
   }
   if (ctx.nextMonthPlannedOutflow > 0 && ctx.balance < ctx.nextMonthPlannedOutflow) {
-    actions.push({
-      kind: 'action',
-      title: '다음 달 지출 점검',
-      detail: '이번 달 잔액보다 예정 지출이 많습니다',
-      metric: undefined,
-    })
+    actions.push({ score: 60, insight: { kind: 'action', title: '다음 달 지출 대비', detail: `예정 지출 ${wonText(ctx.nextMonthPlannedOutflow)} > 이번 달 잔액 ${signedWonText(ctx.balance)}`, metric: undefined } })
+  }
+  const overBudgetAction = overBudget.find(c => (c.budgetRate ?? 0) > 120)
+  if (overBudgetAction) {
+    actions.push({ score: 55, insight: { kind: 'action', title: `${overBudgetAction.name} 예산 조정`, detail: `예산 ${wonText(overBudgetAction.budget)} 대비 ${formatLevelPercent(overBudgetAction.budgetRate ?? 0)} 지출 — 상향 또는 절감`, metric: formatLevelPercent(overBudgetAction.budgetRate ?? 0) } })
+  }
+  if (behindGoal && behindGoal.requiredMonthlySavings !== null) {
+    actions.push({ score: 50, insight: { kind: 'action', title: `${behindGoal.name} 저축 페이스`, detail: `목표일까지 월 ${wonText(behindGoal.requiredMonthlySavings)} 필요 · 현 페이스 ${signedWonText(ctx.avgMonthlySavings)}`, metric: `월 ${wonText(behindGoal.requiredMonthlySavings)}` } })
+  }
+  if (ctx.balance > 0 && behindGoal) {
+    actions.push({ score: 45, insight: { kind: 'action', title: '흑자분 목표 배정', detail: `이번 달 흑자 ${wonText(ctx.balance)}을 "${behindGoal.name}"에 배정 검토`, metric: signedWonText(ctx.balance) } })
+  }
+  // 폴백 — 건전한 달에도 한 줄 제시 (목표 미설정 시 설정 유도)
+  if (ctx.savingsGoals.length === 0 && ctx.balance > 0) {
+    actions.push({ score: 30, insight: { kind: 'action', title: '저축 목표 설정', detail: '여유 자금을 목표에 배정해 자동 추적하세요', metric: undefined } })
   }
 
-  return { strengths, warnings, actions }
+  return {
+    strengths: topInsights(strengths, INSIGHT_LIMIT.strength),
+    warnings: topInsights(warnings, INSIGHT_LIMIT.warning),
+    actions: topInsights(actions, INSIGHT_LIMIT.action),
+  }
 }
 
 function clampGauge(value: number, max: number): number {
@@ -396,6 +479,20 @@ function clampGauge(value: number, max: number): number {
 
 function roundPercent(value: number): string {
   return `${Math.round(value)}%`
+}
+
+// 표시 상한 — 분모가 작을 때(자산 미입력·희소한 달 등) ratio()가 무한정 커지는 값을
+// 읽을 수 있는 상한으로 묶는다. 레벨 판정·게이지는 원시값(value)을 그대로 쓰므로
+// 임계값을 넘은 지점에서 이미 포화돼 정보 손실이 없다.
+// 단일 소스: SCHEMA.md `MonthlyReport.healthMetrics` "표시 상한".
+function cappedPercent(value: number, cap: number): string {
+  if (value > cap) return `${cap}%+`
+  if (value < -cap) return `-${cap}%`
+  return `${Math.round(value)}%`
+}
+function cappedMonths(value: number, cap: number): string {
+  if (value > cap) return `${cap}개월+`
+  return `${value.toFixed(1)}개월`
 }
 
 function makeHealthMetric(
@@ -439,7 +536,7 @@ function buildHealthMetrics(input: HealthMetricInput): HealthMetric[] {
     makeHealthMetric(
       'savingsRate', '저축률', true,
       savingsRate,
-      savingsRate === null ? '-' : roundPercent(savingsRate),
+      savingsRate === null ? '-' : cappedPercent(savingsRate, 100),
       savingsRate === null ? 'none' : savingsRate >= 20 ? 'safe' : savingsRate >= 10 ? 'caution' : 'danger',
       40, '안전 20% 이상',
     ),
@@ -447,7 +544,7 @@ function buildHealthMetrics(input: HealthMetricInput): HealthMetric[] {
     makeHealthMetric(
       'outflowRate', '가계수지(지출률)', true,
       outflowRate,
-      outflowRate === null ? '-' : roundPercent(outflowRate),
+      outflowRate === null ? '-' : cappedPercent(outflowRate, 300),
       outflowRate === null ? 'none' : outflowRate <= 70 ? 'safe' : outflowRate <= 85 ? 'caution' : 'danger',
       100, '안전 70% 이하',
     ),
@@ -455,7 +552,7 @@ function buildHealthMetrics(input: HealthMetricInput): HealthMetric[] {
     makeHealthMetric(
       'emergencyFund', '비상자금', true,
       emergencyFundMonths,
-      emergencyFundMonths === null ? '-' : `${emergencyFundMonths.toFixed(1)}개월`,
+      emergencyFundMonths === null ? '-' : cappedMonths(emergencyFundMonths, 60),
       emergencyFundMonths === null
         ? 'none'
         : emergencyFundMonths >= 3 && emergencyFundMonths <= 6
@@ -469,7 +566,7 @@ function buildHealthMetrics(input: HealthMetricInput): HealthMetric[] {
     makeHealthMetric(
       'debtRatio', '총부채부담', true,
       debtRatio,
-      debtRatio === null ? '-' : roundPercent(debtRatio),
+      debtRatio === null ? '-' : cappedPercent(debtRatio, 100),
       debtRatio === null ? 'none' : debtRatio <= 40 ? 'safe' : debtRatio <= 60 ? 'caution' : 'danger',
       100, '안전 40% 이하',
     ),
@@ -477,7 +574,7 @@ function buildHealthMetrics(input: HealthMetricInput): HealthMetric[] {
     makeHealthMetric(
       'debtServiceRatio', '총부채상환비율', true,
       debtServiceRatio,
-      debtServiceRatio === null ? '-' : roundPercent(debtServiceRatio),
+      debtServiceRatio === null ? '-' : cappedPercent(debtServiceRatio, 100),
       debtServiceRatio === null ? 'none' : debtServiceRatio <= 30 ? 'safe' : debtServiceRatio <= 40 ? 'caution' : 'danger',
       50, '안전 30% 이하',
     ),
@@ -485,7 +582,7 @@ function buildHealthMetrics(input: HealthMetricInput): HealthMetric[] {
     makeHealthMetric(
       'budgetUsageRate', '예산 소진율', false,
       budgetUsageRate,
-      budgetUsageRate === null ? '-' : roundPercent(budgetUsageRate),
+      budgetUsageRate === null ? '-' : cappedPercent(budgetUsageRate, 300),
       budgetUsageRate === null ? 'none' : budgetUsageRate <= 100 ? 'safe' : budgetUsageRate <= 120 ? 'caution' : 'danger',
       120, '예산 100% 이내',
     ),
@@ -493,7 +590,7 @@ function buildHealthMetrics(input: HealthMetricInput): HealthMetric[] {
     makeHealthMetric(
       'fixedCostRate', '고정비 비중', false,
       fixedCostRate,
-      fixedCostRate === null ? '-' : roundPercent(fixedCostRate),
+      fixedCostRate === null ? '-' : cappedPercent(fixedCostRate, 100),
       fixedCostRate === null ? 'none' : fixedCostRate <= 50 ? 'safe' : fixedCostRate <= 70 ? 'caution' : 'danger',
       100, '권장 50% 이하',
     ),
@@ -1122,23 +1219,18 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
 
   const expenseChangeRateValue = changeRate(expense, previousExpense)
   const debtRatioValue = totalAssets > 0 ? ratio(totalDebt, totalAssets) : null
-  const emergencyFundMonthsValue = expense > 0 ? totalAssets / expense : null
+  // 비상자금 개월수 분모는 단일 월 지출이 아니라 3개월 평균 지출(expense3mAvg) — 희소한 달의 분모 폭증을 막고
+  // summary의 3개월 rolling 기준과 일관. 단일 소스: SCHEMA.md `MonthlyReport.healthMetrics` "비상자금".
+  const emergencyFundMonthsValue = expense3mAvg > 0 ? totalAssets / expense3mAvg : null
   // 총부채상환비율 = 월 부채상환액 / 월 총소득. 카드 결제는 별도 거래로 모델링되지 않아
   // 현재 추적 가능한 월 부채상환액 = loan_repayment 합(loanRepayment)으로 근사한다.
   const debtServiceRatioValue = income > 0 ? ratio(loanRepayment, income) : null
   const budgetUsageRateValue = totalBudget > 0 ? ratio(expense, totalBudget) : null
   const fixedCostRateValue = income > 0 ? ratio(recurringOutflowThisMonth, income) : null
   const overBudgetCategories = categoryAnalysis.filter(row => row.overBudget && row.budgetRate !== null)
-  const topOverBudgetCategory = overBudgetCategories.length > 0
-    ? { name: overBudgetCategories[0].name, budgetRate: overBudgetCategories[0].budgetRate ?? 0 }
-    : null
-  const highBudgetRateCategoryRow = categoryAnalysis.find(row => (row.budgetRate ?? 0) > 120)
-  const highBudgetRateCategory = highBudgetRateCategoryRow
-    ? { name: highBudgetRateCategoryRow.name, budgetRate: highBudgetRateCategoryRow.budgetRate ?? 0 }
-    : null
   const highInterestLoanRow = loans.find(loan => loan.priority === 'high_interest' && loan.balance > 0)
   const highInterestLoan = highInterestLoanRow
-    ? { name: highInterestLoanRow.name, interestRate: highInterestLoanRow.interestRate }
+    ? { name: highInterestLoanRow.name, interestRate: highInterestLoanRow.interestRate, balance: highInterestLoanRow.balance }
     : null
   const nextPlannedTotal = nextBaseExpense + nextLoanPayments + nextWishlistAmount
   const recommendations = buildRecommendations({
@@ -1158,15 +1250,23 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
   })
   const insights = buildInsights({
     hasActivity: income > 0 || outflow > 0,
-    savingsRate,
-    outflowRate,
-    emergencyFundMonths: emergencyFundMonthsValue,
-    debtRatio: debtRatioValue,
+    income,
+    expense,
+    outflow,
     balance,
+    previousExpense,
+    savingsRate,
+    emergencyFundMonths: emergencyFundMonthsValue,
+    emergencyFundExpenseBase: expense3mAvg,
+    debtRatio: debtRatioValue,
     expenseChangeRate: expenseChangeRateValue,
-    topOverBudgetCategory,
+    incomeChangeRate: changeRate(income, previousIncome),
+    netWorth,
+    netWorthChange,
+    avgMonthlySavings,
+    categoryAnalysis,
     highInterestLoan,
-    highBudgetRateCategory,
+    savingsGoals: savingsGoalsReport,
     nextMonthPlannedOutflow: nextPlannedTotal,
   })
 

@@ -259,7 +259,6 @@ function KeyInsights({ report }: { report: MonthlyReport }) {
             : card.kind === 'warning'
               ? report.insights.warnings
               : report.insights.actions
-        const item = list[0]
         const Icon = card.icon
         return (
           <div
@@ -277,16 +276,26 @@ function KeyInsights({ report }: { report: MonthlyReport }) {
               </div>
               <Icon size={16} className={cn('shrink-0', card.accent)} />
             </div>
-            {item ? (
-              <div className="mt-2 flex flex-1 flex-col">
-                <p className="break-words text-[15px] font-bold leading-snug text-[var(--color-text)]">{item.title}</p>
-                {item.detail ? (
-                  <p className="mt-0.5 break-words text-[12px] leading-snug text-[var(--color-text-body)]">{item.detail}</p>
-                ) : null}
-                {item.metric ? (
-                  <p className={cn('mt-auto pt-1.5 text-[18px] font-bold tabular-nums', card.accent)}>{item.metric}</p>
-                ) : null}
-              </div>
+            {list.length > 0 ? (
+              // 카드별 상위 N개를 컴팩트 리스트로. 노출 개수는 lib/report.ts INSIGHT_LIMIT가 단일 소스.
+              <ul className="mt-2.5 flex flex-1 flex-col gap-2.5">
+                {list.map((item, index) => (
+                  <li
+                    key={index}
+                    className={cn(index > 0 && 'border-t border-[var(--color-border)] pt-2.5')}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="break-words text-[14px] font-bold leading-snug text-[var(--color-text)] md:text-[15px]">{item.title}</p>
+                      {item.metric ? (
+                        <span className={cn('shrink-0 text-[14px] font-bold tabular-nums md:text-[15px]', card.accent)}>{item.metric}</span>
+                      ) : null}
+                    </div>
+                    {item.detail ? (
+                      <p className="mt-0.5 break-words text-[12px] leading-snug text-[var(--color-text-body)]">{item.detail}</p>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
             ) : (
               <p className="mt-2 break-words text-[12px] leading-snug text-[var(--color-text-sub)]">
                 {hasActivity ? card.emptyMessage : '거래를 입력하면 자동 분석이 시작됩니다.'}
