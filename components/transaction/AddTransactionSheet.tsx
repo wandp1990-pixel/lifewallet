@@ -696,6 +696,22 @@ export default function AddTransactionSheet({ open, onClose, onSaved, onRecurrin
             <AssetGroupPicker pool={toPool} selectedId={toAssetId} onSelect={id => { setToAssetId(id); setPanel('amount') }} />
           </SwapPanel>
         )}
+
+        {panel === null && (
+          <div
+            className="shrink-0 border-t border-[var(--color-border)] bg-[var(--color-surface)]"
+            style={{ padding: `8px 16px calc(8px + env(safe-area-inset-bottom, 0px))` }}
+          >
+            <button
+              onClick={() => submit(false)}
+              disabled={!isValid || saving}
+              className="w-full h-12 rounded-xl text-white text-[15px] font-semibold disabled:opacity-40 active:opacity-80 transition-opacity"
+              style={{ background: toneColor }}
+            >
+              {saving ? '저장 중…' : '저장'}
+            </button>
+          </div>
+        )}
       </div>
 
       <ConfirmDialog
