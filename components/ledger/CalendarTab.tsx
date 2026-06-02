@@ -9,6 +9,8 @@ interface Props {
   month: number
   monthStartDay: number
   transactions: Transaction[]
+  /** 현재 선택된 날짜 'YYYY-MM-DD' (상세 시트가 열린 날). today와 별개로 표시 */
+  selectedDate: string | null
   onSelectDate: (date: string) => void
 }
 
@@ -25,7 +27,7 @@ function addDays(date: Date, days: number): Date {
   return next
 }
 
-export default function CalendarTab({ year, month, monthStartDay, transactions, onSelectDate }: Props) {
+export default function CalendarTab({ year, month, monthStartDay, transactions, selectedDate, onSelectDate }: Props) {
   const now = new Date()
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
@@ -91,6 +93,7 @@ export default function CalendarTab({ year, month, monthStartDay, transactions, 
           const data = cell.isCurrentPeriod ? dailyMap[ds] : undefined
           const isToday = ds === today
           const isCur = cell.isCurrentPeriod
+          const isSelected = isCur && ds === selectedDate
 
           const numColor = isCur
             ? col === 0 ? 'text-[var(--color-expense)]'
@@ -104,7 +107,9 @@ export default function CalendarTab({ year, month, monthStartDay, transactions, 
               onClick={() => isCur && onSelectDate(ds)}
               disabled={!isCur}
               className={`flex flex-col items-center pt-2 pb-1.5 min-h-0 gap-0.5 transition-colors ${
-                isCur
+                isSelected
+                  ? 'bg-[var(--color-primary-subtle)]'
+                  : isCur
                   ? 'bg-[var(--color-surface)] hover:bg-[var(--color-surface-sub)] active:bg-[var(--color-surface-sub)]'
                   : 'bg-[var(--color-bg)]'
               }`}
@@ -113,6 +118,8 @@ export default function CalendarTab({ year, month, monthStartDay, transactions, 
               <span className={`text-[13px] font-semibold leading-none w-7 h-7 flex items-center justify-center rounded-full ${
                 isToday
                   ? 'bg-[var(--color-primary)] text-white'
+                  : isSelected
+                  ? `ring-2 ring-[var(--color-primary)] ${numColor}`
                   : numColor
               }`}>
                 {dayLabel(cell)}

@@ -11,6 +11,7 @@ import { getDateInDisplayMonth, getDisplayMonth, getMonthStartDay, getMonthRange
 import { fetcher } from '@/lib/fetcher'
 import ListTab from '@/components/ledger/ListTab'
 import CalendarTab from '@/components/ledger/CalendarTab'
+import DayDetailSheet from '@/components/ledger/DayDetailSheet'
 import MonthlyTab from '@/components/ledger/MonthlyTab'
 import MemoTab from '@/components/ledger/MemoTab'
 import { SkeletonCard, SkeletonSummaryCard } from '@/components/ui/Skeleton'
@@ -55,6 +56,9 @@ export default function LedgerPage() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [addSheetOpen, setAddSheetOpen] = useState(false)
   const [editSheetTx, setEditSheetTx] = useState<Transaction | null>(null)
+  // 달력 탭: 선택한 날짜 상세 시트. addDate는 그 날짜로 거래 추가 시 프리셋.
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [addDate, setAddDate] = useState<string | undefined>(undefined)
   const [applyingId, setApplyingId] = useState<string | null>(null)
   const [memoFormOpen, setMemoFormOpen] = useState(false)
   const [editingMemo, setEditingMemo] = useState<Memo | null>(null)
@@ -422,7 +426,7 @@ export default function LedgerPage() {
       ) : view === 'list' ? (
         <ListTab transactions={filtered} categories={categories} assets={assets} onDelete={handleDelete} onEdit={tx => setEditSheetTx(tx)} />
       ) : view === 'calendar' ? (
-        <CalendarTab year={year} month={month} monthStartDay={monthStartDay ?? 1} transactions={transactions} onSelectDate={() => setView('list')} />
+        <CalendarTab year={year} month={month} monthStartDay={monthStartDay ?? 1} transactions={transactions} selectedDate={selectedDate} onSelectDate={ds => setSelectedDate(ds)} />
       ) : view === 'monthly' ? (
         <MonthlyTab year={yearlyYear} transactions={yearlyTransactions} monthStartDay={monthStartDay ?? 1} loading={yearlyLoading} />
       ) : view === 'summary' ? (
@@ -482,7 +486,7 @@ export default function LedgerPage() {
         <button
           onClick={() => {
             if (view === 'memo') { setEditingMemo(null); setMemoFormOpen(true) }
-            else setAddSheetOpen(true)
+            else { setAddDate(undefined); setAddSheetOpen(true) }
           }}
           className="h-[var(--fab-size)] w-[var(--fab-size)] rounded-full bg-[var(--color-primary)] flex items-center justify-center shadow-[0px_4px_16px_rgba(49,130,246,0.4)] active:scale-95 transition-transform"
           aria-label={view === 'memo' ? '새 메모' : '거래 추가'}
@@ -496,9 +500,21 @@ export default function LedgerPage() {
         mode={editSheetTx ? 'edit' : 'new'}
         initial={editSheetTx ?? undefined}
         transactionId={editSheetTx?.id}
-        onClose={() => { setAddSheetOpen(false); setEditSheetTx(null) }}
+        defaultDate={addDate}
+        onClose={() => { setAddSheetOpen(false); setEditSheetTx(null); setAddDate(undefined) }}
         onSaved={() => { setEditSheetTx(null); mutateTx() }}
         onRecurringApplied={() => { mutateRecurring() }}
+      />
+
+      <DayDetailSheet
+        date={selectedDate}
+        transactions={selectedDate ? transactions.filter(t => t.date === selectedDate) : []}
+        categories={categories}
+        assets={assets}
+        onClose={() => setSelectedDate(null)}
+        onAdd={d => { setSelectedDate(null); setAddDate(d); setAddSheetOpen(true) }}
+        onEdit={tx => { setSelectedDate(null); setEditSheetTx(tx) }}
+        onDelete={handleDelete}
       />
 
       <MemoForm

@@ -81,6 +81,8 @@ interface Props {
   mode?: 'new' | 'edit'
   initial?: Transaction
   transactionId?: string
+  /** 새 거래 기본 날짜 'YYYY-MM-DD' (달력에서 특정 날 추가 시). 미지정 시 오늘 */
+  defaultDate?: string
 }
 
 function isSheetTxType(type: string): type is TxType {
@@ -95,7 +97,7 @@ function displayMonthKeyForDate(dateStr: string): string {
   return `${displayMonth.year}-${String(displayMonth.month).padStart(2, '0')}`
 }
 
-export default function AddTransactionSheet({ open, onClose, onSaved, onRecurringApplied, mode = 'new', initial, transactionId }: Props) {
+export default function AddTransactionSheet({ open, onClose, onSaved, onRecurringApplied, mode = 'new', initial, transactionId, defaultDate }: Props) {
   const { categories, assets } = useStore()
 
   const [type, setType] = useState<TxType>('expense')
@@ -181,7 +183,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, onRecurrin
       setFeeStr('')
       setContent('')
       setNote('')
-      setDate(todayStr())
+      setDate(defaultDate ?? todayStr())
       setSelectedRecurringId('')
     }
     setAcc(null)
