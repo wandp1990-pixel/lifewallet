@@ -27,7 +27,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko" className="h-dvh overflow-hidden">
+    <html lang="ko" className="h-dvh overflow-hidden" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{

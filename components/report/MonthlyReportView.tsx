@@ -126,7 +126,7 @@ export default function MonthlyReportView() {
             <button
               type="button"
               onClick={() => mutate()}
-              className="mt-5 h-10 rounded-lg bg-[var(--color-primary)] px-4 text-sm font-semibold text-white"
+              className="mt-5 h-11 rounded-lg bg-[var(--color-primary)] px-4 text-sm font-semibold text-white"
             >
               다시 시도
             </button>

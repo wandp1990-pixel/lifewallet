@@ -129,7 +129,7 @@ export default function AssetsPage() {
           <h1 className="text-[17px] font-bold text-[var(--color-text)]">자산</h1>
           <button
             onClick={openAdd}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[var(--color-primary)] text-white text-sm font-semibold"
+            className="flex h-11 items-center gap-1 rounded-lg bg-[var(--color-primary)] px-4 text-sm font-semibold text-white"
           >
             <Plus size={16} />
             자산 추가
@@ -272,6 +272,11 @@ export default function AssetsPage() {
                                   집계 제외
                                 </span>
                               )}
+                              {asset.target_balance_enabled && !isDebt && asset.balance < asset.target_balance && (
+                                <span className="shrink-0 rounded-full bg-[var(--color-expense)]/10 px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-expense)]">
+                                  {formatAmount(asset.target_balance - asset.balance)}원 부족
+                                </span>
+                              )}
                             </span>
                             <span className={`shrink-0 text-sm font-semibold ${!asset.visible ? 'text-[var(--color-text-placeholder)]' : isDebt ? 'text-[var(--color-expense)]' : 'text-[var(--color-text)]'}`}>
                               {!asset.visible ? '집계 제외' : `${formatAmount(isDebt ? getDebtBalance(asset.balance) : asset.balance)}원`}
@@ -279,7 +284,8 @@ export default function AssetsPage() {
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); setMenuOpen(menuOpen === asset.id ? null : asset.id) }}
-                            className="ml-2 p-1 rounded-lg hover:bg-[var(--color-border)] transition-colors"
+                            className="ml-2 inline-flex h-11 w-11 items-center justify-center rounded-xl hover:bg-[var(--color-border)] transition-colors"
+                            aria-label="자산 메뉴"
                           >
                             <MoreHorizontal size={16} className="text-[var(--color-text-sub)]" />
                           </button>

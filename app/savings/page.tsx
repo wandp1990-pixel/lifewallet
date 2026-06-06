@@ -52,7 +52,7 @@ export default function SavingsPage() {
           <h1 className="text-xl font-bold text-[var(--color-text)]">저축 목표</h1>
           <button
             onClick={() => { setEditing(null); setFormOpen(true) }}
-            className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold"
+            className="flex h-11 items-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-4 text-sm font-semibold text-white"
           >
             <Plus size={16} />
             목표 추가
@@ -99,7 +99,7 @@ export default function SavingsPage() {
             <p className="text-sm text-[var(--color-text-body)]">저축 목표를 추가해서 달성률을 추적해 보세요</p>
             <button
               onClick={() => { setEditing(null); setFormOpen(true) }}
-              className="h-10 px-5 rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold"
+              className="h-11 px-5 rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold"
             >
               목표 추가
             </button>

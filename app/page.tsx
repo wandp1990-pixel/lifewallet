@@ -17,7 +17,9 @@ import MemoTab from '@/components/ledger/MemoTab'
 import { SkeletonCard, SkeletonSummaryCard } from '@/components/ui/Skeleton'
 import AddTransactionSheet from '@/components/transaction/AddTransactionSheet'
 import MemoForm from '@/components/memo/MemoForm'
+import MemoDetail from '@/components/memo/MemoDetail'
 import ThemeToggle from '@/components/ui/ThemeToggle'
+import CatIcon from '@/components/ui/CatIcon'
 
 type ViewType = 'list' | 'calendar' | 'monthly' | 'summary' | 'memo'
 type FilterType = 'all' | 'income' | 'expense' | 'transfer' | 'loan_repayment' | 'loan_received'
@@ -62,6 +64,7 @@ export default function LedgerPage() {
   const [applyingId, setApplyingId] = useState<string | null>(null)
   const [memoFormOpen, setMemoFormOpen] = useState(false)
   const [editingMemo, setEditingMemo] = useState<Memo | null>(null)
+  const [detailMemo, setDetailMemo] = useState<Memo | null>(null)
 
   // 월별 탭 전용: 연도 단위 탐색 + 연간 거래 데이터
   const [yearlyYear, setYearlyYear] = useState(now.getFullYear())
@@ -87,6 +90,13 @@ export default function LedgerPage() {
     const { to } = getMonthRange(yearlyYear, 12, monthStartDay)
     return `/api/transactions?from=${from}&to=${to}`
   }, [view, yearlyYear, monthStartDay])
+
+  // 일일 뷰: 현재 월(월 시작일 기준 범위)의 날짜 있는 메모
+  const listMemos = useMemo(() => {
+    if (monthStartDay === null) return []
+    const { from, to } = getMonthRange(year, month, monthStartDay)
+    return memos.filter(m => m.date && m.date >= from && m.date <= to)
+  }, [memos, year, month, monthStartDay])
 
   const { data: transactions = [], isLoading: loading, mutate: mutateTx } = useSWR<Transaction[]>(txUrl, fetcher)
   const { data: yearlyTransactions = [], isLoading: yearlyLoading } = useSWR<Transaction[]>(yearlyUrl, fetcher)
@@ -194,6 +204,9 @@ export default function LedgerPage() {
         : a.date.localeCompare(b.date) || a.created_at.localeCompare(b.created_at)
     )
 
+  // 검색·필터가 활성이면 거래 검색 결과와 섞이지 않도록 일일 뷰 메모를 숨긴다
+  const isFiltering = !!(search.trim() || assetFilter || categoryFilter || filter !== 'all')
+
   function handleDelete(id: string) {
     mutateTx((data) => data?.filter(t => t.id !== id) ?? [], { revalidate: false })
   }
@@ -251,7 +264,7 @@ export default function LedgerPage() {
                 className="tds-field flex-1 min-w-0 !py-2.5"
               >
                 <option value="">모든 분류</option>
-                {filterableCategories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+                {filterableCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             {/* 정렬 토글 (상단 버튼에서 이동) */}
@@ -282,7 +295,8 @@ export default function LedgerPage() {
         <div className="flex items-center justify-center gap-4 h-[44px]">
           <button
             onClick={view === 'monthly' ? prevYear : prevMonth}
-            className="p-1.5 rounded-xl hover:bg-[var(--color-surface-sub)] transition-colors"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl hover:bg-[var(--color-surface-sub)] transition-colors"
+            aria-label={view === 'monthly' ? '이전 연도' : '이전 달'}
           >
             <ChevronLeft size={20} className="text-[var(--color-text-sub)]" />
           </button>
@@ -291,7 +305,8 @@ export default function LedgerPage() {
           </span>
           <button
             onClick={view === 'monthly' ? nextYear : nextMonth}
-            className="p-1.5 rounded-xl hover:bg-[var(--color-surface-sub)] transition-colors"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl hover:bg-[var(--color-surface-sub)] transition-colors"
+            aria-label={view === 'monthly' ? '다음 연도' : '다음 달'}
           >
             <ChevronRight size={20} className="text-[var(--color-text-sub)]" />
           </button>
@@ -346,12 +361,12 @@ export default function LedgerPage() {
             {loading ? (
               <SkeletonSummaryCard />
             ) : (
-            <div className="bg-[var(--color-surface)] rounded-2xl h-20 border border-[var(--color-border)] shadow-[0px_2px_10px_rgba(0,0,0,0.06)] flex flex-col px-[18px] justify-center">
-              <div className="flex items-start justify-between mb-[5px]">
-                <p className={`text-[16px] font-bold tabular-nums leading-none ${netFlow >= 0 ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]'}`}>
+            <div className="bg-[var(--color-surface)] rounded-2xl min-h-20 border border-[var(--color-border)] shadow-[0px_2px_10px_rgba(0,0,0,0.06)] flex flex-col px-[18px] py-3 justify-center">
+              <div className="flex min-w-0 items-start justify-between gap-3 mb-[5px]">
+                <p className={`min-w-0 truncate text-[16px] font-bold tabular-nums leading-none ${netFlow >= 0 ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]'}`}>
                   {netFlow >= 0 ? '+' : '-'}{formatAmount(Math.abs(netFlow))}원
                 </p>
-                <p className="text-[13px] text-[var(--color-text-sub)] -mt-0.5">{month}월 합계</p>
+                <p className="shrink-0 text-[13px] text-[var(--color-text-sub)] -mt-0.5">{month}월 합계</p>
               </div>
               {summaryGaugeTotal > 0 ? (
                 <div className="h-[7px] rounded-full overflow-hidden flex mb-[5px]">
@@ -363,22 +378,22 @@ export default function LedgerPage() {
               ) : (
                 <div className="h-[7px] rounded-full bg-[var(--color-surface-sub)] mb-[5px]" />
               )}
-              <div className="flex justify-between">
-                <div className="flex items-center gap-1">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <div className="flex min-w-0 items-center gap-1">
                   <div className="w-1.5 h-1.5 rounded-[1px] bg-[var(--color-income)]" />
                   <span className="text-[10px] text-[var(--color-text-sub)]">수입</span>
-                  <span className="text-[11px] font-semibold tabular-nums text-[var(--color-income)]">{formatAmount(income)}원</span>
+                  <span className="min-w-0 truncate text-[11px] font-semibold tabular-nums text-[var(--color-income)]">{formatAmount(income)}원</span>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex min-w-0 items-center gap-1">
                   <div className="w-1.5 h-1.5 rounded-[1px] bg-[var(--color-expense)]" />
                   <span className="text-[10px] text-[var(--color-text-sub)]">지출</span>
-                  <span className="text-[11px] font-semibold tabular-nums text-[var(--color-expense)]">{formatAmount(expense)}원</span>
+                  <span className="min-w-0 truncate text-[11px] font-semibold tabular-nums text-[var(--color-expense)]">{formatAmount(expense)}원</span>
                 </div>
                 {loanRepayment > 0 && (
-                  <div className="flex items-center gap-1">
+                  <div className="flex min-w-0 items-center gap-1">
                     <div className="w-1.5 h-1.5 rounded-[1px] bg-[var(--color-warning)]" />
                     <span className="text-[10px] text-[var(--color-text-sub)]">상환</span>
-                    <span className="text-[11px] font-semibold tabular-nums text-[var(--color-warning)]">{formatAmount(loanRepayment)}원</span>
+                    <span className="min-w-0 truncate text-[11px] font-semibold tabular-nums text-[var(--color-warning)]">{formatAmount(loanRepayment)}원</span>
                   </div>
                 )}
               </div>
@@ -424,7 +439,7 @@ export default function LedgerPage() {
           <SkeletonCard rows={3} />
         </div>
       ) : view === 'list' ? (
-        <ListTab transactions={filtered} categories={categories} assets={assets} onDelete={handleDelete} onEdit={tx => setEditSheetTx(tx)} />
+        <ListTab transactions={filtered} categories={categories} assets={assets} memos={isFiltering ? [] : listMemos} onDelete={handleDelete} onEdit={tx => setEditSheetTx(tx)} onSelectMemo={memo => setDetailMemo(memo)} />
       ) : view === 'calendar' ? (
         <CalendarTab year={year} month={month} monthStartDay={monthStartDay ?? 1} transactions={transactions} selectedDate={selectedDate} onSelectDate={ds => setSelectedDate(ds)} />
       ) : view === 'monthly' ? (
@@ -462,7 +477,10 @@ export default function LedgerPage() {
                   const cat = categories.find(c => c.id === catId)
                   return (
                     <div key={catId} className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] last:border-0">
-                      <span className="text-[14px] text-[var(--color-text)]">{cat?.icon} {cat?.name ?? '미분류'}</span>
+                      <span className="flex min-w-0 items-center gap-2 text-[14px] text-[var(--color-text)]">
+                        <CatIcon icon={cat?.icon || 'box'} id={catId} size={24} />
+                        <span className="truncate">{cat?.name ?? '미분류'}</span>
+                      </span>
                       <span className="text-[15px] font-semibold tabular-nums text-[var(--color-expense)]">-{formatAmount(amount)}원</span>
                     </div>
                   )
@@ -475,7 +493,7 @@ export default function LedgerPage() {
           memos={memos}
           year={year}
           month={month}
-          onSelect={memo => { setEditingMemo(memo); setMemoFormOpen(true) }}
+          onSelect={memo => setDetailMemo(memo)}
         />
       )}
       </div>
@@ -522,6 +540,13 @@ export default function LedgerPage() {
         editing={editingMemo}
         defaultDate={isCurrentMonth ? new Date().toISOString().slice(0, 10) : `${currentMonthKey}-01`}
         onClose={() => { setMemoFormOpen(false); setEditingMemo(null) }}
+      />
+
+      <MemoDetail
+        open={!!detailMemo}
+        memo={detailMemo}
+        onClose={() => setDetailMemo(null)}
+        onEdit={() => { setEditingMemo(detailMemo); setDetailMemo(null); setMemoFormOpen(true) }}
       />
     </div>
   )

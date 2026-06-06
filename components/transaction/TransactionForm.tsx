@@ -257,7 +257,8 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
         <div className="flex items-center justify-between px-4 py-3">
           <button
             onClick={() => router.back()}
-            className="p-1.5 rounded-lg hover:bg-[var(--color-surface-sub)] transition-colors"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl hover:bg-[var(--color-surface-sub)] transition-colors"
+            aria-label="뒤로"
           >
             <ChevronLeft size={20} className="text-[var(--color-text)]" />
           </button>
@@ -270,12 +271,13 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
                 setDeleteError('')
                 setDeleteConfirmOpen(true)
               }}
-              className="p-1.5 rounded-lg hover:bg-[var(--color-surface-sub)] transition-colors"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl hover:bg-[var(--color-surface-sub)] transition-colors"
+              aria-label="삭제"
             >
               <Trash2 size={18} className="text-[var(--color-expense)]" />
             </button>
           ) : (
-            <div className="w-8" />
+            <div className="w-11" />
           )}
         </div>
 

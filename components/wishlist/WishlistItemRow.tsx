@@ -75,7 +75,8 @@ export default function WishlistItemRow({ item, onEdit }: Props) {
         <div className="relative">
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="p-1.5 rounded-lg hover:bg-[var(--color-surface-sub)] text-[var(--color-text-sub)]"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-[var(--color-text-sub)] hover:bg-[var(--color-surface-sub)]"
+            aria-label="항목 메뉴"
           >
             <MoreHorizontal size={18} />
           </button>

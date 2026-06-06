@@ -85,7 +85,7 @@ export default function WishlistForm({ open, onClose, editing }: Props) {
         </div>
         <div>
           <label className={labelCls}>가격</label>
-          <input className={inputCls} type="number" value={price} onChange={e => setPrice(e.target.value)} placeholder="0" min="0" />
+          <input className={inputCls} type="text" inputMode="numeric" pattern="[0-9]*" value={price} onChange={e => setPrice(e.target.value)} placeholder="0" />
         </div>
         <div>
           <label className={labelCls}>우선순위</label>

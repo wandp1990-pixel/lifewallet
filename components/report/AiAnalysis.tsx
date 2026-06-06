@@ -5,14 +5,12 @@ import type { ComponentPropsWithoutRef } from 'react'
 import useSWR from 'swr'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Check, ClipboardCopy, Loader2, Pencil, Sparkles, Trash2 } from 'lucide-react'
+import { Check, ClipboardCopy, Loader2, Pencil, RefreshCw, Sparkles, Trash2 } from 'lucide-react'
 import { fetcher } from '@/lib/fetcher'
 import type { MonthlyReport } from '@/lib/report'
 import type { AiReport } from '@/lib/types'
 
-// AI 재무 분석 섹션 — Gemini API로 자동 생성하거나 수동으로 붙여넣기.
-// 자동: "AI로 분석 생성" → /api/report/ai/generate POST → 스트리밍 → ai_reports 자동 저장.
-// 수동: "직접 작성" → 기존 텍스트에어리어 붙여넣기 플로우.
+// AI 재무 분석 섹션 — financial-advisor 스킬 결과를 붙여넣어 월별 저장.
 // 워크플로: README.md "AI 재무 분석 워크플로" / UX: PAGES.md `/report` "AI 재무 분석".
 
 const MD_COMPONENTS = {
@@ -60,7 +58,7 @@ function CopyReportButton({ report }: { report: MonthlyReport }) {
     <button
       type="button"
       onClick={copy}
-      className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-[13px] font-semibold text-[var(--color-text-body)] hover:bg-[var(--color-surface-sub)]"
+      className="inline-flex h-11 items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-[13px] font-semibold text-[var(--color-text-body)] hover:bg-[var(--color-surface-sub)]"
     >
       {copied ? <Check size={15} className="text-[var(--color-income)]" /> : <ClipboardCopy size={15} />}
       {copied ? '복사됨' : '보고서 데이터 복사'}
@@ -76,58 +74,69 @@ export default function AiAnalysis({ report, year, month, monthStartDay }: { rep
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
   const [generating, setGenerating] = useState(false)
-  const [streamText, setStreamText] = useState('')
+  const [streamed, setStreamed] = useState('')
+  const [genError, setGenError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
-
-  // 월을 바꾸면 편집·생성 상태를 닫는다.
+  // 월을 바꾸면 편집·생성 상태를 닫고 진행 중인 생성 요청을 취소한다.
   useEffect(() => {
     setEditing(false)
     setDraft('')
+    setStreamed('')
+    setGenError(null)
     setGenerating(false)
-    setStreamText('')
     abortRef.current?.abort()
   }, [year, month])
+  // 언마운트 시에도 진행 중 요청 취소.
+  useEffect(() => () => abortRef.current?.abort(), [])
 
-  function startEdit() {
-    setDraft(data?.content ?? '')
-    setEditing(true)
-  }
-
+  // 인앱 생성 — /api/report/ai/generate 스트리밍. 완료 후 서버가 ai_reports에 저장하므로
+  // mutate()로 저장본을 다시 불러와 스트리밍 임시본을 정본으로 대체한다.
+  // 워크플로: README.md "AI 재무 분석 워크플로" / 검증·저장 게이트: lib/ai-report.ts validateGeneratedReport.
   async function generate() {
     if (generating) return
+    const controller = new AbortController()
+    abortRef.current = controller
     setGenerating(true)
-    setStreamText('')
-    const abort = new AbortController()
-    abortRef.current = abort
-
+    setStreamed('')
+    setGenError(null)
     try {
       const res = await fetch('/api/report/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ year, month, monthStartDay }),
-        signal: abort.signal,
+        signal: controller.signal,
       })
-      if (!res.ok || !res.body) throw new Error(`생성 실패 (${res.status})`)
-
+      if (!res.ok || !res.body) throw new Error('생성 요청에 실패했습니다.')
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
-      let accumulated = ''
-      while (true) {
+      let acc = ''
+      for (;;) {
         const { done, value } = await reader.read()
         if (done) break
-        accumulated += decoder.decode(value, { stream: true })
-        setStreamText(accumulated)
+        acc += decoder.decode(value, { stream: true })
+        setStreamed(acc)
       }
-      // 서버가 DB 저장까지 완료한 후 스트림이 닫힘 → SWR 갱신
-      await mutate()
-      setStreamText('')
+      if (acc.trim().startsWith('오류')) {
+        setGenError(acc.trim())
+      } else {
+        await mutate()
+      }
     } catch (e) {
-      if ((e as Error).name !== 'AbortError') {
-        alert('AI 분석 생성에 실패했습니다. 잠시 후 다시 시도해주세요.')
-      }
+      if (e instanceof DOMException && e.name === 'AbortError') return // 월 전환·언마운트로 취소됨
+      setGenError(e instanceof Error ? e.message : '생성 중 오류가 발생했습니다.')
     } finally {
-      setGenerating(false)
+      // 더 새로운 생성/취소가 이 컨트롤러를 대체했다면 그쪽이 상태를 소유하므로 건드리지 않는다.
+      if (abortRef.current === controller) {
+        abortRef.current = null
+        setGenerating(false)
+        setStreamed('')
+      }
     }
+  }
+
+  function startEdit() {
+    setDraft(data?.content ?? '')
+    setEditing(true)
   }
 
   async function save() {
@@ -168,21 +177,21 @@ export default function AiAnalysis({ report, year, month, monthStartDay }: { rep
             <button
               type="button"
               onClick={generate}
-              className="inline-flex h-9 items-center gap-1 rounded-lg border border-[var(--color-primary)]/40 bg-[var(--color-primary)]/[0.06] px-2.5 text-[13px] font-semibold text-[var(--color-primary)] hover:bg-[var(--color-primary)]/[0.12]"
+              className="inline-flex h-11 items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-[13px] font-semibold text-[var(--color-text-body)] hover:bg-[var(--color-surface-sub)]"
             >
-              <Sparkles size={14} /> 재생성
+              <RefreshCw size={14} /> AI 재생성
             </button>
             <button
               type="button"
               onClick={startEdit}
-              className="inline-flex h-9 items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 text-[13px] font-semibold text-[var(--color-text-body)] hover:bg-[var(--color-surface-sub)]"
+              className="inline-flex h-11 items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-[13px] font-semibold text-[var(--color-text-body)] hover:bg-[var(--color-surface-sub)]"
             >
-              <Pencil size={14} /> 직접 작성
+              <Pencil size={14} /> 직접 편집
             </button>
             <button
               type="button"
               onClick={remove}
-              className="inline-flex h-9 items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 text-[13px] font-semibold text-[var(--color-expense)] hover:bg-[var(--color-surface-sub)]"
+              className="inline-flex h-11 items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-[13px] font-semibold text-[var(--color-expense)] hover:bg-[var(--color-surface-sub)]"
             >
               <Trash2 size={14} /> 삭제
             </button>
@@ -195,22 +204,13 @@ export default function AiAnalysis({ report, year, month, monthStartDay }: { rep
           참고용 정보입니다. 전문가의 재무·세무·투자 상담을 대체하지 않습니다.
         </p>
 
-        {generating ? (
+        {genError && !editing && !generating ? (
+          <p className="mb-3 text-[13px] text-[var(--color-expense)]">{genError}</p>
+        ) : null}
+
+        {editing ? (
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-[13px] text-[var(--color-text-sub)]">
-              <Loader2 size={14} className="animate-spin text-[var(--color-primary)]" />
-              Gemini가 분석 중입니다...
-            </div>
-            {streamText && (
-              <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-sub)] px-4 py-3">
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>
-                  {streamText}
-                </ReactMarkdown>
-              </div>
-            )}
-          </div>
-        ) : editing ? (
-          <div className="space-y-3">
+            <CopyReportButton report={report} />
             <textarea
               value={draft}
               onChange={e => setDraft(e.target.value)}
@@ -222,7 +222,7 @@ export default function AiAnalysis({ report, year, month, monthStartDay }: { rep
               <button
                 type="button"
                 onClick={() => setEditing(false)}
-                className="h-10 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 text-[14px] font-semibold text-[var(--color-text-body)] hover:bg-[var(--color-surface-sub)]"
+                className="h-11 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 text-[14px] font-semibold text-[var(--color-text-body)] hover:bg-[var(--color-surface-sub)]"
               >
                 취소
               </button>
@@ -230,11 +230,22 @@ export default function AiAnalysis({ report, year, month, monthStartDay }: { rep
                 type="button"
                 onClick={save}
                 disabled={!draft.trim() || saving}
-                className="h-10 rounded-lg bg-[var(--color-primary)] px-4 text-[14px] font-semibold text-white disabled:opacity-50"
+                className="h-11 rounded-lg bg-[var(--color-primary)] px-4 text-[14px] font-semibold text-white disabled:opacity-50"
               >
                 {saving ? '저장 중...' : '저장'}
               </button>
             </div>
+          </div>
+        ) : generating || streamed ? (
+          <div className="space-y-3">
+            <p className="flex items-center gap-2 text-[13px] text-[var(--color-text-sub)]">
+              <Loader2 size={14} className="animate-spin text-[var(--color-primary)]" /> AI가 분석을 작성하는 중...
+            </p>
+            {streamed ? (
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>
+                {streamed}
+              </ReactMarkdown>
+            ) : null}
           </div>
         ) : isLoading ? (
           <p className="py-6 text-center text-[13px] text-[var(--color-text-sub)]">불러오는 중...</p>
@@ -250,20 +261,25 @@ export default function AiAnalysis({ report, year, month, monthStartDay }: { rep
         ) : (
           <div className="space-y-3">
             <p className="text-[14px] text-[var(--color-text-body)]">이 달의 AI 재무 분석이 아직 없습니다.</p>
+            <p className="text-[13px] leading-relaxed text-[var(--color-text-sub)]">
+              <strong className="text-[var(--color-text-body)]">AI로 생성</strong>을 누르면 앱이 직접 보고서를 분석·저장합니다. 또는 보고서 데이터를 복사해 외부 AI에 붙여넣고 결과를 직접 저장할 수도 있습니다.
+            </p>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={generate}
-                className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 text-[14px] font-semibold text-white"
+                disabled={generating}
+                className="inline-flex h-11 items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 text-[14px] font-semibold text-white disabled:opacity-50"
               >
-                <Sparkles size={15} /> AI로 분석 생성
+                <Sparkles size={15} /> AI로 생성
               </button>
+              <CopyReportButton report={report} />
               <button
                 type="button"
                 onClick={startEdit}
-                className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 text-[14px] font-semibold text-[var(--color-text-body)] hover:bg-[var(--color-surface-sub)]"
+                className="inline-flex h-11 items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 text-[14px] font-semibold text-[var(--color-text-body)] hover:bg-[var(--color-surface-sub)]"
               >
-                <Pencil size={15} /> 직접 작성
+                <Pencil size={15} /> 직접 붙여넣기
               </button>
             </div>
           </div>

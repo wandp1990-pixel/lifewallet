@@ -55,6 +55,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           balance=COALESCE(?,balance), balance_date=COALESCE(?,balance_date), ord=COALESCE(?,ord), visible=COALESCE(?,visible),
           track_detail=CASE WHEN ? THEN 1 ELSE COALESCE(?,track_detail) END,
           savings_tracking=CASE WHEN ? THEN 1 ELSE COALESCE(?,savings_tracking) END,
+          target_balance_enabled=COALESCE(?,target_balance_enabled),
+          target_balance=COALESCE(?,target_balance),
           principal=COALESCE(?,principal), interest_rate=COALESCE(?,interest_rate),
           start_date=COALESCE(?,start_date), end_date=COALESCE(?,end_date),
           payment_day=COALESCE(?,payment_day), monthly_payment=COALESCE(?,monthly_payment)
@@ -64,6 +66,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       nextBalance, body.balance_date ?? null, body.order ?? null, body.visible != null ? (body.visible ? 1 : 0) : null,
       forceTrackDetail, body.track_detail != null ? (body.track_detail ? 1 : 0) : null,
       forceSavingsTracking, body.savings_tracking != null ? (body.savings_tracking ? 1 : 0) : null,
+      body.target_balance_enabled != null ? (body.target_balance_enabled ? 1 : 0) : null,
+      body.target_balance_enabled != null ? (body.target_balance_enabled ? (body.target_balance ?? 0) : 0) : null,
       body.principal ?? null, body.interest_rate ?? null,
       body.start_date ?? null, body.end_date ?? null,
       body.payment_day ?? null, body.monthly_payment ?? null,

@@ -72,11 +72,11 @@ export default function SavingsGoalForm({ open, onClose, editing, defaultAssetId
         </div>
         <div>
           <label className={labelCls}>목표 금액 *</label>
-          <input className={inputCls} type="number" value={targetAmount} onChange={e => setTargetAmount(e.target.value)} placeholder="0" min="0" required />
+          <input className={inputCls} type="text" inputMode="numeric" pattern="[0-9]*" value={targetAmount} onChange={e => setTargetAmount(e.target.value)} placeholder="0" required />
         </div>
         <div>
           <label className={labelCls}>현재 금액</label>
-          <input className={inputCls} type="number" value={currentAmount} onChange={e => setCurrentAmount(e.target.value)} placeholder="0" min="0" />
+          <input className={inputCls} type="text" inputMode="numeric" pattern="[0-9]*" value={currentAmount} onChange={e => setCurrentAmount(e.target.value)} placeholder="0" />
         </div>
         <div>
           <label className={labelCls}>목표 날짜</label>

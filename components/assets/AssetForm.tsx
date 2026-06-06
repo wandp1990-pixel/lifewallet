@@ -41,6 +41,8 @@ interface FormState {
   visible: boolean
   track_detail: boolean
   savings_tracking: boolean
+  target_balance_enabled: boolean
+  target_balance: string
   principal: string
   interest_rate: string
   start_date: string
@@ -60,6 +62,8 @@ function assetToForm(asset: Asset): FormState {
     visible: asset.visible,
     track_detail: asset.track_detail,
     savings_tracking: asset.savings_tracking,
+    target_balance_enabled: asset.target_balance_enabled,
+    target_balance: asset.target_balance ? formatAmount(asset.target_balance) : '',
     principal: asset.principal ? formatAmount(asset.principal) : '',
     interest_rate: asset.interest_rate ? String(asset.interest_rate) : '',
     start_date: asset.start_date ?? '',
@@ -78,6 +82,8 @@ const DEFAULT_FORM: FormState = {
   visible: true,
   track_detail: false,
   savings_tracking: false,
+  target_balance_enabled: false,
+  target_balance: '',
   principal: '',
   interest_rate: '',
   start_date: '',
@@ -155,6 +161,8 @@ export default function AssetForm({ open, onClose, editing }: Props) {
       visible: form.visible,
       track_detail: forceTrackDetail || form.track_detail,
       savings_tracking: forceSavingsTracking || form.savings_tracking,
+      target_balance_enabled: form.target_balance_enabled,
+      target_balance: form.target_balance_enabled ? parseNum(form.target_balance) : 0,
       ...(isLoan && {
         principal: parseNum(form.principal),
         interest_rate: parseFloat(form.interest_rate) || 0,
@@ -208,7 +216,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
     <button
       type="button"
       onClick={() => setShowDeleteConfirm(true)}
-      className="p-1.5 rounded-lg hover:bg-[var(--color-surface-sub)] transition-colors"
+      className="inline-flex h-11 w-11 items-center justify-center rounded-xl hover:bg-[var(--color-surface-sub)] transition-colors"
       aria-label="삭제"
     >
       <Trash2 size={18} className="text-[var(--color-expense)]" />
@@ -452,6 +460,36 @@ export default function AssetForm({ open, onClose, editing }: Props) {
             label="저축 추적"
           />
         </div>
+
+        {/* 목표 잔액 토글 */}
+        <div className="flex items-center justify-between py-0.5">
+          <div>
+            <p className="text-sm font-medium text-[var(--color-text)]">목표 잔액</p>
+            <p className="text-xs text-[var(--color-text-sub)]">ON 시 부족 금액을 자산 목록에 표시</p>
+          </div>
+          <ToggleSwitch
+            checked={form.target_balance_enabled}
+            onClick={() => set('target_balance_enabled', !form.target_balance_enabled)}
+            label="목표 잔액"
+          />
+        </div>
+
+        {form.target_balance_enabled && (
+          <div>
+            <label className="text-xs font-medium text-[var(--color-text-sub)] mb-1.5 block">목표 유지 금액</label>
+            <div className="flex items-center gap-2 rounded-xl px-4 overflow-hidden" style={{ background: "rgba(0,23,51,0.02)", border: "1px solid rgba(2,32,71,0.05)" }}>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={form.target_balance}
+                onChange={e => set('target_balance', fmtInput(e.target.value))}
+                placeholder="0"
+                className="flex-1 min-w-0 text-right text-[22px] font-bold text-[var(--color-text)] bg-transparent py-3 outline-none placeholder:text-[var(--color-text-placeholder)]"
+              />
+              <span className="text-base font-bold text-[var(--color-text-sub)] shrink-0">원</span>
+            </div>
+          </div>
+        )}
 
         {error && <p className="text-sm text-[var(--color-expense)] font-medium">{error}</p>}
 

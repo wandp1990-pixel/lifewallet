@@ -391,7 +391,8 @@ export default function AssetDetailPage({ params }: Props) {
           <div className="flex items-center justify-between">
             <button
               onClick={() => router.back()}
-              className="p-1.5 rounded-lg hover:bg-[var(--color-surface-sub)] transition-colors"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl hover:bg-[var(--color-surface-sub)] transition-colors"
+              aria-label="뒤로"
             >
               <ChevronLeft size={20} className="text-[var(--color-text)]" />
             </button>
@@ -403,7 +404,8 @@ export default function AssetDetailPage({ params }: Props) {
             </div>
             <button
               onClick={() => setSheetOpen(true)}
-              className="p-1.5 rounded-lg hover:bg-[var(--color-surface-sub)] transition-colors"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl hover:bg-[var(--color-surface-sub)] transition-colors"
+              aria-label="자산 수정"
             >
               <Pencil size={18} className="text-[var(--color-text-sub)]" />
             </button>

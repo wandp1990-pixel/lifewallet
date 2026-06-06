@@ -67,7 +67,7 @@ export default function WishlistPage() {
           <h1 className="text-xl font-bold text-[var(--color-text)]">위시리스트</h1>
           <button
             onClick={() => { setEditing(null); setFormOpen(true) }}
-            className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold"
+            className="flex h-11 items-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-4 text-sm font-semibold text-white"
           >
             <Plus size={16} />
             항목 추가
@@ -114,7 +114,7 @@ export default function WishlistPage() {
                 <p className="text-sm text-[var(--color-text-body)]">위시리스트가 비어 있습니다</p>
                 <button
                   onClick={() => { setEditing(null); setFormOpen(true) }}
-                  className="h-10 px-5 rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold"
+                  className="h-11 px-5 rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold"
                 >
                   항목 추가
                 </button>

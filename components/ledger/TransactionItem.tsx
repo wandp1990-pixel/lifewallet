@@ -125,7 +125,8 @@ export default function TransactionItem({ tx, categories, assets, onDelete, onEd
           <div className="relative" ref={menuRef}>
             <button
               onClick={e => { e.stopPropagation(); setMenuOpen(v => !v) }}
-              className="p-1.5 rounded-lg hover:bg-[var(--color-border)] transition-colors"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl hover:bg-[var(--color-border)] transition-colors"
+              aria-label="거래 메뉴"
             >
               <MoreHorizontal size={15} className="text-[var(--color-text-sub)]" />
             </button>

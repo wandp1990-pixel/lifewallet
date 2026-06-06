@@ -37,7 +37,8 @@ const SYSTEM_PROMPT = `당신은 개인 재무 분석 전문가입니다. LifeWa
 
 ### 3. 이월분 / 당월 생활비 분리 (anomalies.largeExpenses 필수 분석)
 anomalies.largeExpenses를 확인해 전달 비용(월세·카드값 등 title에 "전월"·"이전달"·"N월" 포함되거나 날짜가 보고월 초에 몰린 항목)을 이월분으로 분류하라.
-이월분 분류 대상은 **expense 항목에 한정**한다. 대출 원금상환(loanRepayment)은 이월분에 포함하지 말 것.
+이월분 분류 대상은 **expense 항목에 한정**한다. 대출 원금상환은 이월분에 포함하지 말 것 — largeExpenses 항목의 detail이 "대출 상환"으로 시작하면 그 항목은 대출 원금상환이므로 이월분에서 제외하라.
+(주의: largeExpenses는 단건 금액 Top 5만 담는다. Top 5 밖의 이월성 지출은 여기에 안 보일 수 있으니 "이 목록이 이월분 전부"라고 단정하지 말 것.)
 이월분이 있으면:
 - 건별 금액·날짜를 나열
 - 이월분 합계 = 이월분 항목들의 합산 금액 (반드시 덧셈 명시)
@@ -54,12 +55,14 @@ essentialityBreakdown 기반. 반드시 아래 표 형식으로 작성하라 (bu
 표 아래 해석 1~2문장 필수.
 
 ### 5. 재정 건강
-healthMetrics 기반 표. level에 따라 이모지 사용: safe=🟢, warning=🟡, danger=🔴.
+healthMetrics 기반 표. level에 따라 이모지 사용: safe=🟢, caution=🟡, danger=🔴, none=⚪(데이터 없음). (level 값은 앱이 safe/caution/danger/none으로만 내보낸다 — warning 같은 다른 표기로 바꾸지 말 것.)
 표 형식:
 | 지표 | 값 | 신호 | 기준 |
 각 지표 아래 주의 사항:
 - 총부채부담(debtRatio)이 수백~수만%면 "자산 대비 부채가 매우 크다"는 질적 신호로만 쓰고 숫자를 해석에 인용하지 말 것. 상환 여력은 반드시 DSR(총부채상환비율)로 판단하라.
-- DSR이 safe면 "빚의 절대 규모는 크지만 월 상환 부담 자체는 감당 가능"으로 해석.
+- **DSR(총부채상환비율)은 대출 원금상환(loan_repayment)만 반영한 근사치이며 카드대금·마이너스통장 상환은 빠져 있다.** DSR을 "월 상환 부담"으로 해석할 때는 반드시 "대출 상환 기준"임을 한 번 밝혀라(과소평가 오해 방지).
+- DSR이 safe라도, 부채 로드맵에 카드·마통 상환액이 크게 잡혀 있으면 "대출 상환 기준 월 부담은 감당 가능하지만, 카드·마통 상환까지 더하면 실제 월 부채 유출은 더 크다"고 함께 짚어라.
+- 비상자금 지표는 **유동자산(현금·입출금·저축 자산) 전체**를 3개월 평균 지출로 나눈 개월수다. 7번 "비상금 현황"에서 다루는 **비상금으로 지정·책정한 금액**(별도 저축 목표, 없으면 ₩0)과는 다른 수치이니 같은 "비상금"으로 뭉뚱그리지 말 것. 둘이 다르면 "유동자산 기준 N개월, 별도 지정 비상금은 ₩X"처럼 구분해 서술하라.
 
 ### 6. 부채 로드맵
 대출 표에 아래 컬럼을 모두 포함하라:
@@ -73,7 +76,7 @@ healthMetrics 기반 표. level에 따라 이모지 사용: safe=🟢, warning=�
 - estimatedPayoffDate가 빈 문자열인 완납 대출은 완납 날짜를 임의로 만들어 쓰지 말 것.
 
 ### 7. 비상금 현황
-현재 개월수, 1단계 목표(₩1,300,000) 달성률.
+여기서의 "비상금"은 비상금 용도로 **지정·책정한 저축 금액**이다(5번 재정 건강의 유동자산 기준 비상자금 지표와 다름 — 혼동 주의). 현재 지정 비상금 금액·개월수, 1단계 목표(₩1,300,000) 달성률.
 행동 지침은 반드시 구체적으로: "월 ₩50,000 + 급여일 잔액 스윕" 패턴 권고.
 흑자가 난 달이면 그 흑자 일부를 비상금 계좌로 즉시 이동하는 습관을 강조.
 
@@ -91,6 +94,12 @@ annualOutlook에서 다음 달 actualOutflow 또는 expectedBalance 확인.
 
 ### 10. 다음 액션
 3~5개. 각 항목: 구체적 금액 + 기대 효과(절감액·이자 감소 등).
+targetBalanceAlerts 항목이 있으면 부족 계좌별 보충 금액을 액션 항목 중 하나로 포함하라.
+
+### 11. 목표 유지 계좌 현황
+targetBalanceAlerts 배열이 비어 있으면 섹션 생략. 항목이 있으면 아래 표를 작성하고 해석 1문장 추가.
+| 계좌명 | 현재 잔액 | 목표 잔액 | 부족 금액 |
+| --- | --- | --- | --- |
 
 ## 데이터 해석 규칙
 - summary.savingsRate 0% + 흑자: "흑자이지만 저축으로 미배정" — 저축 자산(savings_tracking)으로 이동하지 않은 것
@@ -108,11 +117,11 @@ annualOutlook에서 다음 달 actualOutflow 또는 expectedBalance 확인.
 4. 비상금 2·3단계(₩2,500,000 / ₩4,000,000)
 5. 부채 완화 후 저축·투자
 
-부채 우선순위: 국민카드 대환(15%) 최우선 → 불법사금융예방대출(12.5%) → 햇살론·개인차입금(0% 후순위)
+부채 우선순위: report의 debtStrategy.loans만 근거로 판단하라 — interestRate(금리)가 높은 대출부터 우선 상환, 0%·무이자 부채는 후순위(최소 상환). 각 대출의 priority 필드(high_interest=최우선, quick_close=빠른청산, heavy_payment=부담큰상환, normal=후순위)를 그대로 따르고, report에 실제로 있는 대출명·금리만 사용하라(특정 대출명을 임의로 지어내거나 외워 넣지 말 것).
 
 ## 형식 규칙
 - 금액: ₩1,234,567 (원 단위)
-- 비율: 소수점 1자리
+- 비율: 소수점 1자리로 통일 — 재정 건강 표의 "값"도 동일하게(예: 저축률 -1.9%를 -2%로 반올림하지 말 것). 같은 지표는 모든 섹션에서 같은 수치로 표기.
 - 모든 표 뒤 해석 1~2문장 필수
 - 특정 투자상품·주식·코인·보험사 추천 금지
 - 부채 표 우선순위 컬럼은 반드시 한국어로: high_interest→최우선(고금리), quick_close→빠른청산, heavy_payment→부담큰상환, normal→후순위`
@@ -120,6 +129,40 @@ annualOutlook에서 다음 달 actualOutflow 또는 expectedBalance 확인.
 export interface GenerateResult {
   text: string
   error: string | null
+}
+
+// 본문에 새면 안 되는 영문 JSON 키 (프롬프트 "데이터 해석 규칙" — 한국어로 해석해 서술해야 함).
+const LEAKED_KEYS = [
+  'actualOutflow', 'actualIncome', 'expectedBalance', 'annualOutlook', 'loanRepayment',
+  'cashflowTimeline', 'healthMetrics', 'nextMonthForecast', 'essentialityBreakdown',
+  'debtServiceRatio', 'savingsRate', 'categoryAnalysis', 'debtStrategy', 'pointInTimeUncertain',
+  'targetBalanceAlerts', 'targetBalance',
+]
+
+export interface ReportValidation {
+  ok: boolean      // false = 저장하지 않는다(깨진 생성으로 기존 아카이브를 덮어쓰지 않기 위함)
+  issues: string[] // 경고(저장은 허용하되 기록용)
+}
+
+// 생성 결과를 ai_reports에 저장하기 전 최소 검증. 순수 함수 — scripts/report_spec_check.ts에서 단위 검증.
+// hard fail(빈 응답·오류 메시지·과도하게 짧음)이면 ok=false → 라우트가 upsert를 건너뛰어 기존 저장본을 보호한다.
+export function validateGeneratedReport(text: string, report: MonthlyReport): ReportValidation {
+  const body = text.trim()
+  if (!body) return { ok: false, issues: ['빈 응답'] }
+  if (body.startsWith('오류')) return { ok: false, issues: ['오류 응답'] }
+  if (body.length < 200) return { ok: false, issues: ['응답이 너무 짧아 보고서 미생성으로 판단'] }
+
+  const issues: string[] = []
+  const leaked = LEAKED_KEYS.filter(key => new RegExp(`\\b${key}\\b`).test(body))
+  if (leaked.length) issues.push(`영문 JSON 키 누출: ${leaked.join(', ')}`)
+
+  // 이번 달 완납 대출이 없는데 "이번 달 완납"으로 서술했을 가능성 (프롬프트 완납 처리 규칙 위반 후보)
+  const hasPaidOffThisMonth = report.debtStrategy.loans.some(loan => loan.paidOffThisMonth)
+  if (!hasPaidOffThisMonth && /이번\s*달[^.]{0,12}완납|완납[^.]{0,12}이번\s*달/.test(body)) {
+    issues.push('이번 달 완납 대출이 없는데 "이번 달 완납" 서술 가능성')
+  }
+
+  return { ok: true, issues }
 }
 
 function buildUserMessage(report: MonthlyReport): string {
@@ -145,10 +188,12 @@ export function streamFinancialReport(
 
       const genai = new GoogleGenerativeAI(apiKey)
       const userMessage = buildUserMessage(report)
-      let fullText = ''
       let lastErr = ''
 
       for (const modelName of MODELS) {
+        // 모델 재시도마다 초기화 — 앞 모델이 부분 스트리밍 후 실패하면 그 잔여 텍스트가
+        // 다음 모델 결과 앞에 붙어 저장되는 버그를 막는다.
+        let fullText = ''
         try {
           const model = genai.getGenerativeModel({
             model: modelName,

@@ -21,7 +21,7 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="px-3"
+      className="w-full max-w-full overflow-hidden px-3"
       style={{
         paddingTop: 'var(--bottom-nav-gap-top)',
         // LifeQuest와 동일: 아래 여백 = max(최소 여백, 홈 인디케이터 safe area) — 합산 아님
@@ -30,7 +30,7 @@ export default function BottomNav() {
     >
       {/* 떠 있는 캡슐 바 — LifeQuest BottomNav와 동일 구조(레이아웃·높이·그림자·배경칩·점).
           색만 단일 primary로 치환(LifeQuest는 탭별 색). */}
-      <div className="flex h-[var(--bottom-nav-bar)] items-center justify-around rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2 shadow-[0_12px_34px_rgba(31,41,55,0.16)]">
+      <div className="flex h-[var(--bottom-nav-bar)] w-full min-w-0 items-center rounded-3xl border border-[var(--color-border)] bg-[var(--color-surface)] px-2 shadow-[0_12px_34px_rgba(31,41,55,0.16)]">
         {MOBILE_NAV.map(id => {
           const item = NAV_ITEMS[id]
           const active = id === 'settings'
@@ -41,7 +41,7 @@ export default function BottomNav() {
               key={item.href}
               href={item.href}
               className={[
-                'relative flex min-h-14 min-w-[56px] flex-col items-center justify-center gap-0.5 rounded-2xl px-2 py-2 text-[11px] font-bold transition-all duration-200',
+                'relative flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl px-2 py-2 text-[11px] font-bold transition-all duration-200',
                 active
                   ? 'bg-[var(--color-primary-subtle)] text-[var(--color-primary)] shadow-sm'
                   : 'text-[var(--color-text-sub)]',

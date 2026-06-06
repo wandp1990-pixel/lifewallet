@@ -204,7 +204,7 @@ export default function RecurringPage() {
           <h1 className="text-[17px] font-bold text-[var(--color-text)]">반복 거래</h1>
           <button
             onClick={openAdd}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[var(--color-primary)] text-white text-sm font-semibold"
+            className="flex h-11 items-center gap-1 rounded-lg bg-[var(--color-primary)] px-4 text-sm font-semibold text-white"
           >
             <Plus size={16} />
             추가
@@ -245,7 +245,8 @@ export default function RecurringPage() {
                   </span>
                   <button
                     onClick={(e) => { e.stopPropagation(); setMenuOpen(menuOpen === r.id ? null : r.id) }}
-                    className="p-1 rounded-lg hover:bg-[var(--color-border)] transition-colors"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-xl hover:bg-[var(--color-border)] transition-colors"
+                    aria-label="반복 거래 메뉴"
                   >
                     <MoreHorizontal size={16} className="text-[var(--color-text-sub)]" />
                   </button>
@@ -331,11 +332,14 @@ export default function RecurringPage() {
             <p className="text-[12px] text-[var(--color-text-sub)] mb-1.5">적용일 (매월)</p>
             <div className="flex items-center gap-2">
               <input
-                type="number"
-                min={1}
-                max={31}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 value={form.day_of_month}
-                onChange={e => setForm(f => ({ ...f, day_of_month: Math.min(31, Math.max(1, Number(e.target.value))) }))}
+                onChange={e => {
+                  const day = Number(e.target.value.replace(/\D/g, ''))
+                  setForm(f => ({ ...f, day_of_month: Math.min(31, Math.max(1, day || 1)) }))
+                }}
                 className="tds-field w-24 text-center !text-[16px]"
               />
               <span className="text-[15px] text-[var(--color-text-sub)]">일</span>
@@ -418,7 +422,7 @@ export default function RecurringPage() {
               >
                 <option value="">분류 선택</option>
                 {visibleCategories.map(c => (
-                  <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
+                  <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
             </div>
