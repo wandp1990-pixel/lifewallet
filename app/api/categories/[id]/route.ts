@@ -19,13 +19,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   await db.execute({
-    sql: 'UPDATE categories SET name=COALESCE(?,name), icon=COALESCE(?,icon), ord=COALESCE(?,ord), visible=COALESCE(?,visible), essentiality=COALESCE(?,essentiality) WHERE id=?',
-    args: [body.name ?? null, body.icon ?? null, body.order ?? null, body.visible === undefined ? null : body.visible ? 1 : 0, body.essentiality ?? null, id],
+    sql: 'UPDATE categories SET name=COALESCE(?,name), icon=COALESCE(?,icon), ord=COALESCE(?,ord), visible=COALESCE(?,visible), essentiality=COALESCE(?,essentiality), budget_excluded=COALESCE(?,budget_excluded) WHERE id=?',
+    args: [body.name ?? null, body.icon ?? null, body.order ?? null, body.visible === undefined ? null : body.visible ? 1 : 0, body.essentiality ?? null, body.budget_excluded === undefined ? null : body.budget_excluded ? 1 : 0, id],
   })
 
   const updated = await db.execute({ sql: 'SELECT * FROM categories WHERE id = ?', args: [id] })
   const r = updated.rows[0] as Record<string, unknown>
-  return NextResponse.json({ ...r, order: r.ord, visible: Boolean(r.visible), is_system: Boolean(r.is_system) })
+  return NextResponse.json({ ...r, order: r.ord, visible: Boolean(r.visible), is_system: Boolean(r.is_system), budget_excluded: Boolean(r.budget_excluded) })
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -38,7 +38,7 @@ export default function MonthlyInsights({ transactions, prevTransactions, catego
     return acc
   }, {})
   const overBudgetCats = categories
-    .filter(c => c.type === 'expense')
+    .filter(c => c.type === 'expense' && !c.budget_excluded)
     .map(cat => {
       const budget = getBudgetForMonth(budgets, cat.id, year, month)
       return { cat: cat.name, over: (catExpenses[cat.id] || 0) - budget, budget }

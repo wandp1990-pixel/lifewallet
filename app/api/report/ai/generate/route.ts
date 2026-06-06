@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import db, { initDb, rowToAsset } from '@/lib/db'
 import { getMonthRange } from '@/lib/monthStart'
 import { buildMonthlyReport } from '@/lib/report'
-import { streamFinancialReport } from '@/lib/ai-report'
+import { streamFinancialReport, validateGeneratedReport } from '@/lib/ai-report'
 import { generateId } from '@/lib/utils'
 import type { Budget, Category, RecurringTransaction, SavingsGoal, Transaction, WishlistItem } from '@/lib/types'
 
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
     db.execute({ sql: 'SELECT * FROM transactions WHERE date >= ? AND date <= ? ORDER BY date ASC, created_at ASC', args: [previousPreviousRange.from, previousPreviousRange.to] }),
     db.execute({ sql: 'SELECT * FROM transactions WHERE date >= ? AND date <= ? ORDER BY date ASC, created_at ASC', args: [annualFrom, annualTo] }),
     db.execute({ sql: 'SELECT * FROM transactions WHERE date > ? ORDER BY date ASC, created_at ASC', args: [currentRange.to] }),
-    db.execute('SELECT id,type,name,icon,ord as "order",visible,is_system,essentiality FROM categories ORDER BY ord ASC'),
+    db.execute('SELECT id,type,name,icon,ord as "order",visible,is_system,essentiality,budget_excluded FROM categories ORDER BY ord ASC'),
     db.execute('SELECT * FROM budgets'),
     db.execute('SELECT * FROM assets ORDER BY ord ASC'),
     db.execute('SELECT * FROM savings_goals ORDER BY created_at DESC'),
@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
       ...(row as unknown as Category),
       visible: Boolean((row as Record<string, unknown>).visible),
       is_system: Boolean((row as Record<string, unknown>).is_system),
+      budget_excluded: Boolean((row as Record<string, unknown>).budget_excluded),
     })),
     budgets: budgetRows.rows as unknown as Budget[],
     assets: assetRows.rows.map(rowToAsset),
@@ -90,9 +91,10 @@ export async function POST(req: NextRequest) {
     recurringTransactions: recurringRows.rows.map(rowToRecurring),
   })
 
-  // 생성 완료 후 ai_reports에 upsert
+  // 생성 완료 후 ai_reports에 upsert. 검증 hard fail 시 저장을 건너뛰어 기존 저장본을 보호한다.
   async function saveResult(text: string) {
-    if (!text.trim()) return
+    const { ok } = validateGeneratedReport(text, report)
+    if (!ok) return
     const now = new Date().toISOString()
     await db.execute({
       sql: `INSERT INTO ai_reports (id, year, month, content, created_at, updated_at)

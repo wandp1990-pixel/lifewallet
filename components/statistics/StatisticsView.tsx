@@ -120,7 +120,8 @@ export default function StatisticsView() {
 
   // 예산 뷰
   const budgetStats = useMemo(() => {
-    return expenseCategories.map(cat => {
+    // 예산 비대상(경조사 등 불규칙 지출)은 예산 뷰에서 제외 (REPORT_SPEC §5d / SCHEMA Budget).
+    return expenseCategories.filter(cat => !cat.budget_excluded).map(cat => {
       const budget = getBudgetForMonth(budgets, cat.id, year, month)
       const spent = transactions
         .filter(t => t.type === 'expense' && t.category_id === cat.id)
@@ -131,8 +132,10 @@ export default function StatisticsView() {
   }, [expenseCategories, budgets, transactions, year, month])
 
   const totalBudget = budgetStats.reduce((s, b) => s + b.budget, 0)
-  const budgetPct = totalBudget > 0 ? Math.min((totalExpense / totalBudget) * 100, 100) : 0
-  const budgetPace = monthStartDay === null ? null : getBudgetPace(totalBudget, totalExpense, year, month, monthStartDay)
+  // 분자 = 예산 비대상 제외 지출(budgetStats는 이미 비대상 필터됨). 분모 totalBudget과 모집단 일치 (REPORT_SPEC §5d).
+  const trackedExpense = budgetStats.reduce((s, b) => s + b.spent, 0)
+  const budgetPct = totalBudget > 0 ? Math.min((trackedExpense / totalBudget) * 100, 100) : 0
+  const budgetPace = monthStartDay === null ? null : getBudgetPace(totalBudget, trackedExpense, year, month, monthStartDay)
 
   // 내용별 집계
   const contentStats = useMemo(() => {
@@ -179,17 +182,17 @@ export default function StatisticsView() {
   if (!ready || monthStartDay === null) return null
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface)]">
+    <div className="min-h-full bg-[var(--color-surface)]">
       {/* 헤더 */}
       <div className="sticky top-0 z-30 bg-[var(--color-surface)] border-b border-[var(--color-border)] shadow-[0_1px_0_rgba(0,0,0,0.02)]">
         <div className="flex items-center justify-between px-4 py-3">
-          <button onClick={prevMonth} className="p-1 text-[var(--color-text-sub)]">
+          <button onClick={prevMonth} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-[var(--color-text-sub)] hover:bg-[var(--color-surface-sub)]" aria-label="이전 달">
             <ChevronLeft size={20} />
           </button>
           <div className="text-center">
             <div className="text-[17px] font-semibold text-[var(--color-text)]">{year}년 {month}월</div>
           </div>
-          <button onClick={nextMonth} className="p-1 text-[var(--color-text-sub)]">
+          <button onClick={nextMonth} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-[var(--color-text-sub)] hover:bg-[var(--color-surface-sub)]" aria-label="다음 달">
             <ChevronRight size={20} />
           </button>
         </div>

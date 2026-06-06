@@ -13,8 +13,8 @@ const ESSENTIALITY_OPTIONS: { value: Essentiality; label: string; hint: string }
 ]
 
 interface CategoryFormProps {
-  initial?: Pick<Category, 'name' | 'icon'> & { essentiality?: Essentiality }
-  onSubmit: (values: { name: string; icon: string; essentiality: Essentiality }) => Promise<void> | void
+  initial?: Pick<Category, 'name' | 'icon'> & { essentiality?: Essentiality; budget_excluded?: boolean }
+  onSubmit: (values: { name: string; icon: string; essentiality: Essentiality; budget_excluded: boolean }) => Promise<void> | void
   submitLabel?: string
   showEssentiality?: boolean
 }
@@ -23,6 +23,7 @@ export default function CategoryForm({ initial, onSubmit, submitLabel = '저장'
   const [name, setName] = useState(initial?.name ?? '')
   const [icon, setIcon] = useState(initial?.icon ?? 'box')
   const [essentiality, setEssentiality] = useState<Essentiality | ''>(initial?.essentiality ?? '')
+  const [budgetExcluded, setBudgetExcluded] = useState(initial?.budget_excluded ?? false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -39,7 +40,7 @@ export default function CategoryForm({ initial, onSubmit, submitLabel = '저장'
     }
     setSubmitting(true)
     try {
-      await onSubmit({ name: name.trim(), icon, essentiality: showEssentiality ? essentiality as Essentiality : 'wants' })
+      await onSubmit({ name: name.trim(), icon, essentiality: showEssentiality ? essentiality as Essentiality : 'wants', budget_excluded: showEssentiality ? budgetExcluded : false })
     } catch (err) {
       setError(err instanceof Error ? err.message : '저장에 실패했습니다')
     } finally {
@@ -122,6 +123,22 @@ export default function CategoryForm({ initial, onSubmit, submitLabel = '저장'
             {ESSENTIALITY_OPTIONS.find(o => o.value === essentiality)?.hint ?? '보고서의 50/30/20 지출 구성에 그대로 반영됩니다.'}
           </p>
         </div>
+      )}
+
+      {/* 예산 비대상 — 경조사 등 불규칙 지출. 단일 소스: SCHEMA.md `Budget` "예산 비대상 카테고리" */}
+      {showEssentiality && (
+        <label className="flex items-start gap-3 rounded-xl bg-[var(--color-surface-sub)] px-4 py-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={budgetExcluded}
+            onChange={e => setBudgetExcluded(e.target.checked)}
+            className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--color-primary)]"
+          />
+          <span className="flex flex-col gap-0.5">
+            <span className="text-sm font-medium text-[var(--color-text-body)]">예산 비대상</span>
+            <span className="text-[11px] text-[var(--color-text-sub)]">경조사처럼 불규칙한 지출이라 월 예산을 잡지 않습니다. 예산 설정·소진율 계산에서 제외됩니다.</span>
+          </span>
+        </label>
       )}
 
       {error && (

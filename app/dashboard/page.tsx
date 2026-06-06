@@ -88,7 +88,9 @@ export default function DashboardPage() {
   const prevTxs = monthTxs[4]
 
   const income = currentTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-  const spending = getExpenseAmount(currentTxs)
+  // 소비 예산 소진율 분자: 예산 비대상(경조사 등 불규칙 지출) 카테고리 지출 제외 (REPORT_SPEC §5d / SCHEMA Budget).
+  const budgetExcludedIds = new Set(categories.filter(c => c.budget_excluded).map(c => c.id))
+  const spending = getExpenseAmount(currentTxs.filter(t => !budgetExcludedIds.has(t.category_id)))
   const outflow = getOutflowAmount(currentTxs)
   const prevIncome = prevTxs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   const prevExpense = getOutflowAmount(prevTxs)
@@ -99,7 +101,7 @@ export default function DashboardPage() {
   const managedBalance = totalAssetValue - totalDebt
 
   const totalBudget = categories
-    .filter(c => c.type === 'expense' && c.visible)
+    .filter(c => c.type === 'expense' && c.visible && !c.budget_excluded)
     .reduce((sum, cat) => sum + getBudgetForMonth(budgets, cat.id, year, month), 0)
   const budgetPct = totalBudget > 0 ? Math.round((spending / totalBudget) * 100) : 0
 
@@ -136,6 +138,11 @@ export default function DashboardPage() {
     }
   })
 
+  const underTargetAssets = useMemo(
+    () => assets.filter(a => a.visible && a.target_balance_enabled && !isDebtAssetType(a.group_type) && a.balance < a.target_balance),
+    [assets]
+  )
+
   const upcomingSavings = [...savingsGoals]
     .filter(g => g.target_date)
     .sort((a, b) => a.target_date.localeCompare(b.target_date))
@@ -161,18 +168,18 @@ export default function DashboardPage() {
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <div className="flex shrink-0 items-center gap-1">
-            <button onClick={() => navMonth(-1)} className="rounded-lg p-1.5 hover:bg-[var(--color-surface-sub)]" aria-label="이전 달">
+            <button onClick={() => navMonth(-1)} className="inline-flex h-11 w-11 items-center justify-center rounded-xl hover:bg-[var(--color-surface-sub)]" aria-label="이전 달">
               <ChevronLeft size={18} className="text-[var(--color-text-sub)]" />
             </button>
             <span className="text-sm font-medium text-[var(--color-text)] min-w-[60px] text-center">{month}월</span>
-            <button onClick={() => navMonth(1)} className="rounded-lg p-1.5 hover:bg-[var(--color-surface-sub)]" aria-label="다음 달">
+            <button onClick={() => navMonth(1)} className="inline-flex h-11 w-11 items-center justify-center rounded-xl hover:bg-[var(--color-surface-sub)]" aria-label="다음 달">
               <ChevronRight size={18} className="text-[var(--color-text-sub)]" />
             </button>
           </div>
           <ThemeToggle />
           <button
             onClick={() => router.push('/transaction/new')}
-            className="flex h-9 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl bg-[var(--color-primary)] px-3 text-sm font-semibold text-white"
+            className="flex h-11 shrink-0 items-center gap-1 whitespace-nowrap rounded-xl bg-[var(--color-primary)] px-4 text-sm font-semibold text-white"
           >
             <Plus size={15} /> 내역
           </button>
@@ -234,6 +241,43 @@ export default function DashboardPage() {
       {/* 자산 현황 */}
       <AssetSummary assets={assets} />
 
+      {/* 채워야 할 계좌 */}
+      {underTargetAssets.length > 0 && (
+        <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold text-[var(--color-text)]">채워야 할 계좌</p>
+            <Link href="/assets" className="text-xs text-[var(--color-primary)]">자산 관리 →</Link>
+          </div>
+          <div className="space-y-2">
+            {underTargetAssets.map(a => {
+              const shortfall = a.target_balance - a.balance
+              const pct = Math.round((a.balance / a.target_balance) * 100)
+              return (
+                <div key={a.id}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm text-[var(--color-text-body)] truncate">{a.name}</span>
+                    <span className="shrink-0 text-xs font-semibold text-[var(--color-expense)] ml-2">
+                      {formatAmount(shortfall)}원 부족
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1.5 rounded-full bg-[var(--color-surface-sub)] overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-[var(--color-expense)] transition-all"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="shrink-0 text-[11px] text-[var(--color-text-sub)] tabular-nums">
+                      {formatAmount(a.balance)} / {formatAmount(a.target_balance)}원
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* 저축 목표 */}
       <div className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-4">
         <div className="flex items-center justify-between mb-3">
@@ -245,7 +289,7 @@ export default function DashboardPage() {
         {savingsGoals.length === 0 ? (
           <div className="text-center py-4">
             <p className="text-sm text-[var(--color-text-sub)] mb-3">저축 목표를 설정해 보세요</p>
-            <Link href="/savings" className="inline-block h-9 px-4 rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold leading-9">
+            <Link href="/savings" className="inline-flex h-11 items-center rounded-xl bg-[var(--color-primary)] px-4 text-sm font-semibold text-white">
               목표 설정하기
             </Link>
           </div>

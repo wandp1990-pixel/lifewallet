@@ -275,6 +275,13 @@ export interface MonthlyReport {
     wantsIncomeRatio: number | null    // wants / income (표준 ≤30%)
     savingsRate: number | null         // savings 자산 순변동 / income (=summary.savingsRate, 저축 레그 표준 ≥20%)
   }
+  // 목표 유지 잔액이 설정된 계좌 중 현재 잔액이 부족한 것. visible && target_balance_enabled && 비부채 && balance < target_balance (visible 필터는 LF2·대시보드와 일관).
+  targetBalanceAlerts: {
+    name: string
+    balance: number
+    targetBalance: number
+    shortfall: number
+  }[]
 }
 
 function previousMonth(year: number, month: number) {
@@ -1203,9 +1210,15 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
     }
   })
 
+  // 예산 비대상(경조사 등 불규칙 지출)은 budgetUsageRate 분자·분모 양쪽에서 제외 (REPORT_SPEC §5d).
+  const budgetExcludedIds = new Set(categories.filter(category => category.budget_excluded).map(category => category.id))
   const totalBudget = categories
-    .filter(category => category.type === 'expense')
+    .filter(category => category.type === 'expense' && !category.budget_excluded)
     .reduce((sum, category) => sum + getBudgetForMonth(budgets, category.id, year, month), 0)
+  // 분자 trackedExpense = 예산 비대상 카테고리 지출을 뺀 expense. 분모(totalBudget)와 모집단을 맞춰 소진율 과대 계상 방지.
+  const trackedExpense = [...expenseByCategory.entries()]
+    .filter(([categoryId]) => !budgetExcludedIds.has(categoryId))
+    .reduce((sum, [, value]) => sum + value.amount, 0)
   const visibleAssets = assets.filter(asset => asset.visible && existedAsOf(asset, to))
   const totalAssets = visibleAssets
     .filter(asset => !isDebtAssetType(asset.group_type))
@@ -1229,7 +1242,7 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
   const next = nextMonth(year, month)
   const nextRange = getMonthRange(next.year, next.month, monthStartDay)
   const nextBudgetedExpense = categories
-    .filter(category => category.type === 'expense')
+    .filter(category => category.type === 'expense' && !category.budget_excluded)
     .reduce((sum, category) => sum + getBudgetForMonth(budgets, category.id, next.year, next.month), 0)
   const nextWishlist = wishlist.filter(item => !item.is_done && item.target_date && inRange(item.target_date, nextRange.from, nextRange.to))
   const nextRecurringExpenses = recurringTransactions
@@ -1313,7 +1326,7 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
     const actualIncome = monthTransactions.filter(tx => tx.type === 'income').reduce((sum, tx) => sum + tx.amount, 0)
     const actualOutflow = getOutflowAmount(monthTransactions)
     const budgetedExpense = categories
-      .filter(category => category.type === 'expense')
+      .filter(category => category.type === 'expense' && !category.budget_excluded)
       .reduce((sum, category) => sum + getBudgetForMonth(budgets, category.id, year, targetMonth), 0)
     // 과거·현재 달(targetMonth ≤ 보고월): 실제 부채상환. 미래 달: 완납추정 투영. (REPORT_SPEC §7)
     const loanPayments = targetMonth <= month
@@ -1343,7 +1356,7 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
   // 총부채상환비율 = 월 부채상환액 / 월 총소득. 카드 결제는 별도 거래로 모델링되지 않아
   // 현재 추적 가능한 월 부채상환액 = loan_repayment 합(loanRepayment)으로 근사한다.
   const debtServiceRatioValue = income > 0 ? ratio(loanRepayment, income) : null
-  const budgetUsageRateValue = totalBudget > 0 ? ratio(expense, totalBudget) : null
+  const budgetUsageRateValue = totalBudget > 0 ? ratio(trackedExpense, totalBudget) : null
   const fixedCostRateValue = income > 0 ? ratio(recurringOutflowThisMonth, income) : null
   const overBudgetCategories = categoryAnalysis.filter(row => row.overBudget && row.budgetRate !== null)
   const highInterestLoanRow = loans.find(loan => loan.priority === 'high_interest' && loan.balance > 0)
@@ -1456,5 +1469,8 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
       recurringTransactions,
     }),
     essentialityBreakdown: buildEssentialityBreakdown(transactions, categories, expense, income, savingsRate),
+    targetBalanceAlerts: assets
+      .filter(a => a.visible && a.target_balance_enabled && !isDebtAssetType(a.group_type) && a.balance < a.target_balance)
+      .map(a => ({ name: a.name, balance: a.balance, targetBalance: a.target_balance, shortfall: a.target_balance - a.balance })),
   }
 }

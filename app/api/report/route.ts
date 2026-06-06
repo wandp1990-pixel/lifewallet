@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
     db.execute({ sql: 'SELECT * FROM transactions WHERE date >= ? AND date <= ? ORDER BY date ASC, created_at ASC', args: [annualFrom, annualTo] }),
     // 보고 월 말 이후 ~ 현재까지 모든 거래 — 시점 잔액 복원용 (lib/report.ts reconstructBalanceAsOf)
     db.execute({ sql: 'SELECT * FROM transactions WHERE date > ? ORDER BY date ASC, created_at ASC', args: [currentRange.to] }),
-    db.execute('SELECT id,type,name,icon,ord as "order",visible,is_system,essentiality FROM categories ORDER BY ord ASC'),
+    db.execute('SELECT id,type,name,icon,ord as "order",visible,is_system,essentiality,budget_excluded FROM categories ORDER BY ord ASC'),
     db.execute('SELECT * FROM budgets'),
     db.execute('SELECT * FROM assets ORDER BY ord ASC'),
     db.execute('SELECT * FROM savings_goals ORDER BY created_at DESC'),
@@ -96,6 +96,7 @@ export async function GET(req: NextRequest) {
       ...(row as unknown as Category),
       visible: Boolean((row as Record<string, unknown>).visible),
       is_system: Boolean((row as Record<string, unknown>).is_system),
+      budget_excluded: Boolean((row as Record<string, unknown>).budget_excluded),
     })),
     budgets: budgetRows.rows as unknown as Budget[],
     assets: assetRows.rows.map(rowToAsset),

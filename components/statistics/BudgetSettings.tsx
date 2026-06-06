@@ -46,6 +46,7 @@ export default function BudgetSettings() {
     if (!ready) return
     const init: Record<string, string> = {}
     for (const cat of expenseCategories) {
+      if (cat.budget_excluded) continue
       if (isDirectBudget(budgets, cat.id, year, month)) {
         const b = budgets.find(b => b.year === year && b.month === month && b.category_id === cat.id)
         if (b) init[cat.id] = String(b.amount)
@@ -64,7 +65,7 @@ export default function BudgetSettings() {
     try {
       const toSave = Object.entries(inputs).filter(([, v]) => v.trim() !== '')
       const toDelete = expenseCategories
-        .filter(cat => isDirectBudget(budgets, cat.id, year, month) && (inputs[cat.id] ?? '').trim() === '')
+        .filter(cat => !cat.budget_excluded && isDirectBudget(budgets, cat.id, year, month) && (inputs[cat.id] ?? '').trim() === '')
         .map(cat => cat.id)
 
       await Promise.all(
@@ -117,21 +118,21 @@ export default function BudgetSettings() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-surface)]">
+    <div className="min-h-full bg-[var(--color-surface)]">
       {/* 헤더 */}
       <div className="sticky top-0 z-10 bg-[var(--color-surface)] border-b border-[var(--color-border)]">
         <div className="flex items-center gap-3 px-4 py-3">
-          <button onClick={() => router.back()} className="p-1 text-[var(--color-text-sub)]">
+          <button onClick={() => router.back()} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-[var(--color-text-sub)] hover:bg-[var(--color-surface-sub)]" aria-label="뒤로">
             <ChevronLeft size={20} />
           </button>
           <h1 className="text-[16px] font-semibold text-[var(--color-text)] flex-1">예산 설정</h1>
         </div>
         <div className="flex items-center justify-center gap-4 pb-3">
-          <button onClick={prevMonth} className="p-1 text-[var(--color-text-sub)]">
+          <button onClick={prevMonth} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-[var(--color-text-sub)] hover:bg-[var(--color-surface-sub)]" aria-label="이전 달">
             <ChevronLeft size={18} />
           </button>
           <span className="text-[15px] font-semibold text-[var(--color-text)]">{year}년 {month}월</span>
-          <button onClick={nextMonth} className="p-1 text-[var(--color-text-sub)]">
+          <button onClick={nextMonth} className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-[var(--color-text-sub)] hover:bg-[var(--color-surface-sub)]" aria-label="다음 달">
             <ChevronRight size={18} />
           </button>
         </div>
@@ -155,18 +156,24 @@ export default function BudgetSettings() {
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-1">
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={0}
-                    value={inputVal}
-                    placeholder={fallback > 0 ? formatAmount(fallback) : '0'}
-                    onChange={e => setInputs(prev => ({ ...prev, [cat.id]: e.target.value }))}
-                    className="w-32 text-right text-[16px] font-semibold text-[var(--color-text)] bg-[rgba(0,23,51,0.02)] border border-[rgba(2,32,71,0.05)] rounded-xl px-3 py-2 tabular-nums focus:outline-none focus:border-[var(--color-primary)]"
-                  />
-                  <span className="text-[13px] text-[var(--color-text-sub)]">원</span>
-                </div>
+                {cat.budget_excluded ? (
+                  <span className="shrink-0 rounded-lg bg-[var(--color-surface-sub)] px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-sub)]">
+                    예산 비대상
+                  </span>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={inputVal}
+                      placeholder={fallback > 0 ? formatAmount(fallback) : '0'}
+                      onChange={e => setInputs(prev => ({ ...prev, [cat.id]: e.target.value }))}
+                      className="w-32 text-right text-[16px] font-semibold text-[var(--color-text)] bg-[rgba(0,23,51,0.02)] border border-[rgba(2,32,71,0.05)] rounded-xl px-3 py-2 tabular-nums focus:outline-none focus:border-[var(--color-primary)]"
+                    />
+                    <span className="text-[13px] text-[var(--color-text-sub)]">원</span>
+                  </div>
+                )}
               </div>
             )
           })}

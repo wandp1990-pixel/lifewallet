@@ -45,7 +45,7 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
     setSheetOpen(true)
   }
 
-  function handleSubmit(values: { name: string; icon: string; essentiality: Essentiality }) {
+  function handleSubmit(values: { name: string; icon: string; essentiality: Essentiality; budget_excluded: boolean }) {
     if (editing) {
       setLocalItems(prev => prev.map(item =>
         item.id === editing.id ? { ...item, ...values } : item
@@ -63,6 +63,7 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
         visible: true,
         is_system: false,
         essentiality: values.essentiality,
+        budget_excluded: values.budget_excluded,
         _isNew: true,
       }])
     }
@@ -105,7 +106,7 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
         const res = await fetch('/api/categories', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: item.name, icon: item.icon, type, order: item.order, essentiality: item.essentiality }),
+          body: JSON.stringify({ name: item.name, icon: item.icon, type, order: item.order, essentiality: item.essentiality, budget_excluded: item.budget_excluded }),
         })
         if (!res.ok) throw new Error('카테고리 추가에 실패했습니다')
         tempToReal.set(item.id, await res.json())
@@ -118,13 +119,13 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
           .filter(item => {
             if (item._isNew) return false
             const orig = origMap.get(item.id)
-            return orig && (orig.name !== item.name || orig.icon !== item.icon || orig.order !== item.order || orig.essentiality !== item.essentiality)
+            return orig && (orig.name !== item.name || orig.icon !== item.icon || orig.order !== item.order || orig.essentiality !== item.essentiality || orig.budget_excluded !== item.budget_excluded)
           })
           .map(item =>
             fetch(`/api/categories/${item.id}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name: item.name, icon: item.icon, order: item.order, essentiality: item.essentiality }),
+              body: JSON.stringify({ name: item.name, icon: item.icon, order: item.order, essentiality: item.essentiality, budget_excluded: item.budget_excluded }),
             })
           )
       )
@@ -169,7 +170,7 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
         <button
           type="button"
           onClick={openAdd}
-          className="flex items-center gap-1 h-10 px-4 rounded-xl bg-[var(--color-primary)] text-white text-sm font-semibold hover:bg-[var(--color-primary-hover)] transition-colors"
+          className="flex h-11 items-center gap-1 rounded-xl bg-[var(--color-primary)] px-4 text-sm font-semibold text-white hover:bg-[var(--color-primary-hover)] transition-colors"
         >
           <Plus size={16} strokeWidth={2.5} />
           카테고리 추가
@@ -186,7 +187,7 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
           <button
             type="button"
             onClick={openAdd}
-            className="h-10 px-4 rounded-xl border border-[var(--color-primary)] text-[var(--color-primary)] text-sm font-semibold hover:bg-[var(--color-primary-subtle)] transition-colors"
+            className="h-11 px-4 rounded-xl border border-[var(--color-primary)] text-[var(--color-primary)] text-sm font-semibold hover:bg-[var(--color-primary-subtle)] transition-colors"
           >
             카테고리 추가
           </button>
@@ -257,7 +258,7 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
         title={editing ? '카테고리 수정' : '카테고리 추가'}
       >
         <CategoryForm
-          initial={editing ? { name: editing.name, icon: editing.icon, essentiality: editing.essentiality } : undefined}
+          initial={editing ? { name: editing.name, icon: editing.icon, essentiality: editing.essentiality, budget_excluded: editing.budget_excluded } : undefined}
           onSubmit={handleSubmit}
           submitLabel={editing ? '수정' : '추가'}
           showEssentiality={type === 'expense'}

@@ -16,7 +16,8 @@ interface Props {
 }
 
 export default function BudgetProgress({ transactions, categories, budgets, year, month, monthStartDay }: Props) {
-  const expenseCategories = categories.filter(c => c.type === 'expense' && c.visible)
+  // 예산 비대상(경조사 등 불규칙 지출)은 소비 예산 진행에서 제외 (REPORT_SPEC §5d / SCHEMA Budget).
+  const expenseCategories = categories.filter(c => c.type === 'expense' && c.visible && !c.budget_excluded)
   const expenses = transactions.filter(t => t.type === 'expense')
 
   const rows = expenseCategories.map(cat => {

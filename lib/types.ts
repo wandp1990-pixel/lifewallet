@@ -36,6 +36,7 @@ export interface Category {
   visible: boolean
   is_system: boolean
   essentiality: Essentiality
+  budget_excluded: boolean   // true면 예산 비대상(경조사 등 불규칙 지출). 예산 설정 차단 + budgetUsageRate 분자/분모 제외. SCHEMA.md `Budget` 참조.
 }
 
 export interface Asset {
@@ -49,6 +50,8 @@ export interface Asset {
   visible: boolean
   track_detail: boolean
   savings_tracking: boolean
+  target_balance_enabled: boolean
+  target_balance: number
   principal?: number
   interest_rate?: number
   start_date?: string

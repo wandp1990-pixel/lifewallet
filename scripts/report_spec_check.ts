@@ -1,6 +1,7 @@
 // REPORT_SPEC 정합성 회귀 테스트 (tsx 순수함수 단위). dev 서버 차단 환경 대체 검증.
 // 실행: node_modules/.bin/tsx scripts/report_spec_check.ts
 import { buildMonthlyReport, type MonthlyReportInput } from '../lib/report'
+import { validateGeneratedReport } from '../lib/ai-report'
 import type { Asset, Category, Transaction } from '../lib/types'
 
 let pass = 0, fail = 0
@@ -16,6 +17,7 @@ function asset(p: Partial<Asset>): Asset {
     id: p.id ?? `a${n++}`, group_type: p.group_type ?? 'bank', group_name: '', name: p.name ?? 'asset',
     balance: p.balance ?? 0, balance_date: p.balance_date ?? '', order: 0, visible: p.visible ?? true,
     track_detail: false, savings_tracking: p.savings_tracking ?? false,
+    target_balance_enabled: false, target_balance: 0,
     principal: p.principal, interest_rate: p.interest_rate, start_date: p.start_date, end_date: p.end_date,
     payment_day: p.payment_day, monthly_payment: p.monthly_payment,
   }
@@ -27,8 +29,8 @@ function tx(p: Partial<Transaction>): Transaction {
     from_asset_id: p.from_asset_id ?? '', to_asset_id: p.to_asset_id ?? '', fee: p.fee ?? 0, created_at: '',
   }
 }
-const cat = (id: string, type: Category['type']): Category =>
-  ({ id, type, name: id, icon: '📦', order: 0, visible: true, is_system: false, essentiality: 'wants' })
+const cat = (id: string, type: Category['type'], budgetExcluded = false): Category =>
+  ({ id, type, name: id, icon: '📦', order: 0, visible: true, is_system: false, essentiality: 'wants', budget_excluded: budgetExcluded })
 
 function baseInput(over: Partial<MonthlyReportInput>): MonthlyReportInput {
   return {
@@ -161,6 +163,46 @@ console.log('§7 연간 전망 대출상환')
   check('8월(미래 offset2)=투영 6만', m(8) === 60_000, m(8))
   check('9월(완납 후)=0', m(9) === 0, m(9))
   check('4월(과거·무거래)=실제 0', m(4) === 0, m(4))
+}
+
+// ════ AI 생성 결과 저장 전 검증 (lib/ai-report.ts validateGeneratedReport) ════
+console.log('AI 생성 결과 검증 게이트')
+{
+  const longBody = '## 종합 진단\n'.padEnd(300, '내용 ')
+  // 완납 대출 없는 보고서 (loans 비어 있음)
+  const noPayoff = buildMonthlyReport(baseInput({ year: 2026, month: 6 }))
+  check('완납 대출 없음(테스트 전제)', noPayoff.debtStrategy.loans.every(l => !l.paidOffThisMonth), noPayoff.debtStrategy.loans.length)
+
+  check('빈 응답 → ok=false', validateGeneratedReport('', noPayoff).ok === false)
+  check('오류 메시지 → ok=false', validateGeneratedReport('오류가 발생했습니다: 503', noPayoff).ok === false)
+  check('너무 짧음 → ok=false', validateGeneratedReport('짧은 응답', noPayoff).ok === false)
+  check('정상 본문 → ok=true', validateGeneratedReport(longBody, noPayoff).ok === true)
+
+  const leaked = validateGeneratedReport(longBody + '\nactualOutflow는 큽니다 debtServiceRatio 참고', noPayoff)
+  check('영문 키 누출 → ok=true + issue 기록', leaked.ok === true && leaked.issues.some(i => i.includes('영문 JSON 키')), leaked.issues)
+
+  const falseClaim = validateGeneratedReport(longBody + '\n국민카드 대출을 이번 달에 완납했습니다.', noPayoff)
+  check('완납 대출 없는데 "이번 달 완납" → issue 기록', falseClaim.issues.some(i => i.includes('완납')), falseClaim.issues)
+}
+
+// ════ 항목 ⑦ §5d: 예산 비대상 카테고리는 budgetUsageRate 분자·분모에서 제외 ════
+console.log('§5d 예산 비대상 budgetUsageRate 제외')
+{
+  // food(일반) 예산 50만·지출 40만, gyeong(예산 비대상) 지출 30만.
+  // 분자=trackedExpense=40만(food만), 분모=totalBudget=50만 → 80%. (비대상 제외 안 하면 70만/50만=140%)
+  const r = buildMonthlyReport(baseInput({
+    categories: [cat('food', 'expense'), cat('gyeong', 'expense', true)],
+    budgets: [{ year: 2026, month: 3, category_id: 'food', amount: 500_000 }],
+    transactions: [
+      tx({ type: 'expense', amount: 400_000, asset_id: 'cash', category_id: 'food' }),
+      tx({ type: 'expense', amount: 300_000, asset_id: 'cash', category_id: 'gyeong' }),
+    ],
+  }))
+  const bur = r.healthMetrics.find(m => m.key === 'budgetUsageRate')
+  check('비대상 제외 후 소진율 = 40만/50만 = 80%', bur?.value === 80, bur?.value)
+  const gyeongRow = r.categoryAnalysis.find(row => row.categoryId === 'gyeong')
+  check('비대상 카테고리도 categoryAnalysis 행에는 등장', gyeongRow?.amount === 300_000, gyeongRow?.amount)
+  check('비대상 카테고리 budget=0·budgetRate=null', gyeongRow?.budget === 0 && gyeongRow?.budgetRate === null, gyeongRow)
 }
 
 console.log(`\n결과: ${pass} pass / ${fail} fail`)

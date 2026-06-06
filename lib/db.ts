@@ -66,7 +66,8 @@ async function _doInit() {
       ord  INTEGER NOT NULL DEFAULT 0,
       visible   INTEGER NOT NULL DEFAULT 1,
       is_system INTEGER NOT NULL DEFAULT 0,
-      essentiality TEXT NOT NULL DEFAULT 'wants'
+      essentiality TEXT NOT NULL DEFAULT 'wants',
+      budget_excluded INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS budgets (
@@ -171,6 +172,10 @@ async function _doInit() {
   if (!columnNames.has('essentiality')) {
     await db.execute("ALTER TABLE categories ADD COLUMN essentiality TEXT NOT NULL DEFAULT 'wants'")
   }
+  // 예산 비대상 플래그 (경조사 등 불규칙 지출). SCHEMA.md `Budget` / REPORT_SPEC §5(d).
+  if (!columnNames.has('budget_excluded')) {
+    await db.execute('ALTER TABLE categories ADD COLUMN budget_excluded INTEGER NOT NULL DEFAULT 0')
+  }
 
   const assetColumns = await db.execute('PRAGMA table_info(assets)')
   const assetColumnNames = new Set(assetColumns.rows.map(row => String((row as Record<string, unknown>).name ?? '')))
@@ -180,6 +185,12 @@ async function _doInit() {
   if (!assetColumnNames.has('savings_tracking')) {
     await db.execute('ALTER TABLE assets ADD COLUMN savings_tracking INTEGER NOT NULL DEFAULT 0')
     await db.execute("UPDATE assets SET savings_tracking = 1 WHERE group_type = 'savings'")
+  }
+  if (!assetColumnNames.has('target_balance_enabled')) {
+    await db.execute('ALTER TABLE assets ADD COLUMN target_balance_enabled INTEGER NOT NULL DEFAULT 0')
+  }
+  if (!assetColumnNames.has('target_balance')) {
+    await db.execute('ALTER TABLE assets ADD COLUMN target_balance INTEGER NOT NULL DEFAULT 0')
   }
 
   // 하드코딩 시스템 카테고리 제거 마이그레이션 (is_system=1 이면 삭제, 연결 거래는 미분류로)
@@ -233,6 +244,8 @@ export function rowToAsset(row: Record<string, unknown>): Asset {
     visible: Boolean(row.visible),
     track_detail: Boolean(row.track_detail),
     savings_tracking: Boolean(row.savings_tracking),
+    target_balance_enabled: Boolean(row.target_balance_enabled),
+    target_balance: Number(row.target_balance ?? 0),
     principal: row.principal as number | undefined,
     interest_rate: row.interest_rate as number | undefined,
     start_date: row.start_date as string | undefined,
