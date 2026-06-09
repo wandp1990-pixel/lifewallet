@@ -167,13 +167,13 @@ export default function AiAnalysis({ report, year, month, monthStartDay }: { rep
 
   return (
     <section className="rounded-lg border border-[var(--color-primary)]/30 bg-[var(--color-primary)]/[0.03]">
-      <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-4 py-3 md:px-5 md:py-4">
+      <div className="flex flex-col gap-3 border-b border-[var(--color-border)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:px-5 md:py-4">
         <div className="flex min-w-0 items-center gap-2">
           <Sparkles size={18} className="shrink-0 text-[var(--color-primary)]" aria-hidden />
-          <h2 className="text-[16px] font-bold text-[var(--color-text)]">AI 재무 분석</h2>
+          <h2 className="whitespace-nowrap text-[16px] font-bold text-[var(--color-text)]">AI 재무 분석</h2>
         </div>
         {!editing && !generating && data ? (
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
             <button
               type="button"
               onClick={generate}
