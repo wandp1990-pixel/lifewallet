@@ -13,7 +13,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const currentGroupType = existing.rows[0].group_type as string
   const currentBalance = existing.rows[0].balance as number
-  const currentBalanceDate = String(existing.rows[0].balance_date ?? '')
   const nextGroupType = (body.group_type ?? currentGroupType) as Parameters<typeof normalizeAssetBalance>[0]
   const groupTypeChanged = body.group_type !== undefined && body.group_type !== currentGroupType
 
@@ -75,14 +74,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     ],
   })
 
-  const balanceDate = body.balance_date || currentBalanceDate || todayStr()
+  // 잔액 조정 거래 날짜는 항상 오늘 — 기준일(balance_date) 이후로 찍혀야 자산 상세 활성 이력에 새 기록으로 올라간다.
+  // 기준일과 같은 날짜로 찍으면 "기준일 이전·당일 · 잔액 미반영" 흐린 칸에 묻혀 기록이 추가되지 않은 것처럼 보인다. → PAGES.md "자산 추가/수정 폼"
   if (body.balance !== undefined && !groupTypeChanged && nextBalance !== null && nextBalance !== currentBalance) {
     await db.execute({
       sql: `INSERT INTO transactions (id,date,type,amount,category_id,asset_id,content,note,from_asset_id,to_asset_id,fee,created_at)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
       args: [
         generateId('txn'),
-        balanceDate,
+        todayStr(),
         'asset',
         nextBalance - currentBalance,
         '',
