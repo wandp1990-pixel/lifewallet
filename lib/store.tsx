@@ -112,12 +112,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const refresh = () => load()
 
+  // 거래 추가/수정/삭제는 서버에서 연결 자산 잔액을 함께 바꾼다(applyTransactionBalance).
+  // store의 자산 잔액을 즉시 재동기화하지 않으면, 이후 자산 수정 폼이 낡은 잔액을
+  // 프리필→재전송해 방금 거래의 잔액 반영을 "잔액 조정"으로 되돌린다. → DESIGN.md LF7
+  const refreshAssets = () => {
+    fetchJson<Asset[]>('/api/assets')
+      .then(assets => setState(s => ({ ...s, assets })))
+      .catch(() => {}) // 실패 시 이전 상태 유지 — 다음 전체 로드에서 회복 (LF3과 동일 원칙)
+  }
+
   useEffect(() => { load() }, [])
 
   const actions: StoreActions = {
-    addTransaction: (t) => setState(s => ({ ...s, transactions: [t, ...s.transactions] })),
-    updateTransaction: (t) => setState(s => ({ ...s, transactions: s.transactions.map(x => x.id === t.id ? t : x) })),
-    deleteTransaction: (id) => setState(s => ({ ...s, transactions: s.transactions.filter(x => x.id !== id) })),
+    addTransaction: (t) => { setState(s => ({ ...s, transactions: [t, ...s.transactions] })); refreshAssets() },
+    updateTransaction: (t) => { setState(s => ({ ...s, transactions: s.transactions.map(x => x.id === t.id ? t : x) })); refreshAssets() },
+    deleteTransaction: (id) => { setState(s => ({ ...s, transactions: s.transactions.filter(x => x.id !== id) })); refreshAssets() },
 
     addAsset: (a) => setState(s => ({ ...s, assets: [...s.assets, a] })),
     updateAsset: (a) => setState(s => ({ ...s, assets: s.assets.map(x => x.id === a.id ? a : x) })),

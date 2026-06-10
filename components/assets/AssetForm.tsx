@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import SlideUpSheet from '@/components/ui/SlideUpSheet'
 import { getDebtBalance, isDebtAssetType } from '@/lib/finance'
@@ -134,9 +134,23 @@ export default function AssetForm({ open, onClose, editing }: Props) {
   const { addAsset, updateAsset, categories } = useStore()
   const assetCategories = categories.filter(c => c.type === 'asset' && c.visible)
   const [form, setForm] = useState<FormState>(editing ? assetToForm(editing) : DEFAULT_FORM)
+  // 열린 시점의 프리필 잔액 스냅샷. 제출 시 이 값과 같으면 balance를 전송하지 않는다 —
+  // 사용자가 안 바꾼 잔액을 재전송하면 폼이 낡았을 때 거래 반영분을 되돌린다. → DESIGN.md LF7
+  const [prefillBalance, setPrefillBalance] = useState<number>(editing ? parseNum(assetToForm(editing).balance) : 0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  // 폼은 페이지 마운트 시점이 아니라 "열린 시점"의 자산 값으로 시작해야 한다.
+  // 닫혀 있는 동안 거래로 잔액이 바뀌어도 낡은 값이 남지 않도록 열릴 때마다 재동기화. → DESIGN.md LF7
+  useEffect(() => {
+    if (!open) return
+    setForm(editing ? assetToForm(editing) : DEFAULT_FORM)
+    setPrefillBalance(editing ? parseNum(assetToForm(editing).balance) : 0)
+    setError('')
+    // editing은 의도적으로 deps에서 제외 — 열려 있는 동안 백그라운드 갱신이 입력을 덮지 않도록.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   const isLoan = form.group_type === 'loan'
   const forceTrackDetail = form.group_type === 'loan' || form.group_type === 'savings'
@@ -152,11 +166,14 @@ export default function AssetForm({ open, onClose, editing }: Props) {
     setSaving(true)
     setError('')
 
+    // 수정 시 잔액은 사용자가 실제로 바꿨을 때만 전송한다. 그대로 보내면 서버가
+    // "잔액이 바뀌었다"고 보고 차액만큼 잔액 조정 거래를 만들어 버린다. → DESIGN.md LF7
+    const balanceChanged = !editing || parseNum(form.balance) !== prefillBalance
     const payload = {
       name: form.name.trim(),
       group_type: form.group_type,
       group_name: form.group_name.trim(),
-      balance: parseNum(form.balance),
+      ...(balanceChanged && { balance: parseNum(form.balance) }),
       balance_date: form.balance_date,
       visible: form.visible,
       track_detail: forceTrackDetail || form.track_detail,
