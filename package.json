@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "dev:fresh": "rm -rf .next && next dev",
-    "build": "next build",
+    "prebuild": "node scripts/check-assets.mjs",
+    "build": "node scripts/check-assets.mjs && next build",
     "start": "next start",
     "test": "tsx scripts/report_spec_check.ts"
   },
