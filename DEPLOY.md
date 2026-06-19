@@ -67,4 +67,5 @@ curl -L -s https://lifewallet-eight.vercel.app
 
 - **GitHub 연동: 미설정** — `git push` 만으로는 배포 안 됨
 - `vercel --prod` 직접 실행이 유일한 배포 방법
-- Stop 훅(`~/.claude/settings.json`)이 변경사항 자동 감지 후 commit + 배포 실행
+- **자동 배포 없음 (배포는 의도적 수동 행위)** — 과거 Stop 훅이 매 턴 변경 감지 후 commit + `vercel --prod`를 자동 실행했으나, 안전성 문제(세션 무관 발동·untracked 파일로 헛배포·빌드 게이트 없음)로 **제거됨(2026-06-14)**. 이제 배포 요청이 있을 때만 위 "배포 절차"를 수행한다.
+- Claude Code에서는 `vercel:deploy` 스킬(`/vercel:deploy prod`)로도 배포 가능
