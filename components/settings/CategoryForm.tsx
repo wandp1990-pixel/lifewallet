@@ -32,8 +32,7 @@ export default function CategoryForm({ initial, onSubmit, submitLabel = '저장'
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const visibleAssets = assets.filter(a => a.visible)
-  const assetGroups = groupAssets(visibleAssets)
+  const assetGroups = groupAssets(assets)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -146,7 +145,7 @@ export default function CategoryForm({ initial, onSubmit, submitLabel = '저장'
             {assetGroups.map(({ label, items }) => (
               <optgroup key={label} label={label}>
                 {items.map(a => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
+                  <option key={a.id} value={a.id}>{a.name}{!a.visible ? ' (숨김)' : ''}</option>
                 ))}
               </optgroup>
             ))}
