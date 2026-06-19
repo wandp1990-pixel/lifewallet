@@ -24,6 +24,7 @@ export async function GET() {
       visible: Boolean(r.visible),
       is_system: Boolean(r.is_system),
       budget_excluded: Boolean(r.budget_excluded),
+      default_asset_id: r.default_asset_id ?? '',
     })),
     { headers: { 'Cache-Control': 'private, max-age=0, stale-while-revalidate=60' } }
   )
@@ -47,11 +48,12 @@ export async function POST(req: NextRequest) {
     essentiality: isEssentiality(body.essentiality) ? body.essentiality : 'wants',
     // 예산 비대상은 expense 카테고리에만 의미. 다른 타입은 항상 false.
     budget_excluded: body.type === 'expense' ? Boolean(body.budget_excluded) : false,
+    default_asset_id: typeof body.default_asset_id === 'string' ? body.default_asset_id : '',
   }
 
   await db.execute({
-    sql: 'INSERT INTO categories (id,type,name,icon,ord,visible,is_system,essentiality,budget_excluded) VALUES (?,?,?,?,?,?,?,?,?)',
-    args: [c.id, c.type, c.name, c.icon, c.order, 1, 0, c.essentiality, c.budget_excluded ? 1 : 0],
+    sql: 'INSERT INTO categories (id,type,name,icon,ord,visible,is_system,essentiality,budget_excluded,default_asset_id) VALUES (?,?,?,?,?,?,?,?,?,?)',
+    args: [c.id, c.type, c.name, c.icon, c.order, 1, 0, c.essentiality, c.budget_excluded ? 1 : 0, c.default_asset_id],
   })
 
   return NextResponse.json(c, { status: 201 })

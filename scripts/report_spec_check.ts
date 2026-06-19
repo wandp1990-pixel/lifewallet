@@ -30,7 +30,7 @@ function tx(p: Partial<Transaction>): Transaction {
   }
 }
 const cat = (id: string, type: Category['type'], budgetExcluded = false): Category =>
-  ({ id, type, name: id, icon: '📦', order: 0, visible: true, is_system: false, essentiality: 'wants', budget_excluded: budgetExcluded })
+  ({ id, type, name: id, icon: '📦', order: 0, visible: true, is_system: false, essentiality: 'wants', budget_excluded: budgetExcluded, default_asset_id: '' })
 
 function baseInput(over: Partial<MonthlyReportInput>): MonthlyReportInput {
   return {

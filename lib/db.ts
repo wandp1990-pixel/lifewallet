@@ -176,6 +176,10 @@ async function _doInit() {
   if (!columnNames.has('budget_excluded')) {
     await db.execute('ALTER TABLE categories ADD COLUMN budget_excluded INTEGER NOT NULL DEFAULT 0')
   }
+  // 카테고리별 기본 자산 — 거래 입력 시 이 카테고리 선택 → 자동 선택. SCHEMA.md `Category.default_asset_id`.
+  if (!columnNames.has('default_asset_id')) {
+    await db.execute("ALTER TABLE categories ADD COLUMN default_asset_id TEXT NOT NULL DEFAULT ''")
+  }
 
   const assetColumns = await db.execute('PRAGMA table_info(assets)')
   const assetColumnNames = new Set(assetColumns.rows.map(row => String((row as Record<string, unknown>).name ?? '')))

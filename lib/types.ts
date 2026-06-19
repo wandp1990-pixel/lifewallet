@@ -37,6 +37,7 @@ export interface Category {
   is_system: boolean
   essentiality: Essentiality
   budget_excluded: boolean   // true면 예산 비대상(경조사 등 불규칙 지출). 예산 설정 차단 + budgetUsageRate 분자/분모 제외. SCHEMA.md `Budget` 참조.
+  default_asset_id: string  // 거래 입력 시 이 카테고리 선택 → 자동 선택할 자산. '' = 없음.
 }
 
 export interface Asset {

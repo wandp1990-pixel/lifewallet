@@ -45,7 +45,7 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
     setSheetOpen(true)
   }
 
-  function handleSubmit(values: { name: string; icon: string; essentiality: Essentiality; budget_excluded: boolean }) {
+  function handleSubmit(values: { name: string; icon: string; essentiality: Essentiality; budget_excluded: boolean; default_asset_id: string }) {
     if (editing) {
       setLocalItems(prev => prev.map(item =>
         item.id === editing.id ? { ...item, ...values } : item
@@ -64,6 +64,7 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
         is_system: false,
         essentiality: values.essentiality,
         budget_excluded: values.budget_excluded,
+        default_asset_id: values.default_asset_id,
         _isNew: true,
       }])
     }
@@ -106,7 +107,7 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
         const res = await fetch('/api/categories', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: item.name, icon: item.icon, type, order: item.order, essentiality: item.essentiality, budget_excluded: item.budget_excluded }),
+          body: JSON.stringify({ name: item.name, icon: item.icon, type, order: item.order, essentiality: item.essentiality, budget_excluded: item.budget_excluded, default_asset_id: item.default_asset_id }),
         })
         if (!res.ok) throw new Error('카테고리 추가에 실패했습니다')
         tempToReal.set(item.id, await res.json())
@@ -119,13 +120,13 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
           .filter(item => {
             if (item._isNew) return false
             const orig = origMap.get(item.id)
-            return orig && (orig.name !== item.name || orig.icon !== item.icon || orig.order !== item.order || orig.essentiality !== item.essentiality || orig.budget_excluded !== item.budget_excluded)
+            return orig && (orig.name !== item.name || orig.icon !== item.icon || orig.order !== item.order || orig.essentiality !== item.essentiality || orig.budget_excluded !== item.budget_excluded || orig.default_asset_id !== item.default_asset_id)
           })
           .map(item =>
             fetch(`/api/categories/${item.id}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name: item.name, icon: item.icon, order: item.order, essentiality: item.essentiality, budget_excluded: item.budget_excluded }),
+              body: JSON.stringify({ name: item.name, icon: item.icon, order: item.order, essentiality: item.essentiality, budget_excluded: item.budget_excluded, default_asset_id: item.default_asset_id }),
             })
           )
       )
@@ -258,10 +259,11 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
         title={editing ? '카테고리 수정' : '카테고리 추가'}
       >
         <CategoryForm
-          initial={editing ? { name: editing.name, icon: editing.icon, essentiality: editing.essentiality, budget_excluded: editing.budget_excluded } : undefined}
+          initial={editing ? { name: editing.name, icon: editing.icon, essentiality: editing.essentiality, budget_excluded: editing.budget_excluded, default_asset_id: editing.default_asset_id } : undefined}
           onSubmit={handleSubmit}
           submitLabel={editing ? '수정' : '추가'}
           showEssentiality={type === 'expense'}
+          showDefaultAsset={type !== 'asset'}
         />
       </SlideUpSheet>
     </div>

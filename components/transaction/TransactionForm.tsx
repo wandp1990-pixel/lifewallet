@@ -423,7 +423,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
                   <button
                     key={c.id}
                     type="button"
-                    onClick={() => set('categoryId', c.id)}
+                    onClick={() => setForm(f => ({ ...f, categoryId: c.id, assetId: c.default_asset_id || f.assetId }))}
                     className={`flex flex-col items-center gap-1 px-1 py-3 rounded-xl text-xs transition-colors border ${
                       form.categoryId === c.id
                         ? 'bg-[var(--color-primary-subtle)] text-[var(--color-primary)] border-[var(--color-primary)]'

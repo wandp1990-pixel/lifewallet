@@ -417,7 +417,10 @@ export default function RecurringPage() {
               <p className="text-[12px] text-[var(--color-text-sub)] mb-1.5">분류</p>
               <select
                 value={form.category_id}
-                onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
+                onChange={e => {
+                  const cat = categories.find(c => c.id === e.target.value)
+                  setForm(f => ({ ...f, category_id: e.target.value, asset_id: cat?.default_asset_id || f.asset_id }))
+                }}
                 className="tds-field"
               >
                 <option value="">분류 선택</option>

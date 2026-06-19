@@ -3,6 +3,8 @@
 import { useState, type FormEvent } from 'react'
 import type { Category, Essentiality } from '@/lib/types'
 import CatIcon, { ICON_KEYS, ICON_LABELS } from '@/components/ui/CatIcon'
+import { useStore } from '@/lib/store'
+import { groupAssets } from '@/lib/assetGroups'
 
 // 50/30/20 + 카케이보 4분류. 라벨·색상 단일 소스는 DESIGN_SYSTEM.md "필수성 분류 색상".
 const ESSENTIALITY_OPTIONS: { value: Essentiality; label: string; hint: string }[] = [
@@ -13,19 +15,25 @@ const ESSENTIALITY_OPTIONS: { value: Essentiality; label: string; hint: string }
 ]
 
 interface CategoryFormProps {
-  initial?: Pick<Category, 'name' | 'icon'> & { essentiality?: Essentiality; budget_excluded?: boolean }
-  onSubmit: (values: { name: string; icon: string; essentiality: Essentiality; budget_excluded: boolean }) => Promise<void> | void
+  initial?: Pick<Category, 'name' | 'icon'> & { essentiality?: Essentiality; budget_excluded?: boolean; default_asset_id?: string }
+  onSubmit: (values: { name: string; icon: string; essentiality: Essentiality; budget_excluded: boolean; default_asset_id: string }) => Promise<void> | void
   submitLabel?: string
   showEssentiality?: boolean
+  showDefaultAsset?: boolean
 }
 
-export default function CategoryForm({ initial, onSubmit, submitLabel = '저장', showEssentiality = false }: CategoryFormProps) {
+export default function CategoryForm({ initial, onSubmit, submitLabel = '저장', showEssentiality = false, showDefaultAsset = false }: CategoryFormProps) {
+  const { assets } = useStore()
   const [name, setName] = useState(initial?.name ?? '')
   const [icon, setIcon] = useState(initial?.icon ?? 'box')
   const [essentiality, setEssentiality] = useState<Essentiality | ''>(initial?.essentiality ?? '')
   const [budgetExcluded, setBudgetExcluded] = useState(initial?.budget_excluded ?? false)
+  const [defaultAssetId, setDefaultAssetId] = useState(initial?.default_asset_id ?? '')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const visibleAssets = assets.filter(a => a.visible)
+  const assetGroups = groupAssets(visibleAssets)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -40,7 +48,7 @@ export default function CategoryForm({ initial, onSubmit, submitLabel = '저장'
     }
     setSubmitting(true)
     try {
-      await onSubmit({ name: name.trim(), icon, essentiality: showEssentiality ? essentiality as Essentiality : 'wants', budget_excluded: showEssentiality ? budgetExcluded : false })
+      await onSubmit({ name: name.trim(), icon, essentiality: showEssentiality ? essentiality as Essentiality : 'wants', budget_excluded: showEssentiality ? budgetExcluded : false, default_asset_id: showDefaultAsset ? defaultAssetId : '' })
     } catch (err) {
       setError(err instanceof Error ? err.message : '저장에 실패했습니다')
     } finally {
@@ -123,6 +131,28 @@ export default function CategoryForm({ initial, onSubmit, submitLabel = '저장'
             {ESSENTIALITY_OPTIONS.find(o => o.value === essentiality)?.hint ?? '보고서의 50/30/20 지출 구성에 그대로 반영됩니다.'}
           </p>
         </div>
+      )}
+
+      {/* 기본 자산 — 이 카테고리 선택 시 거래 폼에서 자동 선택. income/expense 카테고리 전용 */}
+      {showDefaultAsset && (
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium text-[var(--color-text-body)]">기본 자산 <span className="font-normal text-[var(--color-text-sub)]">(선택)</span></span>
+          <select
+            value={defaultAssetId}
+            onChange={e => setDefaultAssetId(e.target.value)}
+            className="rounded-xl bg-[rgba(0,23,51,0.02)] border border-[rgba(2,32,71,0.05)] px-4 py-3.5 text-[17px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+          >
+            <option value="">없음</option>
+            {assetGroups.map(({ label, items }) => (
+              <optgroup key={label} label={label}>
+                {items.map(a => (
+                  <option key={a.id} value={a.id}>{a.name}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+          <p className="text-[11px] text-[var(--color-text-sub)]">설정하면 이 카테고리 선택 시 해당 자산이 자동으로 선택됩니다.</p>
+        </label>
       )}
 
       {/* 예산 비대상 — 경조사 등 불규칙 지출. 단일 소스: SCHEMA.md `Budget` "예산 비대상 카테고리" */}

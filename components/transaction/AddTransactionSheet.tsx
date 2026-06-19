@@ -665,7 +665,15 @@ export default function AddTransactionSheet({ open, onClose, onSaved, onRecurrin
                 {currentCats.map(c => (
                   <button
                     key={c.id}
-                    onClick={() => { setCatId(c.id); setPanel('asset') }}
+                    onClick={() => {
+                      setCatId(c.id)
+                      if (c.default_asset_id) {
+                        setAssetId(c.default_asset_id)
+                        setPanel('amount')
+                      } else {
+                        setPanel('asset')
+                      }
+                    }}
                     className={`flex flex-col items-center gap-1 rounded-xl border px-2 py-2.5 transition-colors ${
                       catId === c.id
                         ? 'border-[var(--color-primary)] bg-[var(--color-primary-subtle)]'
