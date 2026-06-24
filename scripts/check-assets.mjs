@@ -38,4 +38,28 @@ if (errors.length > 0) {
   process.exit(1)
 }
 
-console.log('✓ asset check passed (public/apple-icon.png + layout wiring)')
+// F19 — Vercel function region must be pinned. Default (iad1, US) is far from the
+// Tokyo Turso DB, so every SSR DB round-trip crosses the Pacific (~170ms). vercel.json
+// must declare a non-empty `regions` so the function co-locates near the DB/users.
+const vercelJsonPath = join(root, 'vercel.json')
+let regionError = null
+if (!existsSync(vercelJsonPath)) {
+  regionError = 'vercel.json missing — function defaults to iad1 (US), far from the Tokyo Turso DB.'
+} else {
+  try {
+    const cfg = JSON.parse(readFileSync(vercelJsonPath, 'utf8'))
+    if (!Array.isArray(cfg.regions) || cfg.regions.length === 0) {
+      regionError = 'vercel.json has no non-empty "regions" — function defaults to iad1 (US).'
+    }
+  } catch {
+    regionError = 'vercel.json is not valid JSON.'
+  }
+}
+if (regionError) {
+  console.error('\n✗ Build blocked — Vercel region not pinned (coding PITFALLS F19):')
+  console.error(`    - ${regionError}`)
+  console.error('\n  Fix: add vercel.json with { "regions": ["icn1"] } (Seoul, near the Tokyo Turso DB).\n')
+  process.exit(1)
+}
+
+console.log('✓ asset + region check passed (public/apple-icon.png + layout wiring, vercel.json regions)')
