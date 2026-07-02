@@ -241,6 +241,27 @@ export default function LedgerPage() {
         {/* 검색/필터 패널 */}
         {searchOpen && (
           <div className="px-4 pb-3 pt-2 space-y-2 border-t border-[var(--color-border)]">
+            {/* 타입 필터 - PC는 아래 탭 줄에 있으므로 모바일에서만 노출 */}
+            <div className="flex gap-1.5 md:hidden overflow-x-auto -mx-0.5 px-0.5 pb-0.5">
+              {(Object.keys(FILTER_LABELS) as FilterType[]).map(f => {
+                const count = countByFilter(f)
+                if (f !== 'all' && count === 0) return null
+                return (
+                  <button
+                    key={f}
+                    onClick={() => setFilter(f)}
+                    className={`shrink-0 flex items-center gap-1 px-3 py-1.5 text-[13px] font-medium rounded-full transition-colors ${
+                      filter === f
+                        ? 'bg-[var(--color-primary)] text-white'
+                        : 'bg-[var(--color-surface-sub)] text-[var(--color-text-sub)]'
+                    }`}
+                  >
+                    {FILTER_LABELS[f]}
+                    <span className="text-xs opacity-80">{count}</span>
+                  </button>
+                )
+              })}
+            </div>
             <input
               type="text"
               value={search}
