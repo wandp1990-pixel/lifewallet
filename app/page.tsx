@@ -240,7 +240,7 @@ export default function LedgerPage() {
 
         {/* 검색/필터 패널 */}
         {searchOpen && (
-          <div className="px-4 pb-3 pt-2 space-y-2 border-t border-[var(--color-border)]">
+          <div className="px-4 pb-2 pt-1.5 space-y-1.5 border-t border-[var(--color-border)]">
             {/* 타입 필터 - PC는 아래 탭 줄에 있으므로 모바일에서만 노출 */}
             <div className="flex gap-1.5 md:hidden overflow-x-auto -mx-0.5 px-0.5 pb-0.5">
               {(Object.keys(FILTER_LABELS) as FilterType[]).map(f => {
@@ -250,7 +250,7 @@ export default function LedgerPage() {
                   <button
                     key={f}
                     onClick={() => setFilter(f)}
-                    className={`shrink-0 flex items-center gap-1 px-3 py-1.5 text-[13px] font-medium rounded-full transition-colors ${
+                    className={`shrink-0 flex items-center gap-1 px-2.5 py-1 text-[12px] font-medium rounded-full transition-colors ${
                       filter === f
                         ? 'bg-[var(--color-primary)] text-white'
                         : 'bg-[var(--color-surface-sub)] text-[var(--color-text-sub)]'
@@ -268,13 +268,13 @@ export default function LedgerPage() {
               onChange={e => setSearch(e.target.value)}
               placeholder="내용·메모 검색"
               autoFocus
-              className="tds-field !py-2.5"
+              className="tds-field !py-1.5 !text-[14px]"
             />
             <div className="flex gap-2">
               <select
                 value={assetFilter}
                 onChange={e => setAssetFilter(e.target.value)}
-                className="tds-field flex-1 min-w-0 !py-2.5"
+                className="tds-field flex-1 min-w-0 !py-1.5 !text-[14px]"
               >
                 <option value="">모든 자산</option>
                 {filterableAssets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
@@ -282,14 +282,14 @@ export default function LedgerPage() {
               <select
                 value={categoryFilter}
                 onChange={e => setCategoryFilter(e.target.value)}
-                className="tds-field flex-1 min-w-0 !py-2.5"
+                className="tds-field flex-1 min-w-0 !py-1.5 !text-[14px]"
               >
                 <option value="">모든 분류</option>
                 {filterableCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
             {/* 정렬 토글 (상단 버튼에서 이동) */}
-            <div className="flex items-center justify-between pt-0.5">
+            <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-[13px] text-[var(--color-text-sub)]">
                 <ArrowUpDown size={14} /> 정렬
               </span>
