@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import db, { initDb, rowToAsset } from '@/lib/db'
 import { getMonthRange } from '@/lib/monthStart'
 import { buildMonthlyReport } from '@/lib/report'
-import { streamFinancialReport, validateGeneratedReport } from '@/lib/ai-report'
+import { streamFinancialReport, validateGeneratedReport, sanitizeGeneratedReport } from '@/lib/ai-report'
 import { generateId } from '@/lib/utils'
 import type { Budget, Category, RecurringTransaction, SavingsGoal, Transaction, WishlistItem } from '@/lib/types'
 
@@ -92,15 +92,17 @@ export async function POST(req: NextRequest) {
   })
 
   // 생성 완료 후 ai_reports에 upsert. 검증 hard fail 시 저장을 건너뛰어 기존 저장본을 보호한다.
+  // 저장 직전 sanitize로 규칙 위반 문구(예: 거짓 "이번 달 완납")를 결정적으로 교정한다 — AI 준수에 의존하지 않는다.
   async function saveResult(text: string) {
     const { ok } = validateGeneratedReport(text, report)
     if (!ok) return
+    const sanitized = sanitizeGeneratedReport(text, report)
     const now = new Date().toISOString()
     await db.execute({
       sql: `INSERT INTO ai_reports (id, year, month, content, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(year, month) DO UPDATE SET content = excluded.content, updated_at = excluded.updated_at`,
-      args: [generateId('aireport'), year, month, text, now, now],
+      args: [generateId('aireport'), year, month, sanitized, now, now],
     })
   }
 

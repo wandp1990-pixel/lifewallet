@@ -215,12 +215,31 @@ export function validateGeneratedReport(text: string, report: MonthlyReport): Re
   }
 
   // 이번 달 완납 대출이 없는데 "이번 달 완납"으로 서술했을 가능성 (프롬프트 완납 처리 규칙 위반 후보)
-  const hasPaidOffThisMonth = report.debtStrategy.loans.some(loan => loan.paidOffThisMonth)
-  if (!hasPaidOffThisMonth && /이번\s*달[^.]{0,12}완납|완납[^.]{0,12}이번\s*달/.test(body)) {
+  if (hasFalsePaidOffThisMonth(body, report)) {
     issues.push('이번 달 완납 대출이 없는데 "이번 달 완납" 서술 가능성')
   }
 
   return { ok: true, issues }
+}
+
+// 이번 달 완납된 대출이 하나도 없는데 본문이 "이번 달 완납"류를 서술했는지.
+// validate(경고)와 sanitize(교정)가 같은 판정을 공유한다.
+function hasFalsePaidOffThisMonth(body: string, report: MonthlyReport): boolean {
+  const hasPaidOffThisMonth = report.debtStrategy.loans.some(loan => loan.paidOffThisMonth)
+  return !hasPaidOffThisMonth && /이번\s*달[^.]{0,12}완납|완납[^.]{0,12}이번\s*달/.test(body)
+}
+
+// 저장 직전 결정적 교정. AI 준수에 의존하지 않고, 규칙 위반 문구를 코드로 바로잡는다.
+// 현재 대상: paidOffThisMonth 대출이 없는데 "이번 달(에) 완납"이라 쓴 잘못된 시점 수식어 제거.
+// paid_off 대출 자체는 사실이므로 "완납" 서술은 유지하고, 거짓인 "이번 달" 시점만 떼어낸다.
+// (프롬프트 "굳이 언급한다면 '이미 완납된 상태'로만 표기" 규칙과 동일한 결과.)
+export function sanitizeGeneratedReport(text: string, report: MonthlyReport): string {
+  if (!hasFalsePaidOffThisMonth(text, report)) return text
+  return text
+    // "이번 달에 완납되었습니다" → "완납되었습니다" (완납 앞 12자 내에 올 때만 시점 수식어 제거)
+    .replace(/이번\s*달\s*에?\s*(?=[^.。\n]{0,12}완납)/g, '')
+    // 역순 "완납 … 이번 달(에)" 형태의 시점 수식어도 제거
+    .replace(/(완납[^.。\n]{0,12}?)이번\s*달\s*에?\s*/g, '$1')
 }
 
 function buildUserMessage(report: MonthlyReport): string {
