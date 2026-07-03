@@ -4,7 +4,7 @@ import { useState, type FormEvent } from 'react'
 import type { Category, Essentiality } from '@/lib/types'
 import CatIcon, { ICON_KEYS, ICON_LABELS } from '@/components/ui/CatIcon'
 import { useStore } from '@/lib/store'
-import { groupAssets } from '@/lib/assetGroups'
+import AssetGroupPicker from '@/components/ui/AssetGroupPicker'
 
 // 50/30/20 + 카케이보 4분류. 라벨·색상 단일 소스는 DESIGN_SYSTEM.md "필수성 분류 색상".
 const ESSENTIALITY_OPTIONS: { value: Essentiality; label: string; hint: string }[] = [
@@ -31,8 +31,6 @@ export default function CategoryForm({ initial, onSubmit, submitLabel = '저장'
   const [defaultAssetId, setDefaultAssetId] = useState(initial?.default_asset_id ?? '')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  const assetGroups = groupAssets(assets)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -133,25 +131,18 @@ export default function CategoryForm({ initial, onSubmit, submitLabel = '저장'
       )}
 
       {/* 기본 자산 — 이 카테고리 선택 시 거래 폼에서 자동 선택. income/expense 카테고리 전용 */}
+      {/* 내역 추가 시트와 동일한 앱 내장 그룹 선택기 재사용(AssetGroupPicker). 자산 풀은 전 자산 유지(숨김 포함 — DESIGN.md LF8) */}
       {showDefaultAsset && (
-        <label className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-2">
           <span className="text-sm font-medium text-[var(--color-text-body)]">기본 자산 <span className="font-normal text-[var(--color-text-sub)]">(선택)</span></span>
-          <select
-            value={defaultAssetId}
-            onChange={e => setDefaultAssetId(e.target.value)}
-            className="rounded-xl bg-[rgba(0,23,51,0.02)] border border-[rgba(2,32,71,0.05)] px-4 py-3.5 text-[17px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
-          >
-            <option value="">없음</option>
-            {assetGroups.map(({ label, items }) => (
-              <optgroup key={label} label={label}>
-                {items.map(a => (
-                  <option key={a.id} value={a.id}>{a.name}{!a.visible ? ' (숨김)' : ''}</option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
+          <AssetGroupPicker
+            pool={assets}
+            selectedId={defaultAssetId}
+            onSelect={setDefaultAssetId}
+            noneOption={{ label: '없음' }}
+          />
           <p className="text-[11px] text-[var(--color-text-sub)]">설정하면 이 카테고리 선택 시 해당 자산이 자동으로 선택됩니다.</p>
-        </label>
+        </div>
       )}
 
       {/* 예산 비대상 — 경조사 등 불규칙 지출. 단일 소스: SCHEMA.md `Budget` "예산 비대상 카테고리" */}

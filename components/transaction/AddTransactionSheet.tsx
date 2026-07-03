@@ -11,6 +11,7 @@ import { groupAssets } from '@/lib/assetGroups'
 import type { Asset, RecurringTransaction, Transaction } from '@/lib/types'
 import CatIcon from '@/components/ui/CatIcon'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import AssetGroupPicker from '@/components/ui/AssetGroupPicker'
 
 type TxType = 'expense' | 'income' | 'transfer' | 'loan_repayment'
 type Op = '+' | '-' | '*' | '/'
@@ -788,68 +789,3 @@ function SwapPanel({ title, children }: { title: string; children: ReactNode }) 
   )
 }
 
-// ── 자산 그룹 펼침 선택 ──
-function AssetGroupPicker({ pool, selectedId, onSelect }: { pool: Asset[]; selectedId: string; onSelect: (id: string) => void }) {
-  const groups = useMemo(() => groupAssets(pool), [pool])
-  // 선택된 자산이 속한 그룹만 펼친 상태로 시작
-  const [expanded, setExpanded] = useState<Set<string>>(() => {
-    const sel = pool.find(a => a.id === selectedId)
-    return new Set(sel ? [sel.group_type] : groups[0] ? [groups[0].type] : [])
-  })
-
-  function toggle(g: string) {
-    setExpanded(prev => {
-      const next = new Set(prev)
-      if (next.has(g)) next.delete(g)
-      else next.add(g)
-      return next
-    })
-  }
-
-  if (groups.length === 0) {
-    return <p className="py-6 text-center text-[13px] text-[var(--color-text-sub)]">선택 가능한 자산이 없습니다.</p>
-  }
-
-  return (
-    <div className="space-y-1.5">
-      {groups.map(({ type, label, items }) => {
-        const isOpen = expanded.has(type)
-        const hasSelected = items.some(a => a.id === selectedId)
-        return (
-          <div key={type} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
-            <button
-              onClick={() => toggle(type)}
-              className="flex w-full items-center justify-between px-3 py-2.5"
-            >
-              <span className="flex items-center gap-2 text-[13px] font-semibold text-[var(--color-text)]">
-                {label}
-                <span className="text-[11px] font-normal text-[var(--color-text-sub)]">{items.length}</span>
-                {hasSelected && !isOpen && (
-                  <span className="text-[12px] font-medium text-[var(--color-primary)]">· {items.find(a => a.id === selectedId)?.name}</span>
-                )}
-              </span>
-              <ChevronDown size={16} className={`text-[var(--color-text-sub)] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-            </button>
-            {isOpen && (
-              <div className="flex flex-wrap gap-2 px-3 pb-3 pt-0.5">
-                {items.map(a => (
-                  <button
-                    key={a.id}
-                    onClick={() => onSelect(a.id)}
-                    className={`px-2.5 py-1.5 rounded-full text-[13px] font-medium border transition-colors ${
-                      selectedId === a.id
-                        ? 'bg-[var(--color-primary-subtle)] text-[var(--color-primary)] border-[var(--color-primary)]'
-                        : 'bg-[var(--color-surface-sub)] text-[var(--color-text-body)] border-transparent'
-                    }`}
-                  >
-                    {a.name}{!a.visible ? ' (숨김)' : ''}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
