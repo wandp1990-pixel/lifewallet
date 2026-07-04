@@ -665,8 +665,10 @@ function buildRecommendations(ctx: RecommendationContext): Recommendation[] {
       let detail = `금리 ${loan.interestRate.toFixed(1)}%의 고금리 대출입니다. 비상금이 확보된 만큼 여유 자금으로 우선 상환을 검토하세요.`
       let metric: string | undefined = `${formatAmount(loan.balance)}원`
       if (asset && loan.monthlyPayment > 0 && loan.estimatedPayoffMonths !== null) {
+        // 시뮬레이션 잔액도 시점 복원값(loan.balance) 사용 — 비교 기준 estimatedPayoffMonths가 복원 잔액 기반이므로
+        // asset.balance(현재 스냅샷)를 쓰면 과거 달 보고서에서 단축 개월이 어긋난다. (LF4, REPORT_SPEC §0.3/§9)
         const simulated = estimateLoanPayoff({
-          balance: asset.balance,
+          balance: loan.balance,
           annualInterestRate: loan.interestRate,
           monthlyPayment: loan.monthlyPayment + EXTRA_PAYMENT_SIM,
           paymentDay: asset.payment_day ?? 0,
@@ -1272,13 +1274,13 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
     ...nextWishlist.map(item => ({ label: item.name, amount: item.price, source: item.type === 'event' ? '이벤트' : '위시' })),
   ].sort((a, b) => b.amount - a.amount)
 
-  const timelineMap = new Map<string, { income: number; outflow: number; items: string[] }>()
+  const timelineMap = new Map<string, { income: number; outflow: number; items: { content: string; amount: number }[] }>()
   for (const tx of [...transactions].sort((a, b) => a.date.localeCompare(b.date))) {
     const current = timelineMap.get(tx.date) ?? { income: 0, outflow: 0, items: [] }
     if (tx.type === 'income') current.income += tx.amount
     if (tx.type === 'expense' || tx.type === 'loan_repayment') current.outflow += tx.amount
     if (tx.type === 'transfer') current.outflow += tx.fee ?? 0
-    if (tx.content) current.items.push(tx.content)
+    if (tx.content) current.items.push({ content: tx.content, amount: tx.amount })
     timelineMap.set(tx.date, current)
   }
   let cumulative = 0
@@ -1291,7 +1293,8 @@ export function buildMonthlyReport(input: MonthlyReportInput): MonthlyReport {
       outflow: value.outflow,
       net,
       cumulative,
-      mainItems: value.items.slice(0, 3),
+      // 그날 거래 content 금액 상위 3 (REPORT_SPEC §10) — 입력순이 아니라 금액 내림차순
+      mainItems: [...value.items].sort((a, b) => b.amount - a.amount).slice(0, 3).map(item => item.content),
     }
   })
 

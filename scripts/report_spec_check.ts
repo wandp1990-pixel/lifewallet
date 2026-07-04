@@ -1,6 +1,7 @@
 // REPORT_SPEC 정합성 회귀 테스트 (tsx 순수함수 단위). dev 서버 차단 환경 대체 검증.
 // 실행: node_modules/.bin/tsx scripts/report_spec_check.ts
 import { buildMonthlyReport, type MonthlyReportInput } from '../lib/report'
+import { estimateLoanPayoff } from '../lib/finance'
 import { validateGeneratedReport } from '../lib/ai-report'
 import type { Asset, Category, Transaction } from '../lib/types'
 
@@ -203,6 +204,44 @@ console.log('§5d 예산 비대상 budgetUsageRate 제외')
   const gyeongRow = r.categoryAnalysis.find(row => row.categoryId === 'gyeong')
   check('비대상 카테고리도 categoryAnalysis 행에는 등장', gyeongRow?.amount === 300_000, gyeongRow?.amount)
   check('비대상 카테고리 budget=0·budgetRate=null', gyeongRow?.budget === 0 && gyeongRow?.budgetRate === null, gyeongRow)
+}
+
+// ════ 항목 ⑧ §9: 고금리 추가상환 시뮬레이션도 시점 복원 잔액 사용 (LF4) ════
+console.log('§9 고금리 시뮬레이션 시점 잔액')
+{
+  // 3월 보고서. 현재 대출 잔액 -10만이지만, 4월(later)에 원금 90만 상환 → 3월 말 복원 잔액은 -100만.
+  const bank = asset({ id: 'bank', group_type: 'bank', balance: 10_000_000 })          // 비상자금 10개월 → 고금리 권고 발동 조건 충족
+  const inv = asset({ id: 'inv', group_type: 'investment', balance: 0 })               // later 상환 출금원(비유동 — 비상자금에 영향 없음)
+  const loan = asset({ id: 'loan', group_type: 'loan', balance: -100_000, interest_rate: 10, monthly_payment: 100_000 })
+  const r = buildMonthlyReport(baseInput({
+    assets: [bank, inv, loan], categories: [cat('exp', 'expense')],
+    transactions: [tx({ type: 'expense', amount: 1_000_000, asset_id: 'bank', category_id: 'exp' })],
+    laterTransactions: [tx({ type: 'loan_repayment', date: '2026-04-10', amount: 900_000, from_asset_id: 'inv', to_asset_id: 'loan' })],
+  }))
+  const row = r.debtStrategy.loans.find(l => l.assetId === 'loan')
+  check('3월 말 복원 잔액 = 100만', row?.balance === 1_000_000, row?.balance)
+  const base = estimateLoanPayoff({ balance: -1_000_000, annualInterestRate: 10, monthlyPayment: 100_000, paymentDay: 0, fromDate: '2026-03-01' })
+  const sim = estimateLoanPayoff({ balance: -1_000_000, annualInterestRate: 10, monthlyPayment: 200_000, paymentDay: 0, fromDate: '2026-03-01' })
+  const saved = (base.estimatedMonths ?? 0) - (sim.estimatedMonths ?? 0)
+  const rec = r.recommendations.find(item => item.id === 'loan-loan')
+  // asset.balance(-10만)로 시뮬레이션하면 단축 개월이 복원 잔액 기준과 어긋난다 — metric으로 회귀 검증
+  check(`권고 시뮬레이션 = 복원 잔액 기준 ${saved}개월 단축`, rec?.metric === `${saved}개월 단축`, rec?.metric)
+}
+
+// ════ 항목 ⑨ §10: cashflowTimeline mainItems = 그날 content 금액 상위 3 ════
+console.log('§10 mainItems 금액 상위 3')
+{
+  const r = buildMonthlyReport(baseInput({
+    assets: [asset({ id: 'cash', group_type: 'cash' })], categories: [cat('exp', 'expense')],
+    transactions: [
+      tx({ type: 'expense', amount: 5_000, asset_id: 'cash', category_id: 'exp', content: 'small', date: '2026-03-10' }),
+      tx({ type: 'expense', amount: 30_000, asset_id: 'cash', category_id: 'exp', content: 'big', date: '2026-03-10' }),
+      tx({ type: 'expense', amount: 10_000, asset_id: 'cash', category_id: 'exp', content: 'mid', date: '2026-03-10' }),
+      tx({ type: 'expense', amount: 1_000, asset_id: 'cash', category_id: 'exp', content: 'tiny', date: '2026-03-10' }),
+    ],
+  }))
+  const day = r.cashflowTimeline.find(row => row.date === '2026-03-10')
+  check('mainItems = 금액 내림차순 상위 3', JSON.stringify(day?.mainItems) === JSON.stringify(['big', 'mid', 'small']), day?.mainItems)
 }
 
 console.log(`\n결과: ${pass} pass / ${fail} fail`)
