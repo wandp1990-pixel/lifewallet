@@ -30,6 +30,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# 모바일 디버그 스크린샷 (.vercelignore와 동일 패턴)
+lifewallet-mobile*.png
+
 # env files (can opt-in for committing if needed)
 .env*
 
