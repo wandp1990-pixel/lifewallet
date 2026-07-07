@@ -302,16 +302,16 @@ export default function RecurringPage() {
           {/* 금액 */}
           <div>
             <p className="text-[12px] text-[var(--color-text-sub)] mb-1.5">금액</p>
-            <div className="relative">
+            <div className="tds-field flex items-center gap-2 !py-0 focus-within:border-[var(--color-primary)]">
               <input
                 type="text"
                 inputMode="numeric"
                 value={form.amountStr}
                 onChange={e => setForm(f => ({ ...f, amountStr: fmtInput(e.target.value) }))}
                 placeholder="0"
-                className="tds-field text-right !text-[18px] font-bold"
+                className="flex-1 min-w-0 border-0 bg-transparent outline-none text-right !text-[18px] font-bold py-[13px] placeholder:text-[var(--color-text-placeholder)]"
               />
-              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--color-text-sub)] text-sm">원</span>
+              <span className="shrink-0 text-[var(--color-text-sub)] text-sm">원</span>
             </div>
           </div>
 
@@ -395,16 +395,16 @@ export default function RecurringPage() {
               {form.type === 'loan_repayment' && (
                 <div>
                   <p className="text-[12px] text-[var(--color-text-sub)] mb-1.5">이자 금액 (선택)</p>
-                  <div className="relative">
+                  <div className="tds-field flex items-center gap-2 !py-0 focus-within:border-[var(--color-primary)]">
                     <input
                       type="text"
                       inputMode="numeric"
                       value={form.feeStr}
                       onChange={e => setForm(f => ({ ...f, feeStr: fmtInput(e.target.value) }))}
                       placeholder="0"
-                      className="tds-field text-right !text-[16px]"
+                      className="flex-1 min-w-0 border-0 bg-transparent outline-none text-right !text-[16px] py-[13px] placeholder:text-[var(--color-text-placeholder)]"
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--color-text-sub)] text-sm">원</span>
+                    <span className="shrink-0 text-[var(--color-text-sub)] text-sm">원</span>
                   </div>
                 </div>
               )}
