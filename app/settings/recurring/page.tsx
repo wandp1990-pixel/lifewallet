@@ -330,7 +330,7 @@ export default function RecurringPage() {
           {/* 매월 몇 일 */}
           <div>
             <p className="text-[12px] text-[var(--color-text-sub)] mb-1.5">적용일 (매월)</p>
-            <div className="flex items-center gap-2">
+            <div className="tds-field flex items-center gap-2 !py-0 focus-within:border-[var(--color-primary)]">
               <input
                 type="text"
                 inputMode="numeric"
@@ -340,9 +340,9 @@ export default function RecurringPage() {
                   const day = Number(e.target.value.replace(/\D/g, ''))
                   setForm(f => ({ ...f, day_of_month: Math.min(31, Math.max(1, day || 1)) }))
                 }}
-                className="tds-field w-24 text-center !text-[16px]"
+                className="flex-1 min-w-0 border-0 bg-transparent outline-none text-right !text-[16px] py-[13px] placeholder:text-[var(--color-text-placeholder)]"
               />
-              <span className="text-[15px] text-[var(--color-text-sub)]">일</span>
+              <span className="shrink-0 text-[var(--color-text-sub)] text-sm">일</span>
             </div>
           </div>
 
