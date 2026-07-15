@@ -3,6 +3,8 @@
 import { useMemo, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { groupAssets } from '@/lib/assetGroups'
+import { isLoanPaidOff } from '@/lib/finance'
+import PaidOffBadge from '@/components/ui/PaidOffBadge'
 import type { Asset } from '@/lib/types'
 
 // 그룹별 자산 선택 UI. 내역 추가 시트·카테고리 폼(기본 자산) 등이 공유한다.
@@ -67,9 +69,15 @@ export default function AssetGroupPicker({
               <span className="flex items-center gap-2 text-[13px] font-semibold text-[var(--color-text)]">
                 {label}
                 <span className="text-[11px] font-normal text-[var(--color-text-sub)]">{items.length}</span>
-                {hasSelected && !isOpen && (
-                  <span className="text-[12px] font-medium text-[var(--color-primary)]">· {items.find(a => a.id === selectedId)?.name}</span>
-                )}
+                {hasSelected && !isOpen && (() => {
+                  const sel = items.find(a => a.id === selectedId)
+                  return (
+                    <span className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--color-primary)]">
+                      · {sel?.name}
+                      {sel && isLoanPaidOff(sel) && <PaidOffBadge />}
+                    </span>
+                  )
+                })()}
               </span>
               <ChevronDown size={16} className={`text-[var(--color-text-sub)] transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -80,13 +88,14 @@ export default function AssetGroupPicker({
                     key={a.id}
                     type="button"
                     onClick={() => onSelect(a.id)}
-                    className={`px-2.5 py-1.5 rounded-full text-[13px] font-medium border transition-colors ${
+                    className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[13px] font-medium border transition-colors ${
                       selectedId === a.id
                         ? 'bg-[var(--color-primary-subtle)] text-[var(--color-primary)] border-[var(--color-primary)]'
                         : 'bg-[var(--color-surface-sub)] text-[var(--color-text-body)] border-transparent'
                     }`}
                   >
                     {a.name}{!a.visible ? ' (숨김)' : ''}
+                    {isLoanPaidOff(a) && <PaidOffBadge />}
                   </button>
                 ))}
               </div>

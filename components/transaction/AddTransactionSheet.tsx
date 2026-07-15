@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { Repeat, ChevronDown, ChevronRight } from 'lucide-react'
-import { isDebtAssetType, validateTransactionInput } from '@/lib/finance'
+import { isDebtAssetType, isLoanPaidOff, validateTransactionInput } from '@/lib/finance'
 import { useStore } from '@/lib/store'
 import { formatAmount, todayStr } from '@/lib/utils'
 import { getDisplayMonth, getMonthStartDay } from '@/lib/monthStart'
@@ -381,7 +381,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, onRecurrin
 
   const selectedCat = currentCats.find(c => c.id === catId)
   const assetById = (id: string) => assets.find(a => a.id === id)
-  const assetLabel = (a?: Asset) => a ? `${a.name}${!a.visible ? ' (숨김)' : ''}` : '선택'
+  const assetLabel = (a?: Asset) => a ? `${a.name}${!a.visible ? ' (숨김)' : ''}${isLoanPaidOff(a) ? ' · 완제' : ''}` : '선택'
 
   // 자산 선택 풀 (showFromTo는 from/to 별도 제약)
   const incomeExpensePool = withSelectedAssets(selectableAssets, assets, [assetId])

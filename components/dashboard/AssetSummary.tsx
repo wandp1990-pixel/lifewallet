@@ -1,7 +1,8 @@
 'use client'
 
 import { formatAmount } from '@/lib/utils'
-import { getDebtBalance, isDebtAssetType } from '@/lib/finance'
+import { getDebtBalance, isDebtAssetType, isLoanPaidOff } from '@/lib/finance'
+import PaidOffBadge from '@/components/ui/PaidOffBadge'
 import type { Asset } from '@/lib/types'
 
 interface Props {
@@ -27,7 +28,10 @@ export default function AssetSummary({ assets }: Props) {
         <div className="space-y-1.5">
           {tracked.map(a => (
             <div key={a.id} className="flex justify-between text-sm">
-              <span className="text-[var(--color-text-body)] truncate">{a.name}</span>
+              <span className="flex min-w-0 items-center gap-1.5">
+                <span className="text-[var(--color-text-body)] truncate">{a.name}</span>
+                {isLoanPaidOff(a) && <PaidOffBadge />}
+              </span>
               <span className={`tabular-nums font-medium flex-shrink-0 ${isDebtAssetType(a.group_type) ? 'text-[var(--color-expense)]' : 'text-[var(--color-text)]'}`}>
                 {formatAmount(isDebtAssetType(a.group_type) ? getDebtBalance(a.balance) : a.balance)}원
               </span>

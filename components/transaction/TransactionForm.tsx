@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, Trash2 } from 'lucide-react'
-import { isDebtAssetType, validateTransactionInput } from '@/lib/finance'
+import { isDebtAssetType, isLoanPaidOff, validateTransactionInput } from '@/lib/finance'
 import { useStore } from '@/lib/store'
 import CatIcon from '@/components/ui/CatIcon'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -382,7 +382,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
               >
                 <option value="">계좌 선택</option>
                 {toAssets.map(a => (
-                  <option key={a.id} value={a.id}>{a.name}{!a.visible ? ' (숨김)' : ''}</option>
+                  <option key={a.id} value={a.id}>{a.name}{!a.visible ? ' (숨김)' : ''}{isLoanPaidOff(a) ? ' · 완제' : ''}</option>
                 ))}
               </select>
             </div>

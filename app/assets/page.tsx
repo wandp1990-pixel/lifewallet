@@ -4,9 +4,10 @@ import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, ChevronDown, ChevronUp, MoreHorizontal } from 'lucide-react'
 import { useStore } from '@/lib/store'
-import { getDebtBalance, isDebtAssetType } from '@/lib/finance'
+import { getDebtBalance, isDebtAssetType, isLoanPaidOff } from '@/lib/finance'
 import { formatAmount } from '@/lib/utils'
 import AssetForm from '@/components/assets/AssetForm'
+import PaidOffBadge from '@/components/ui/PaidOffBadge'
 import { ASSET_GROUP_ORDER as GROUP_ORDER, ASSET_GROUP_LABELS as GROUP_LABELS } from '@/lib/assetGroups'
 import type { Asset, AssetGroupType } from '@/lib/types'
 
@@ -203,7 +204,10 @@ export default function AssetsPage() {
                           onClick={() => router.push(`/assets/${a.id}`)}
                           className="w-full flex items-center justify-between gap-3 text-sm hover:bg-[var(--color-surface)] rounded-lg px-2 py-1 transition-colors"
                         >
-                          <span className="min-w-0 truncate text-[var(--color-text-body)]">{a.name}</span>
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span className="min-w-0 truncate text-[var(--color-text-body)]">{a.name}</span>
+                            {isLoanPaidOff(a) && <PaidOffBadge />}
+                          </span>
                           <span className="shrink-0 flex items-baseline gap-2 tabular-nums">
                             <span className="text-xs text-[var(--color-expense)]">{formatAmount(debtBalance)}원</span>
                             <span className="w-9 text-right text-xs text-[var(--color-text-sub)]">{pct}%</span>
@@ -272,6 +276,7 @@ export default function AssetsPage() {
                                   집계 제외
                                 </span>
                               )}
+                              {isLoanPaidOff(asset) && <PaidOffBadge />}
                               {asset.target_balance_enabled && !isDebt && asset.balance < asset.target_balance && (
                                 <span className="shrink-0 rounded-full bg-[var(--color-expense)]/10 px-1.5 py-0.5 text-[10px] font-medium text-[var(--color-expense)]">
                                   {formatAmount(asset.target_balance - asset.balance)}원 부족

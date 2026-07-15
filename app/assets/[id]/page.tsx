@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation'
 import { ChevronLeft, Pencil } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { formatAmount, formatDate } from '@/lib/utils'
-import { assetBalanceDelta, estimateLoanPayoff, getDebtBalance, getLoanRepaymentPrincipal, isDebtAssetType } from '@/lib/finance'
+import { assetBalanceDelta, estimateLoanPayoff, getDebtBalance, getLoanRepaymentPrincipal, isDebtAssetType, isLoanPaidOff } from '@/lib/finance'
 import AssetForm from '@/components/assets/AssetForm'
+import PaidOffBadge from '@/components/ui/PaidOffBadge'
 import type { Asset, Transaction } from '@/lib/types'
 
 interface Props {
@@ -397,7 +398,10 @@ export default function AssetDetailPage({ params }: Props) {
               <ChevronLeft size={20} className="text-[var(--color-text)]" />
             </button>
             <div className="text-center">
-              <h1 className="text-[17px] font-bold text-[var(--color-text)]">{asset.name}</h1>
+              <div className="flex items-center justify-center gap-1.5">
+                <h1 className="text-[17px] font-bold text-[var(--color-text)]">{asset.name}</h1>
+                {isLoanPaidOff(asset) && <PaidOffBadge />}
+              </div>
               <p className={`text-lg font-bold ${['card', 'minus_account', 'loan', 'insurance'].includes(asset.group_type) ? 'text-[var(--color-expense)]' : 'text-[var(--color-text)]'}`}>
                 {formatAmount(isDebtAssetType(asset.group_type) ? getDebtBalance(asset.balance) : asset.balance)}원
               </p>

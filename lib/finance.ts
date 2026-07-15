@@ -10,6 +10,11 @@ export function getDebtBalance(balance: number): number {
   return Math.abs(balance)
 }
 
+// 대출이 완제(잔액 0)됐는지 판정. 대출이 표시되는 모든 화면의 완제 배지 단일 기준.
+export function isLoanPaidOff(asset: Pick<Asset, 'group_type' | 'balance'>): boolean {
+  return asset.group_type === 'loan' && getDebtBalance(asset.balance) === 0
+}
+
 export function normalizeAssetBalance(groupType: AssetGroupType, balance: number): number {
   return isDebtAssetType(groupType) ? -Math.abs(balance) : balance
 }
@@ -294,6 +299,11 @@ export function validateTransactionInput(
     if (interestAmount > tx.amount) return '이자는 상환 금액보다 클 수 없습니다'
     if (toAssetType !== 'loan') return '대출 상환 대상은 대출 자산이어야 합니다'
     if (!fromAssetType || isDebtAssetType(fromAssetType)) return '대출 상환 출금 계좌는 일반 자산이어야 합니다'
+    // 이미 완제된(잔액 0) 대출은 더 상환할 게 없다. 막지 않으면 잔액이 (+)로 넘어가 유령 채무가 생긴다.
+    const loanAsset = findAsset(tx.to_asset_id, assets)
+    if (loanAsset?.balance !== undefined && getDebtBalance(loanAsset.balance) <= 0) {
+      return '이미 완제된 대출입니다'
+    }
     // 상환 원금이 남은 잔액을 초과해도 막지 않는다. 상환 근처 이자/원금 분리는 정확히
     // 계산하기 어려워, 서버가 clampLoanRepaymentToBalance로 초과분을 잘라 자동 완제 처리한다.
   }
