@@ -61,6 +61,29 @@ export function getLoanRepaymentPrincipal(
 }
 
 /**
+ * 대출 상환 원금(amount-fee)이 남은 대출 잔액을 초과하면 정확히 완제(잔액 0)되도록
+ * 거래의 amount/fee를 보정한다. 이자(fee)는 유지하고 총 상환액(amount)만 잔액+이자로 줄여
+ * 원금이 남은 잔액과 정확히 같아지게 한다. 초과하지 않으면 원본 값을 그대로 돌려준다.
+ * 상환 근처 이자/원금 분리는 정확히 계산하기 어려워, 넘치면 자동 완제로 처리한다.
+ * @param outstandingDebtBalance 이 상환을 적용하기 전 대출의 남은 잔액(양수 크기)
+ */
+export function clampLoanRepaymentToBalance(
+  tx: Pick<Transaction, 'type' | 'amount' | 'fee'>,
+  outstandingDebtBalance: number
+): { amount: number; fee: number; clamped: boolean } {
+  const fee = tx.fee ?? 0
+  if (tx.type !== 'loan_repayment' || outstandingDebtBalance <= 0) {
+    return { amount: tx.amount, fee, clamped: false }
+  }
+  const principal = tx.amount - fee
+  if (principal <= outstandingDebtBalance) {
+    return { amount: tx.amount, fee, clamped: false }
+  }
+  // 원금을 남은 잔액으로 캡 → 완제. 총 상환액 = 남은 잔액 + 이자.
+  return { amount: outstandingDebtBalance + fee, fee, clamped: true }
+}
+
+/**
  * 한 거래가 특정 자산(assetId) 잔액에 적용하는 부호 있는 변동량.
  * `db.ts`의 applyTransactionBalance와 동일 규칙의 단일 소스 — 한쪽을 바꾸면 반드시 같이 맞춘다.
  * 잔액에 영향이 없으면(해당 자산이 거래 당사자가 아니면) 0.
@@ -271,12 +294,8 @@ export function validateTransactionInput(
     if (interestAmount > tx.amount) return '이자는 상환 금액보다 클 수 없습니다'
     if (toAssetType !== 'loan') return '대출 상환 대상은 대출 자산이어야 합니다'
     if (!fromAssetType || isDebtAssetType(fromAssetType)) return '대출 상환 출금 계좌는 일반 자산이어야 합니다'
-
-    const loanAsset = findAsset(tx.to_asset_id, assets)
-    const principalAmount = tx.amount - interestAmount
-    if (loanAsset?.balance !== undefined && principalAmount > getDebtBalance(loanAsset.balance)) {
-      return '상환 원금은 남은 대출 잔액을 초과할 수 없습니다'
-    }
+    // 상환 원금이 남은 잔액을 초과해도 막지 않는다. 상환 근처 이자/원금 분리는 정확히
+    // 계산하기 어려워, 서버가 clampLoanRepaymentToBalance로 초과분을 잘라 자동 완제 처리한다.
   }
 
   if (tx.type === 'transfer') {

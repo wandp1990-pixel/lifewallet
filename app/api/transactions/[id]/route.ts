@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import db, { applyTransactionBalance, reverseTransactionBalance } from '@/lib/db'
-import { getLoanRepaymentPrincipal, normalizeAssetBalance, validateTransactionInput } from '@/lib/finance'
+import { clampLoanRepaymentToBalance, getDebtBalance, getLoanRepaymentPrincipal, normalizeAssetBalance, validateTransactionInput } from '@/lib/finance'
 import type { Asset, Category, Transaction } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -51,6 +51,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     balance: normalizeAssetBalance(asset.group_type, asset.balance),
   }))
   applyTransactionToSnapshot(validationAssets, old, -1)
+
+  // 대출 상환 원금이 (이 거래 반영 전) 남은 잔액을 초과하면 잘라 정확히 완제되게 보정한다.
+  if (updated.type === 'loan_repayment') {
+    const loan = validationAssets.find(a => a.id === updated.to_asset_id)
+    if (loan) {
+      const outstanding = getDebtBalance(loan.balance)
+      const clamped = clampLoanRepaymentToBalance(updated, outstanding)
+      updated.amount = clamped.amount
+      updated.fee = clamped.fee
+    }
+  }
+
   const categories = (await db.execute({ sql: 'SELECT id, type, visible FROM categories' })).rows as unknown as Pick<Category, 'id' | 'type' | 'visible'>[]
   const validationError = validateTransactionInput(updated, validationAssets, categories, [old.category_id])
   if (validationError) {

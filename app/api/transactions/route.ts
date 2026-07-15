@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import db, { applyTransactionBalance } from '@/lib/db'
-import { validateTransactionInput } from '@/lib/finance'
+import { clampLoanRepaymentToBalance, getDebtBalance, normalizeAssetBalance, validateTransactionInput } from '@/lib/finance'
 import { generateId } from '@/lib/utils'
 import type { Asset, Category, Transaction } from '@/lib/types'
 
@@ -57,6 +57,18 @@ export async function POST(req: NextRequest) {
 
   const assets = (await db.execute({ sql: 'SELECT id, group_type, visible, balance FROM assets' })).rows as unknown as Pick<Asset, 'id' | 'group_type' | 'visible' | 'balance'>[]
   const categories = (await db.execute({ sql: 'SELECT id, type, visible FROM categories' })).rows as unknown as Pick<Category, 'id' | 'type' | 'visible'>[]
+
+  // 대출 상환 원금이 남은 잔액을 초과하면 초과분을 잘라 정확히 완제(잔액 0)되게 보정한다.
+  if (t.type === 'loan_repayment') {
+    const loan = assets.find(a => a.id === t.to_asset_id)
+    if (loan) {
+      const outstanding = getDebtBalance(normalizeAssetBalance(loan.group_type, Number(loan.balance ?? 0)))
+      const clamped = clampLoanRepaymentToBalance(t, outstanding)
+      t.amount = clamped.amount
+      t.fee = clamped.fee
+    }
+  }
+
   const validationError = validateTransactionInput(t, assets, categories, [])
   if (validationError) {
     return NextResponse.json({ error: validationError }, { status: 400 })
