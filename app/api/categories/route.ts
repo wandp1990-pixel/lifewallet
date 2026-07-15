@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import db from '@/lib/db'
+import db, { initDb } from '@/lib/db'
 import { generateId } from '@/lib/utils'
 import type { Category, Essentiality } from '@/lib/types'
 
@@ -12,6 +12,7 @@ function isEssentiality(value: unknown): value is Essentiality {
 }
 
 export async function GET() {
+  await initDb()
   const rows = await db.execute('SELECT * FROM categories ORDER BY type, is_system DESC, ord ASC')
   // 카테고리는 변경 빈도가 낮은 참조 데이터(이름·아이콘·성격)다.
   // 주의: 이 라우트는 force-dynamic이라 Vercel이 stale-while-revalidate를 제거하고 `private, max-age=0`로
@@ -31,6 +32,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  await initDb()
   const body = await req.json()
   if (!body.name) return NextResponse.json({ error: '카테고리 이름을 입력해주세요' }, { status: 400 })
   if (body.type === 'expense' && !isEssentiality(body.essentiality)) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import db from '@/lib/db'
+import db, { initDb } from '@/lib/db'
 import type { Essentiality } from '@/lib/types'
 
 const ESSENTIALITIES: Essentiality[] = ['needs', 'wants', 'savings', 'unexpected']
@@ -9,6 +9,7 @@ function isEssentiality(value: unknown): value is Essentiality {
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  await initDb()
   const { id } = await params
   const body = await req.json()
 
@@ -29,6 +30,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  await initDb()
   const { id } = await params
   const existing = await db.execute({ sql: 'SELECT * FROM categories WHERE id = ?', args: [id] })
   if (!existing.rows[0]) return NextResponse.json({ error: '해당 카테고리를 찾을 수 없습니다' }, { status: 404 })

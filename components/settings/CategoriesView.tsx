@@ -113,8 +113,9 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
         tempToReal.set(item.id, await res.json())
       }
 
-      // 4. 기존 카테고리 변경사항 업데이트
+      // 4. 기존 카테고리 변경사항 업데이트 (서버 저장 결과를 되돌려받아 반영)
       const origMap = new Map(categories.filter(c => c.type === type).map(c => [c.id, c]))
+      const patchedById = new Map<string, Category>()
       await Promise.all(
         itemsWithOrder
           .filter(item => {
@@ -122,21 +123,25 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
             const orig = origMap.get(item.id)
             return orig && (orig.name !== item.name || orig.icon !== item.icon || orig.order !== item.order || orig.essentiality !== item.essentiality || orig.budget_excluded !== item.budget_excluded || orig.default_asset_id !== item.default_asset_id)
           })
-          .map(item =>
-            fetch(`/api/categories/${item.id}`, {
+          .map(async item => {
+            const res = await fetch(`/api/categories/${item.id}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ name: item.name, icon: item.icon, order: item.order, essentiality: item.essentiality, budget_excluded: item.budget_excluded, default_asset_id: item.default_asset_id }),
             })
-          )
+            if (!res.ok) throw new Error('카테고리 저장에 실패했습니다')
+            patchedById.set(item.id, await res.json())
+          })
       )
 
-      // 5. tempId를 실제 ID로 교체한 최종 목록 생성
+      // 5. tempId를 실제 ID로 교체한 최종 목록 생성 (수정분은 서버 응답 우선)
       const savedItems: Category[] = itemsWithOrder.map(item => {
         if (item._isNew) {
           const real = tempToReal.get(item.id)
           return real ?? ({ ...item, _isNew: undefined } as Category)
         }
+        const patched = patchedById.get(item.id)
+        if (patched) return patched
         const { _isNew: _, ...rest } = item
         return rest as Category
       })
