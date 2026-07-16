@@ -10,6 +10,7 @@ import type { Budget } from '@/lib/types'
 import { formatAmount } from '@/lib/utils'
 import Link from 'next/link'
 import CatIcon from '@/components/ui/CatIcon'
+import AmountField from '@/components/ui/AmountField'
 
 export default function BudgetSettings() {
   const router = useRouter()
@@ -161,17 +162,14 @@ export default function BudgetSettings() {
                     예산 비대상
                   </span>
                 ) : (
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={inputVal}
+                  <div className="w-36 shrink-0">
+                    <AmountField
+                      value={Number(inputVal) || 0}
+                      onChange={n => setInputs(prev => ({ ...prev, [cat.id]: n > 0 ? String(n) : '' }))}
+                      size="md"
+                      title={`${cat.name} 예산`}
                       placeholder={fallback > 0 ? formatAmount(fallback) : '0'}
-                      onChange={e => setInputs(prev => ({ ...prev, [cat.id]: e.target.value }))}
-                      className="w-32 text-right text-[16px] font-semibold text-[var(--color-text)] bg-[rgba(0,23,51,0.02)] border border-[rgba(2,32,71,0.05)] rounded-xl px-3 py-2 tabular-nums focus:outline-none focus:border-[var(--color-primary)]"
                     />
-                    <span className="text-[13px] text-[var(--color-text-sub)]">원</span>
                   </div>
                 )}
               </div>

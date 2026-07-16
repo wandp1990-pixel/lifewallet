@@ -7,6 +7,7 @@ import { isDebtAssetType, isLoanPaidOff, validateTransactionInput } from '@/lib/
 import { useStore } from '@/lib/store'
 import CatIcon from '@/components/ui/CatIcon'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import AmountField from '@/components/ui/AmountField'
 import { todayStr } from '@/lib/utils'
 import type { Transaction } from '@/lib/types'
 
@@ -46,12 +47,6 @@ function fmtNum(n: number): string {
 
 function parseNum(s: string): number {
   return parseInt(s.replace(/,/g, ''), 10) || 0
-}
-
-function fmtInput(s: string): string {
-  const digits = s.replace(/\D/g, '')
-  if (!digits) return ''
-  return Number(digits).toLocaleString('ko-KR')
 }
 
 function withSelectedAssets<T extends { id: string }>(base: T[], all: T[], selectedIds: string[]): T[] {
@@ -305,17 +300,12 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
         {/* 금액 */}
         <div>
           <label className="text-xs font-medium text-[var(--color-text-sub)] mb-1.5 block">금액</label>
-          <div className="flex items-center gap-2 rounded-xl px-4 focus-within:outline focus-within:outline-[var(--color-primary)] transition-colors" style={{ background: 'rgba(0,23,51,0.02)', border: '1px solid rgba(2,32,71,0.05)' }}>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={form.amount}
-              onChange={e => set('amount', fmtInput(e.target.value))}
-              placeholder="0"
-              className="flex-1 text-right text-[28px] font-bold text-[var(--color-text)] bg-transparent py-4 outline-none placeholder:text-[var(--color-text-placeholder)]"
-            />
-            <span className="text-lg font-bold text-[var(--color-text-sub)] shrink-0">원</span>
-          </div>
+          <AmountField
+            value={parseNum(form.amount)}
+            onChange={n => set('amount', n > 0 ? n.toLocaleString('ko-KR') : '')}
+            size="lg"
+            title="금액"
+          />
         </div>
 
         {/* 날짜 */}
@@ -395,17 +385,12 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
             <label className="text-xs font-medium text-[var(--color-text-sub)] mb-1.5 block">
               {form.type === 'loan_repayment' ? '이자 금액 (선택)' : '수수료 (선택)'}
             </label>
-            <div className="flex items-center gap-2 rounded-xl px-3 focus-within:outline focus-within:outline-[var(--color-primary)] transition-colors" style={{ background: 'rgba(0,23,51,0.02)', border: '1px solid rgba(2,32,71,0.05)' }}>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={form.fee}
-                onChange={e => set('fee', fmtInput(e.target.value))}
-                placeholder="0"
-                className="flex-1 text-right text-[16px] text-[var(--color-text)] bg-transparent py-2.5 outline-none placeholder:text-[var(--color-text-placeholder)]"
-              />
-              <span className="text-sm text-[var(--color-text-sub)] shrink-0">원</span>
-            </div>
+            <AmountField
+              value={parseNum(form.fee)}
+              onChange={n => set('fee', n > 0 ? n.toLocaleString('ko-KR') : '')}
+              size="md"
+              title={form.type === 'loan_repayment' ? '이자 금액' : '수수료'}
+            />
           </div>
         )}
 

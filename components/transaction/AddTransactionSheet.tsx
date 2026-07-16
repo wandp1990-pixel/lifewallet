@@ -12,9 +12,10 @@ import type { Asset, RecurringTransaction, Transaction } from '@/lib/types'
 import CatIcon from '@/components/ui/CatIcon'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import AssetGroupPicker from '@/components/ui/AssetGroupPicker'
+import AmountField from '@/components/ui/AmountField'
+import { applyOp, fmtKorean, OP_SYMBOL, parseInput, type Op } from '@/lib/calc'
 
 type TxType = 'expense' | 'income' | 'transfer' | 'loan_repayment'
-type Op = '+' | '-' | '*' | '/'
 // 하단 스왑 패널: 활성 필드별로 키패드/분류 그리드/자산 그룹 중 하나를 보여준다. null이면 패널 숨김(텍스트·날짜 입력 중).
 type Panel = 'amount' | 'category' | 'asset' | 'from' | 'to' | null
 
@@ -22,27 +23,6 @@ const TYPE_LABELS: Record<TxType, string> = {
   expense: '지출', income: '수입', transfer: '이체', loan_repayment: '대출상환',
 }
 const TYPES: TxType[] = ['income', 'expense', 'transfer', 'loan_repayment']
-
-const OP_SYMBOL: Record<Op, string> = { '+': '+', '-': '−', '*': '×', '/': '÷' }
-
-function applyOp(a: number, op: Op, b: number): number {
-  switch (op) {
-    case '+': return a + b
-    case '-': return a - b
-    case '*': return a * b
-    case '/': return b === 0 ? a : a / b
-  }
-}
-
-function fmtInput(s: string): string {
-  const digits = s.replace(/\D/g, '')
-  if (!digits) return ''
-  return Number(digits).toLocaleString('ko-KR')
-}
-
-function parseInput(s: string): number {
-  return parseInt(s.replace(/,/g, ''), 10) || 0
-}
 
 function withSelectedAssets<T extends { id: string }>(base: T[], all: T[], selectedIds: string[]): T[] {
   const map = new Map(base.map(asset => [asset.id, asset]))
@@ -60,18 +40,6 @@ function withSelectedCategories<T extends { id: string }>(base: T[], all: T[], s
     if (selected && !map.has(id)) map.set(id, selected)
   }
   return Array.from(map.values())
-}
-
-function fmtKorean(n: number): string {
-  if (!n) return ''
-  const eok = Math.floor(n / 100000000)
-  const man = Math.floor((n % 100000000) / 10000)
-  const rest = n % 10000
-  const parts: string[] = []
-  if (eok) parts.push(`${eok}억`)
-  if (man) parts.push(`${man.toLocaleString('ko-KR')}만`)
-  if (rest) parts.push(rest.toLocaleString('ko-KR'))
-  return parts.join(' ') + '원'
 }
 
 interface Props {
@@ -554,15 +522,14 @@ export default function AddTransactionSheet({ open, onClose, onSaved, onRecurrin
             {type === 'loan_repayment' && (
               <div className="flex items-center gap-3 py-3">
                 <span className="w-[68px] shrink-0 text-[13px] font-medium text-[var(--color-text-sub)]">이자 (선택)</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={feeStr}
-                  onChange={e => setFeeStr(fmtInput(e.target.value))}
-                  onFocus={() => setPanel(null)}
-                  placeholder="0"
-                  className="tds-field !py-2 !text-[16px] text-right flex-1"
-                />
+                <div className="flex-1 min-w-0">
+                  <AmountField
+                    value={parseInput(feeStr)}
+                    onChange={n => setFeeStr(n > 0 ? n.toLocaleString('ko-KR') : '')}
+                    size="md"
+                    title="이자 금액"
+                  />
+                </div>
               </div>
             )}
 

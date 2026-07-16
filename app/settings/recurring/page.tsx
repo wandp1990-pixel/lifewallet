@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Plus, MoreHorizontal, Repeat } from 'lucide-react'
 import SlideUpSheet from '@/components/ui/SlideUpSheet'
+import AmountField from '@/components/ui/AmountField'
 import { useStore } from '@/lib/store'
 import { isDebtAssetType, validateTransactionInput } from '@/lib/finance'
 import { formatAmount } from '@/lib/utils'
@@ -27,12 +28,6 @@ const TYPE_SIGN: Record<string, string> = {
   expense: '-',
   transfer: '',
   loan_repayment: '-',
-}
-
-function fmtInput(s: string): string {
-  const digits = s.replace(/\D/g, '')
-  if (!digits) return ''
-  return Number(digits).toLocaleString('ko-KR')
 }
 
 function parseAmount(s: string): number {
@@ -302,17 +297,12 @@ export default function RecurringPage() {
           {/* 금액 */}
           <div>
             <p className="text-[12px] text-[var(--color-text-sub)] mb-1.5">금액</p>
-            <div className="tds-field flex items-center gap-2 !py-0 focus-within:border-[var(--color-primary)]">
-              <input
-                type="text"
-                inputMode="numeric"
-                value={form.amountStr}
-                onChange={e => setForm(f => ({ ...f, amountStr: fmtInput(e.target.value) }))}
-                placeholder="0"
-                className="flex-1 min-w-0 border-0 bg-transparent outline-none text-right !text-[18px] font-bold py-[13px] placeholder:text-[var(--color-text-placeholder)]"
-              />
-              <span className="shrink-0 text-[var(--color-text-sub)] text-sm">원</span>
-            </div>
+            <AmountField
+              value={parseAmount(form.amountStr)}
+              onChange={n => setForm(f => ({ ...f, amountStr: n > 0 ? n.toLocaleString('ko-KR') : '' }))}
+              size="md"
+              title="금액"
+            />
           </div>
 
           {/* 내용 */}
@@ -395,17 +385,12 @@ export default function RecurringPage() {
               {form.type === 'loan_repayment' && (
                 <div>
                   <p className="text-[12px] text-[var(--color-text-sub)] mb-1.5">이자 금액 (선택)</p>
-                  <div className="tds-field flex items-center gap-2 !py-0 focus-within:border-[var(--color-primary)]">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={form.feeStr}
-                      onChange={e => setForm(f => ({ ...f, feeStr: fmtInput(e.target.value) }))}
-                      placeholder="0"
-                      className="flex-1 min-w-0 border-0 bg-transparent outline-none text-right !text-[16px] py-[13px] placeholder:text-[var(--color-text-placeholder)]"
-                    />
-                    <span className="shrink-0 text-[var(--color-text-sub)] text-sm">원</span>
-                  </div>
+                  <AmountField
+                    value={parseAmount(form.feeStr)}
+                    onChange={n => setForm(f => ({ ...f, feeStr: n > 0 ? n.toLocaleString('ko-KR') : '' }))}
+                    size="md"
+                    title="이자 금액"
+                  />
                 </div>
               )}
             </>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import SlideUpSheet from '@/components/ui/SlideUpSheet'
+import AmountField from '@/components/ui/AmountField'
 import { getDebtBalance, isDebtAssetType } from '@/lib/finance'
 import { useStore } from '@/lib/store'
 import { formatAmount, todayStr } from '@/lib/utils'
@@ -21,12 +22,6 @@ const GROUP_TYPES: { value: AssetGroupType; label: string }[] = [
   { value: 'insurance', label: '보험' },
   { value: 'other', label: '기타' },
 ]
-
-function fmtInput(s: string): string {
-  const digits = s.replace(/\D/g, '')
-  if (!digits) return ''
-  return Number(digits).toLocaleString('ko-KR')
-}
 
 function parseNum(s: string): number {
   return parseInt(s.replace(/,/g, ''), 10) || 0
@@ -322,17 +317,12 @@ export default function AssetForm({ open, onClose, editing }: Props) {
           <label className="text-xs font-medium text-[var(--color-text-sub)] mb-1.5 block">
             {isDebtAssetType(form.group_type) ? '부채 금액' : '잔액'}
           </label>
-          <div className="flex items-center gap-2 rounded-xl px-4 overflow-hidden" style={{ background: "rgba(0,23,51,0.02)", border: "1px solid rgba(2,32,71,0.05)" }}>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={form.balance}
-              onChange={e => set('balance', fmtInput(e.target.value))}
-              placeholder="0"
-              className="flex-1 min-w-0 text-right text-[22px] font-bold text-[var(--color-text)] bg-transparent py-3 outline-none placeholder:text-[var(--color-text-placeholder)]"
-            />
-            <span className="text-base font-bold text-[var(--color-text-sub)] shrink-0">원</span>
-          </div>
+          <AmountField
+            value={parseNum(form.balance)}
+            onChange={n => set('balance', n > 0 ? formatAmount(n) : '')}
+            size="lg"
+            title={isDebtAssetType(form.group_type) ? '부채 금액' : '잔액'}
+          />
         </div>
 
         {/* 잔액 기준일 */}
@@ -355,17 +345,12 @@ export default function AssetForm({ open, onClose, editing }: Props) {
 
             <div>
               <label className="text-xs font-medium text-[var(--color-text-sub)] mb-1.5 block">원금</label>
-              <div className="flex items-center gap-2 rounded-xl px-3 overflow-hidden" style={{ background: "rgba(0,23,51,0.02)", border: "1px solid rgba(2,32,71,0.05)" }}>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={form.principal}
-                  onChange={e => set('principal', fmtInput(e.target.value))}
-                  placeholder="0"
-                  className="flex-1 min-w-0 text-right text-[16px] text-[var(--color-text)] bg-transparent py-2.5 outline-none"
-                />
-                <span className="text-sm text-[var(--color-text-sub)] shrink-0">원</span>
-              </div>
+              <AmountField
+                value={parseNum(form.principal)}
+                onChange={n => set('principal', n > 0 ? formatAmount(n) : '')}
+                size="md"
+                title="원금"
+              />
             </div>
 
             <div>
@@ -419,17 +404,12 @@ export default function AssetForm({ open, onClose, editing }: Props) {
               </div>
               <div className="min-w-0">
                 <label className="text-xs font-medium text-[var(--color-text-sub)] mb-1.5 block">월 상환액</label>
-                <div className="flex items-center gap-1 rounded-xl px-3 overflow-hidden" style={{ background: "rgba(0,23,51,0.02)", border: "1px solid rgba(2,32,71,0.05)" }}>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={form.monthly_payment}
-                    onChange={e => set('monthly_payment', fmtInput(e.target.value))}
-                    placeholder="0"
-                    className="flex-1 min-w-0 text-right text-[16px] text-[var(--color-text)] bg-transparent py-2.5 outline-none"
-                  />
-                  <span className="text-xs text-[var(--color-text-sub)] shrink-0">원</span>
-                </div>
+                <AmountField
+                  value={parseNum(form.monthly_payment)}
+                  onChange={n => set('monthly_payment', n > 0 ? formatAmount(n) : '')}
+                  size="md"
+                  title="월 상환액"
+                />
               </div>
             </div>
           </>
@@ -494,17 +474,12 @@ export default function AssetForm({ open, onClose, editing }: Props) {
         {form.target_balance_enabled && (
           <div>
             <label className="text-xs font-medium text-[var(--color-text-sub)] mb-1.5 block">목표 유지 금액</label>
-            <div className="flex items-center gap-2 rounded-xl px-4 overflow-hidden" style={{ background: "rgba(0,23,51,0.02)", border: "1px solid rgba(2,32,71,0.05)" }}>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={form.target_balance}
-                onChange={e => set('target_balance', fmtInput(e.target.value))}
-                placeholder="0"
-                className="flex-1 min-w-0 text-right text-[22px] font-bold text-[var(--color-text)] bg-transparent py-3 outline-none placeholder:text-[var(--color-text-placeholder)]"
-              />
-              <span className="text-base font-bold text-[var(--color-text-sub)] shrink-0">원</span>
-            </div>
+            <AmountField
+              value={parseNum(form.target_balance)}
+              onChange={n => set('target_balance', n > 0 ? formatAmount(n) : '')}
+              size="lg"
+              title="목표 유지 금액"
+            />
           </div>
         )}
 

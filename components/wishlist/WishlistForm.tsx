@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useStore } from '@/lib/store'
 import { generateId } from '@/lib/utils'
 import SlideUpSheet from '@/components/ui/SlideUpSheet'
+import AmountField from '@/components/ui/AmountField'
 import type { WishlistItem } from '@/lib/types'
 
 interface Props {
@@ -85,7 +86,12 @@ export default function WishlistForm({ open, onClose, editing }: Props) {
         </div>
         <div>
           <label className={labelCls}>가격</label>
-          <input className={inputCls} type="text" inputMode="numeric" pattern="[0-9]*" value={price} onChange={e => setPrice(e.target.value)} placeholder="0" />
+          <AmountField
+            value={Number(price) || 0}
+            onChange={n => setPrice(n > 0 ? String(n) : '')}
+            size="md"
+            title="가격"
+          />
         </div>
         <div>
           <label className={labelCls}>우선순위</label>

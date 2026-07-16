@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useStore } from '@/lib/store'
 import { generateId } from '@/lib/utils'
 import SlideUpSheet from '@/components/ui/SlideUpSheet'
+import AmountField from '@/components/ui/AmountField'
 import type { SavingsGoal } from '@/lib/types'
 
 interface Props {
@@ -72,11 +73,21 @@ export default function SavingsGoalForm({ open, onClose, editing, defaultAssetId
         </div>
         <div>
           <label className={labelCls}>목표 금액 *</label>
-          <input className={inputCls} type="text" inputMode="numeric" pattern="[0-9]*" value={targetAmount} onChange={e => setTargetAmount(e.target.value)} placeholder="0" required />
+          <AmountField
+            value={Number(targetAmount) || 0}
+            onChange={n => setTargetAmount(n > 0 ? String(n) : '')}
+            size="md"
+            title="목표 금액"
+          />
         </div>
         <div>
           <label className={labelCls}>현재 금액</label>
-          <input className={inputCls} type="text" inputMode="numeric" pattern="[0-9]*" value={currentAmount} onChange={e => setCurrentAmount(e.target.value)} placeholder="0" />
+          <AmountField
+            value={Number(currentAmount) || 0}
+            onChange={n => setCurrentAmount(String(n))}
+            size="md"
+            title="현재 금액"
+          />
         </div>
         <div>
           <label className={labelCls}>목표 날짜</label>
