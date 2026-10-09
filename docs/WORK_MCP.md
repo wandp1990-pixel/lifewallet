@@ -12,13 +12,29 @@ request_id가 같으면 같은 거래의 재시도만 허용한다. 서로 다�
 
 ## 배포와 연결
 
-1. 배포 환경에 최소 32문자의 랜덤 `WORK_MCP_TOKEN`을 설정한다. 예: `openssl rand -hex 32`. 값을 저장소에 커밋하지 않는다.
-2. 기존 Turso 환경변수와 함께 앱을 HTTPS로 배포한다.
-3. Work의 커넥터 설정에서 MCP URL `https://<앱 도메인>/api/mcp`와 `Authorization: Bearer <토큰>`을 등록할 수 있는지 확인한다.
+ChatGPT용 Google OAuth 로그인과 기존 Bearer 토큰 인증을 함께 지원한다. OAuth 설정을 모두 넣기 전에는 OAuth 연결이 비활성화되며, 기존 `WORK_MCP_TOKEN` 인증은 계속 동작한다. 사용자 정의 MCP는 계정에 직접 등록해야 한다. Android Work에서 최종 연결 및 쓰기 도구 실행은 실제 기기에서 확인해야 한다.
 
-**이 저장소에 API를 추가했다고 Work에 자동 등록되지는 않는다.** 실제 Work 계정의 사용자 정의 MCP, 인증 헤더 및 모바일 쓰기 도구 지원 여부는 확인하지 않았다. OAuth만 지원하는 연결 화면이라면 현재 서버를 바로 연결할 수 없으며 OAuth 구현이 추가로 필요하다. OAuth나 익명 접속은 구현하지 않았다. 서버는 인증 설정이 없으면 503, 토큰이 틀리면 401을 반환한다.
+1. Google Cloud의 Google Auth Platform에서 OAuth 동의 화면을 설정하고 **웹 애플리케이션** OAuth 클라이언트를 만든다. 테스트 모드라면 허용할 본인 계정을 테스트 사용자로 추가한다.
+2. 승인된 리디렉션 URI는 정확히 `https://lifewallet-eight.vercel.app/api/auth/callback/google`로 설정한다. JavaScript 원본을 요구하면 `https://lifewallet-eight.vercel.app`을 사용한다.
+3. Vercel 프로젝트의 Production 환경에 다음 변수를 설정하고 재배포한다. 비밀값은 채팅이나 저장소에 넣지 않는다.
 
-기존 `/api/transactions` 등 앱 API에는 이 변경으로 인증이 추가되지 않는다. 전체 앱의 외부 접근 제한은 별도 검토가 필요하다.
+| 변수 | 값 |
+| --- | --- |
+| `WORK_MCP_ORIGIN` | `https://lifewallet-eight.vercel.app` |
+| `WORK_MCP_ALLOWED_EMAIL` | 접근을 허용할 본인의 Google 이메일 한 개 |
+| `GOOGLE_CLIENT_ID` | Google OAuth 웹 클라이언트 ID |
+| `GOOGLE_CLIENT_SECRET` | 해당 클라이언트의 비밀값, Sensitive로 저장 |
+| `WORK_AUTH_SECRET` | 별도로 생성한 최소 32문자 랜덤 비밀값, Sensitive로 저장 |
+| `WORK_MCP_TOKEN` | 기존 직접 API 검증용 비밀값 유지 |
+
+기존 `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`도 필요하다. OAuth 전용 테이블은 `work_auth_` 접두사로 자동 생성된다. 인증키 변경은 기존 로그인/토큰에 영향을 주므로 임의로 재생성하지 않는다.
+
+4. ChatGPT에서 사용자 정의 MCP 서버 URL `https://lifewallet-eight.vercel.app/api/mcp`를 OAuth 인증으로 등록한다. Google 로그인 후 연결 앱과 조회·저장 권한을 확인하고 승인한다. Google 클라이언트 비밀값을 ChatGPT 연결창에 입력하지 않는다. 클라이언트 등록은 CIMD 또는 DCR로 처리한다.
+5. 먼저 읽기 도구로 확인하고, 저장은 사용자가 지정한 실제 영수증으로 검증한다. 토큰 파일을 휴대폰으로 옮길 필요는 없다.
+
+검증된 허용 계정만 로그인할 수 있다. API는 JWT 서명·발급자·대상·만료와 계정 허용 여부를 확인한다. `ledger:read`는 조회, `ledger:write`는 영수증 저장에 필요하다. 인증코드는 PKCE 및 일회 사용으로 보호하며 refresh token은 회전한다. access token 유효기간은 15분이다. 익명 가계부 접근은 제공하지 않는다.
+
+기존 `/api/transactions` 등 앱 API에는 이 변경으로 인증이 추가되지 않는다.
 
 ## Work 도구 사용 지침
 
@@ -29,3 +45,7 @@ request_id가 같으면 같은 거래의 재시도만 허용한다. 서로 다�
 ## 검증
 
 `npx tsx scripts/work_mcp_check.ts`는 임시 SQLite DB에서 실행되며 실제 Turso DB에 접근하지 않는다. 인증 거부, 도구 목록, 동시 재시도 중복 방지, 잔액 단일 반영, 잘못된 날짜·분류 거부, 조회 합계를 확인한다.
+
+`npx tsx scripts/work_oauth_check.ts`는 임시 DB에서 허용 계정 제한, discovery, 클라이언트 등록, 서명된 로그인·동의 요청, Google 로그인 시작 URL, PKCE, 코드 재사용 차단, JWT API 조회, 저장 권한 제한, 갱신·회전과 기존 토큰 호환을 검증한다. Google의 실제 로그인/콜백 및 Android ChatGPT 연결은 별도 운영 검증이 필요하다.
+
+Better Auth 스키마 변경 시 `npx tsx scripts/work_auth_schema.ts`로 임시 DB 기준 스키마를 재생성하고 마이그레이션을 검토한다. 현재 런타임 초기화는 테이블·인덱스 생성만 하며 기존 열 변경은 처리하지 않는다.
