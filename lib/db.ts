@@ -147,6 +147,12 @@ async function _doInit() {
       created_at TEXT    NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS work_receipt_requests (
+      request_id TEXT PRIMARY KEY,
+      payload_hash TEXT NOT NULL,
+      response_json TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS ai_reports (
       id         TEXT    PRIMARY KEY,
       year       INTEGER NOT NULL,
