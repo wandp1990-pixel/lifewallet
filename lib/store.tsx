@@ -130,7 +130,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
     addAsset: (a) => setState(s => ({ ...s, assets: [...s.assets, a] })),
     updateAsset: (a) => setState(s => ({ ...s, assets: s.assets.map(x => x.id === a.id ? a : x) })),
-    deleteAsset: (id) => setState(s => ({ ...s, assets: s.assets.filter(x => x.id !== id) })),
+    deleteAsset: (id) => setState(s => ({
+      ...s,
+      assets: s.assets.filter(x => x.id !== id),
+      transactions: s.transactions.map(t => ({
+        ...t,
+        asset_id: t.asset_id === id ? '' : t.asset_id,
+        from_asset_id: t.from_asset_id === id ? '' : t.from_asset_id,
+        to_asset_id: t.to_asset_id === id ? '' : t.to_asset_id,
+      })),
+      categories: s.categories.map(c => c.default_asset_id === id ? { ...c, default_asset_id: '' } : c),
+      savingsGoals: s.savingsGoals.map(g => g.asset_id === id ? { ...g, asset_id: '' } : g),
+    })),
     reorderAssets: (assets) => setState(s => ({ ...s, assets })),
 
     addCategory: (c) => setState(s => ({ ...s, categories: [...s.categories, c] })),

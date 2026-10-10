@@ -14,12 +14,14 @@ type MenuAction = 'edit' | 'toggle-included' | 'delete'
 
 export default function AssetsPage() {
   const router = useRouter()
-  const { assets, ready, updateAsset } = useStore()
+  const { assets, ready, updateAsset, deleteAsset } = useStore()
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editing, setEditing] = useState<Asset | null>(null)
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<Asset | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   const groups = useMemo(() => {
     const map = new Map<AssetGroupType, Asset[]>()
@@ -99,18 +101,29 @@ export default function AssetsPage() {
         updateAsset(updated)
       }
     } else if (action === 'delete') {
+      setDeleteError('')
       setDeleteTarget(asset)
     }
   }
 
   async function confirmDelete() {
-    if (!deleteTarget) return
-    const res = await fetch(`/api/assets/${deleteTarget.id}`, { method: 'DELETE' })
-    if (res.ok) {
-      const updated = await res.json()
-      updateAsset(updated)
+    if (!deleteTarget || deleting) return
+    setDeleting(true)
+    setDeleteError('')
+    try {
+      const res = await fetch(`/api/assets/${deleteTarget.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        setDeleteError(data?.error ?? '자산 삭제에 실패했습니다. 다시 시도해주세요.')
+        return
+      }
+      deleteAsset(deleteTarget.id)
+      setDeleteTarget(null)
+    } catch {
+      setDeleteError('자산 삭제에 실패했습니다. 연결을 확인하고 다시 시도해주세요.')
+    } finally {
+      setDeleting(false)
     }
-    setDeleteTarget(null)
   }
 
   if (!ready) {
@@ -346,21 +359,24 @@ export default function AssetsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-[var(--color-surface)] rounded-2xl p-6 mx-4 max-w-sm w-full shadow-[0px_8px_24px_rgba(0,0,0,0.16)]">
             <p className="text-[16px] font-semibold text-[var(--color-text)] mb-2">자산을 삭제할까요?</p>
-              <p className="text-sm text-[var(--color-text-sub)] mb-6">
-                &ldquo;{deleteTarget.name}&rdquo;은 목록에서 숨겨지고 연결된 거래는 그대로 유지됩니다.
-              </p>
+            <p className="text-sm text-[var(--color-text-sub)] mb-6">
+              &ldquo;{deleteTarget.name}&rdquo;이 삭제됩니다. 기존 거래 내역은 유지되며 자산 연결은 해제됩니다. 연결된 반복 거래는 중지됩니다.
+            </p>
+            {deleteError && <p role="alert" className="text-sm text-[var(--color-expense)] mb-4">{deleteError}</p>}
             <div className="flex gap-3">
               <button
                 className="flex-1 h-12 rounded-xl border border-[var(--color-border)] text-[var(--color-text)] text-[15px] font-medium"
+                disabled={deleting}
                 onClick={() => setDeleteTarget(null)}
               >
                 취소
               </button>
               <button
                 className="flex-1 h-12 rounded-xl bg-[var(--color-expense)] text-white text-[15px] font-semibold"
+                disabled={deleting}
                 onClick={confirmDelete}
               >
-                삭제
+                {deleting ? '삭제 중…' : '삭제'}
               </button>
             </div>
           </div>

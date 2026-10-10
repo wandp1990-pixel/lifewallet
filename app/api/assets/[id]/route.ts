@@ -107,19 +107,29 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   const existing = await db.execute({ sql: 'SELECT * FROM assets WHERE id = ?', args: [id] })
   if (!existing.rows[0]) return NextResponse.json({ error: '해당 자산을 찾을 수 없습니다' }, { status: 404 })
 
-  await db.execute({
-    sql: `UPDATE assets
-          SET visible = 0,
-              track_detail = 0
-          WHERE id = ?`,
-    args: [id],
-  })
-  await db.execute({
-    sql: `UPDATE recurring_transactions
-          SET enabled = 0
-          WHERE asset_id = ? OR from_asset_id = ? OR to_asset_id = ?`,
-    args: [id, id, id],
-  })
-  const updated = await db.execute({ sql: 'SELECT * FROM assets WHERE id = ?', args: [id] })
-  return NextResponse.json(rowToAsset(updated.rows[0] as Record<string, unknown>))
+  // 거래 내역과 상대 자산 잔액은 보존하고, 삭제된 자산의 연결만 해제한다.
+  // 모든 변경을 한 트랜잭션으로 처리해 일부 연결만 정리되는 상태를 막는다.
+  await db.batch([
+    {
+      sql: `UPDATE transactions
+            SET asset_id = CASE WHEN asset_id = ? THEN '' ELSE asset_id END,
+                from_asset_id = CASE WHEN from_asset_id = ? THEN '' ELSE from_asset_id END,
+                to_asset_id = CASE WHEN to_asset_id = ? THEN '' ELSE to_asset_id END
+            WHERE asset_id = ? OR from_asset_id = ? OR to_asset_id = ?`,
+      args: [id, id, id, id, id, id],
+    },
+    {
+      sql: `UPDATE recurring_transactions
+            SET enabled = 0,
+                asset_id = CASE WHEN asset_id = ? THEN '' ELSE asset_id END,
+                from_asset_id = CASE WHEN from_asset_id = ? THEN '' ELSE from_asset_id END,
+                to_asset_id = CASE WHEN to_asset_id = ? THEN '' ELSE to_asset_id END
+            WHERE asset_id = ? OR from_asset_id = ? OR to_asset_id = ?`,
+      args: [id, id, id, id, id, id],
+    },
+    { sql: "UPDATE categories SET default_asset_id = '' WHERE default_asset_id = ?", args: [id] },
+    { sql: "UPDATE savings_goals SET asset_id = '' WHERE asset_id = ?", args: [id] },
+    { sql: 'DELETE FROM assets WHERE id = ?', args: [id] },
+  ], 'write')
+  return NextResponse.json({ ok: true })
 }
