@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
 import MonthStartSetting from '@/components/settings/MonthStartSetting'
+import AppRefreshButton from '@/components/settings/AppRefreshButton'
 
 const MORE_ITEMS = [
   { href: '/dashboard', label: '대시보드' },
@@ -72,6 +73,11 @@ export default function SettingsPage() {
           ))}
           <MonthStartSetting />
         </ul>
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <p className="text-xs font-semibold text-[var(--color-text-sub)] px-1">앱</p>
+        <AppRefreshButton />
       </section>
     </div>
   )
