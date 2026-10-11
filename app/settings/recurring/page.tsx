@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, MoreHorizontal, Repeat } from 'lucide-react'
+import { Plus, Repeat } from 'lucide-react'
 import SlideUpSheet from '@/components/ui/SlideUpSheet'
+import ActionMenu from '@/components/ui/ActionMenu'
 import { useStore } from '@/lib/store'
 import { isDebtAssetType, validateTransactionInput } from '@/lib/finance'
 import { formatAmount } from '@/lib/utils'
@@ -227,9 +228,9 @@ export default function RecurringPage() {
               {list.map((r, i) => (
                 <div
                   key={r.id}
-                  className={`relative flex items-center px-4 py-3.5 hover:bg-[var(--color-surface)] transition-colors ${i < list.length - 1 ? 'border-b border-[var(--color-border)]' : ''} ${!r.enabled ? 'opacity-50' : ''}`}
+                  className={`relative flex items-center px-4 py-3.5 hover:bg-[var(--color-surface)] transition-colors ${i < list.length - 1 ? 'border-b border-[var(--color-border)]' : ''}`}
                 >
-                  <div className="flex-1 min-w-0">
+                  <div className={`flex-1 min-w-0 ${!r.enabled ? 'opacity-50' : ''}`}>
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="text-[13px] px-1.5 py-0.5 rounded bg-[var(--color-border)] text-[var(--color-text-sub)]">
                         {TYPE_LABELS[r.type]}
@@ -240,42 +241,19 @@ export default function RecurringPage() {
                       매월 {r.day_of_month}일{r.type === 'loan_repayment' && r.fee > 0 ? ` · 이자 ${formatAmount(r.fee)}원` : ''}
                     </p>
                   </div>
-                  <span className={`text-[15px] font-semibold mr-2 tabular-nums ${TYPE_COLORS[r.type]}`}>
+                  <span className={`text-[15px] font-semibold mr-2 tabular-nums ${TYPE_COLORS[r.type]} ${!r.enabled ? 'opacity-50' : ''}`}>
                     {TYPE_SIGN[r.type]}{formatAmount(r.amount)}원
                   </span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setMenuOpen(menuOpen === r.id ? null : r.id) }}
-                    className="inline-flex h-11 w-11 items-center justify-center rounded-xl hover:bg-[var(--color-border)] transition-colors"
-                    aria-label="반복 거래 메뉴"
-                  >
-                    <MoreHorizontal size={16} className="text-[var(--color-text-sub)]" />
-                  </button>
-
-                  {menuOpen === r.id && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(null)} />
-                      <div className="absolute right-2 top-10 z-20 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-e3 overflow-hidden min-w-[120px]">
-                        <button
-                          onClick={() => openEdit(r)}
-                          className="w-full px-4 py-2.5 text-sm text-left text-[var(--color-text)] hover:bg-[var(--color-surface-sub)] transition-colors"
-                        >
-                          수정
-                        </button>
-                        <button
-                          onClick={() => toggleEnabled(r)}
-                          className="w-full px-4 py-2.5 text-sm text-left text-[var(--color-text)] hover:bg-[var(--color-surface-sub)] transition-colors"
-                        >
-                          {r.enabled ? '비활성화' : '활성화'}
-                        </button>
-                        <button
-                          onClick={() => { setDeleteTarget(r); setMenuOpen(null) }}
-                          className="w-full px-4 py-2.5 text-sm text-left text-[var(--color-expense)] hover:bg-[var(--color-surface-sub)] transition-colors"
-                        >
-                          삭제
-                        </button>
-                      </div>
-                    </>
-                  )}
+                  <ActionMenu
+                    label={`${r.content} 반복 거래 메뉴`}
+                    open={menuOpen === r.id}
+                    onOpenChange={open => setMenuOpen(open ? r.id : null)}
+                    items={[
+                      { label: '수정', onSelect: () => openEdit(r) },
+                      { label: r.enabled ? '비활성화' : '활성화', onSelect: () => { void toggleEnabled(r) } },
+                      { label: '삭제', danger: true, onSelect: () => setDeleteTarget(r) },
+                    ]}
+                  />
                 </div>
               ))}
             </div>
