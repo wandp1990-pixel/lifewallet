@@ -1,14 +1,56 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { useLayoutEffect, useRef, type ReactNode } from 'react'
 import SideNav from './SideNav'
 import BottomNav from './BottomNav'
 
 export default function AppLayout({ children }: { children: ReactNode }) {
-  // 셸 높이·overflow·스크롤 구조 수정 전 필독: DESIGN.md "앱 셸 — 고정·스크롤·높이 아키텍처"
-  // (문서는 html/body에서 overflow-hidden으로 잠그고, 셸은 h-dvh, 스크롤은 내부 컨테이너만)
+  const shellRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const shell = shellRef.current
+    if (!shell) return
+    const viewport = window.visualViewport
+    let frame = 0
+
+    const syncHeight = () => {
+      // 확대·키보드로 줄어든 영역에 맞춰 앱 전체와 하단 바를 이동시키지 않는다.
+      if (document.visibilityState === 'hidden' || (viewport && viewport.scale !== 1)) return
+      const active = document.activeElement
+      if (active instanceof HTMLElement && (active.matches('input, textarea, select') || active.isContentEditable)) return
+
+      // 설치형 앱의 새로고침 직후 dvh가 표시 영역보다 클 수 있으므로 실제 높이로 제한한다.
+      const height = Math.min(window.innerHeight, viewport?.height ?? window.innerHeight)
+      if (height > 0) shell.style.setProperty('--app-viewport-height', `${height}px`)
+    }
+    const scheduleSync = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(syncHeight)
+    }
+
+    syncHeight()
+    window.addEventListener('resize', scheduleSync)
+    window.addEventListener('pageshow', scheduleSync)
+    viewport?.addEventListener('resize', scheduleSync)
+    document.addEventListener('visibilitychange', scheduleSync)
+    document.addEventListener('focusout', scheduleSync)
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener('resize', scheduleSync)
+      window.removeEventListener('pageshow', scheduleSync)
+      viewport?.removeEventListener('resize', scheduleSync)
+      document.removeEventListener('visibilitychange', scheduleSync)
+      document.removeEventListener('focusout', scheduleSync)
+    }
+  }, [])
+
+  // html/body는 스크롤을 잠그고, 표시 영역에 맞춘 셸 내부에서만 스크롤한다.
   return (
-    <div className="flex h-dvh overflow-hidden">
+    <div
+      ref={shellRef}
+      className="flex h-dvh overflow-hidden"
+      style={{ height: 'min(100dvh, var(--app-viewport-height, 100dvh))' }}
+    >
       {/* PC 사이드바 — md 이상에서만 표시 */}
       <aside className="hidden md:flex md:flex-col md:w-[240px] md:shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)]">
         <SideNav />
