@@ -1,3 +1,4 @@
+import { ownerApi } from '@/lib/ledger-api'
 import { NextRequest, NextResponse } from 'next/server'
 import db, { initDb } from '@/lib/db'
 import { generateId } from '@/lib/utils'
@@ -23,7 +24,7 @@ function parseYearMonth(searchParams: URLSearchParams): { year: number; month: n
   return { year, month }
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   await initDb()
   const ym = parseYearMonth(new URL(req.url).searchParams)
   if (!ym) return NextResponse.json({ error: '연·월을 확인해주세요' }, { status: 400 })
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(report, { headers: { 'Cache-Control': 'no-store' } })
 }
 
-export async function PUT(req: NextRequest) {
+async function handlePUT(req: NextRequest) {
   await initDb()
   const body = await req.json()
   const year = Number(body.year)
@@ -65,7 +66,7 @@ export async function PUT(req: NextRequest) {
   return NextResponse.json(rowToAiReport(rows.rows[0] as Record<string, unknown>), { status: 200 })
 }
 
-export async function DELETE(req: NextRequest) {
+async function handleDELETE(req: NextRequest) {
   await initDb()
   const ym = parseYearMonth(new URL(req.url).searchParams)
   if (!ym) return NextResponse.json({ error: '연·월을 확인해주세요' }, { status: 400 })
@@ -76,3 +77,7 @@ export async function DELETE(req: NextRequest) {
   })
   return NextResponse.json({ ok: true })
 }
+
+export const GET = ownerApi(handleGET)
+export const PUT = ownerApi(handlePUT)
+export const DELETE = ownerApi(handleDELETE)

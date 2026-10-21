@@ -3,6 +3,8 @@ import { createHash, createHmac, randomBytes } from 'node:crypto'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { readdir } from 'node:fs/promises'
+import { pathToFileURL } from 'node:url'
 
 async function main() {
   const directory = await mkdtemp(join(tmpdir(), 'lifewallet-oauth-'))
@@ -45,6 +47,38 @@ async function main() {
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     })
     assert.equal((await auth.api.getSession({ headers: new Headers({ cookie }) }))?.user.id, owner.id)
+    const { initDb } = await import('../lib/db')
+    await initDb()
+    await db.execute("INSERT INTO assets (id,group_type,name,balance,balance_date) VALUES ('owner-bank','bank','fixture',1000,'2026-10-01')")
+    // A validly signed session for another account must not reach ANY app data
+    // endpoint, even when it knows an existing owner's record ID.
+    const attackerToken = randomBytes(32).toString('hex')
+    await db.execute({sql:'INSERT INTO work_auth_user (id,name,email,emailVerified,createdAt,updatedAt) VALUES (?,?,?,?,?,?)',args:['attacker','Attacker','attacker@example.com',1,now.toISOString(),now.toISOString()]})
+    await db.execute({sql:'INSERT INTO work_auth_session (id,token,userId,expiresAt,createdAt,updatedAt) VALUES (?,?,?,?,?,?)',args:['attacker-session',attackerToken,'attacker',new Date(Date.now()+3600000).toISOString(),now.toISOString(),now.toISOString()]})
+    const attackerCookie = ctx.authCookies.sessionToken.name+'='+attackerToken+'.'+createHmac('sha256',ctx.secret).update(attackerToken).digest('base64')
+    const { NextRequest: ApiRequest } = await import('next/server')
+    let protectedMethods = 0
+    async function inspectRoutes(directory: string) {
+      for (const entry of await readdir(directory,{withFileTypes:true})) {
+        if (entry.isDirectory() && !['auth','mcp'].includes(entry.name)) await inspectRoutes(join(directory,entry.name))
+        if (entry.name !== 'route.ts') continue
+        const file = join(directory,entry.name)
+        const module = await import(pathToFileURL(file).href)
+        for (const method of ['GET','POST','PATCH','PUT','DELETE']) if (typeof module[method] === 'function') {
+          const path = file.slice(join(process.cwd(),'app').length).replace('/route.ts','').replace('[id]','owner-bank')
+          const make = (sessionCookie?: string) => new ApiRequest(origin+path,{method,headers:{'Content-Type':'application/json',...(sessionCookie?{cookie:sessionCookie}:{})},...(['GET','HEAD'].includes(method)?{}:{body:JSON.stringify({asset_id:'owner-bank',amount:999})})})
+          const context = {params:Promise.resolve({id:'owner-bank'})}
+          assert.equal((await module[method](make(),context)).status,401,path+' anonymous '+method)
+          assert.equal((await module[method](make(attackerCookie),context)).status,403,path+' foreign owner '+method)
+          protectedMethods++
+        }
+      }
+    }
+    await inspectRoutes(join(process.cwd(),'app/api'))
+    assert.ok(protectedMethods>=40)
+    const { GET: appAssets } = await import('../app/api/assets/route')
+    assert.equal((await appAssets(new ApiRequest(origin+'/api/assets',{headers:{cookie}}))).status,200)
+    assert.equal((await db.execute("SELECT balance FROM assets WHERE id='owner-bank'")).rows[0].balance,1000)
     const metadata = await auth.handler(request('/.well-known/oauth-authorization-server/api/auth'))
     assert.equal(metadata.status, 200)
     const discovery = await metadata.json()
@@ -113,6 +147,26 @@ async function main() {
     assert.equal(ledger.status, 200)
     assert.ok(!(await ledger.json()).result.isError)
     assert.equal((await rpc(tokens.access_token, 'tools/call', { name: 'record_receipt', arguments: {} })).status, 403, 'Read-only token cannot save receipts')
+    const { workTools, isWriteTool } = await import('../lib/work-tools')
+    for (const tool of workTools.filter(tool=>isWriteTool(tool.name))) assert.equal((await rpc(tokens.access_token,'tools/call',{name:tool.name,arguments:{}})).status,403,'Read-only token blocked: '+tool.name)
+    params.set('scope','openid email offline_access ledger:read ledger:write')
+    const writeAuthorization = await auth.handler(request('/api/auth/oauth2/authorize?'+params,'GET',undefined,true))
+    let writeRedirect = new URL(writeAuthorization.headers.get('location')!,origin)
+    if (writeRedirect.pathname === '/mcp-connect/consent') {
+      const writeConsent = await auth.handler(request('/api/auth/oauth2/consent','POST',{accept:true,oauth_query:writeRedirect.search.slice(1)},true))
+      assert.equal(writeConsent.status,200)
+      writeRedirect = new URL((await writeConsent.json()).url)
+    }
+    const writeTokensResponse = await tokenRequest({...tokenFields,code:writeRedirect.searchParams.get('code')!})
+    assert.equal(writeTokensResponse.status,200)
+    const writeTokens = await writeTokensResponse.json()
+    const writeArgs={request_id:'oauth-category',name:'OAuth fixture',type:'income'}
+    const saved = await rpc(writeTokens.access_token,'tools/call',{name:'create_category',arguments:writeArgs})
+    assert.equal(saved.status,200)
+    const savedResult=(await saved.json()).result
+    assert.ok(!savedResult.isError)
+    assert.ok(savedResult.structuredContent.category.id)
+    assert.equal((await (await rpc(writeTokens.access_token,'tools/call',{name:'create_category',arguments:writeArgs})).json()).result.structuredContent.duplicate,true)
     const refreshed = await tokenRequest({ grant_type: 'refresh_token', client_id: client.client_id, refresh_token: tokens.refresh_token, resource: origin + '/api/mcp' })
     if (refreshed.status !== 200) { const failure = await refreshed.json(); console.error({ error: failure.error, description: failure.error_description }) }
     assert.equal(refreshed.status, 200)
@@ -123,10 +177,12 @@ async function main() {
     assert.equal((await tokenRequest({ grant_type: 'refresh_token', client_id: client.client_id, refresh_token: renewed.refresh_token, resource: origin + '/api/mcp' })).status, 400, 'Code replay revokes the refresh grant')
     process.env.WORK_MCP_ALLOWED_EMAIL = 'different@example.com'
     assert.equal((await rpc(renewed.access_token, 'tools/list')).status, 403, 'Owner changes invalidate access')
+    for (const tool of workTools) assert.equal((await rpc(renewed.access_token,'tools/call',{name:tool.name,arguments:{transaction_id:'owner-bank'}})).status,403,'Foreign owner blocked before IDs: '+tool.name)
+    assert.equal((await appAssets(new ApiRequest(origin+'/api/assets',{headers:{cookie}}))).status,403)
     delete process.env.GOOGLE_CLIENT_SECRET
     assert.equal(await getWorkAuth(), null)
     assert.equal((await rpc(process.env.WORK_MCP_TOKEN!, 'tools/list')).status, 200, 'Legacy token still works without Google setup')
-    console.log('OAuth checks PASS: owner restriction, discovery, DCR, signed login/consent, PKCE, single-use code, JWT API access, read/write scopes, refresh rotation, configuration fail-closed, legacy token')
+    console.log('OAuth checks PASS: owner restriction, discovery, DCR, signed login/consent, PKCE, single-use code, JWT reads/writes, all write scopes, foreign-user/anonymous rejection on '+protectedMethods+' app methods and 18 MCP tools, refresh rotation, configuration fail-closed, legacy token')
   } finally {
     globalThis.fetch = originalFetch
     db.close()

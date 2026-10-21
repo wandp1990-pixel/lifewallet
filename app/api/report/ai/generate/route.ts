@@ -1,3 +1,4 @@
+import { ownerApi } from '@/lib/ledger-api'
 import { NextRequest } from 'next/server'
 import db, { initDb, rowToAsset } from '@/lib/db'
 import { getMonthRange } from '@/lib/monthStart'
@@ -33,7 +34,7 @@ function rowToRecurring(row: Record<string, unknown>): RecurringTransaction {
   }
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const body = await req.json()
   const year = Number(body.year)
   const month = Number(body.month)
@@ -111,3 +112,5 @@ export async function POST(req: NextRequest) {
     headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no' },
   })
 }
+
+export const POST = ownerApi(handlePOST)

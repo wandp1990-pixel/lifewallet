@@ -1,3 +1,4 @@
+import { ownerApi } from '@/lib/ledger-api'
 import { NextRequest, NextResponse } from 'next/server'
 import db from '@/lib/db'
 import { generateId } from '@/lib/utils'
@@ -17,14 +18,14 @@ function rowToMemo(row: Record<string, unknown>): Memo {
   }
 }
 
-export async function GET() {
+async function handleGET() {
   const rows = await db.execute('SELECT * FROM memos ORDER BY pinned DESC, date DESC, created_at DESC')
   return NextResponse.json(rows.rows.map(r => rowToMemo(r as Record<string, unknown>)), {
     headers: { 'Cache-Control': 'no-store' },
   })
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const body = await req.json()
   if (!body.title?.trim() && !body.content?.trim()) {
     return NextResponse.json({ error: '제목이나 내용을 입력해주세요' }, { status: 400 })
@@ -47,3 +48,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json(m, { status: 201 })
 }
+
+export const GET = ownerApi(handleGET)
+export const POST = ownerApi(handlePOST)

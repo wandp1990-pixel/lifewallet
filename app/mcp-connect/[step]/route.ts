@@ -51,7 +51,7 @@ export async function GET(request: Request, context: { params: Promise<{ step: s
   catch { return page('<h1>연결 앱을 확인할 수 없습니다</h1>', '', 400) }
   const labels: Record<string, string> = {
     openid: '로그인 계정 식별', profile: '계정 이름과 프로필 확인', email: '이메일 주소 확인',
-    offline_access: '다시 로그인하지 않고 연결 유지', 'ledger:read': '자산·분류·거래와 합계 조회', 'ledger:write': '영수증 지출 저장 및 자산 잔액 반영',
+    offline_access: '다시 로그인하지 않고 연결 유지', 'ledger:read': '자산·분류·거래와 합계 조회', 'ledger:write': '거래·자산·대출·분류 등록·수정, 거래 삭제 및 잔액 조정',
   }
   let claimsText = ''
   if (params.has('claims')) {

@@ -1,5 +1,7 @@
 'use client'
 
+import { useLedgerRequest } from '@/lib/use-ledger-request'
+
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, Trash2 } from 'lucide-react'
@@ -106,6 +108,7 @@ const DEFAULT_FORM: FormState = {
 }
 
 export default function TransactionForm({ mode, initial, transactionId }: Props) {
+  const ledgerRequest = useLedgerRequest()
   const router = useRouter()
   const { categories, assets } = useStore()
 
@@ -120,7 +123,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
   const contentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetch('/api/transactions/suggestions')
+    ledgerRequest('/api/transactions/suggestions')
       .then(r => r.json())
       .then(data => setSuggestions(Array.isArray(data) ? data : []))
       .catch(() => {})
@@ -187,12 +190,12 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
 
     try {
       const res = mode === 'edit' && transactionId
-        ? await fetch(`/api/transactions/${transactionId}`, {
+        ? await ledgerRequest(`/api/transactions/${transactionId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
           })
-        : await fetch('/api/transactions', {
+        : await ledgerRequest('/api/transactions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
@@ -223,7 +226,7 @@ export default function TransactionForm({ mode, initial, transactionId }: Props)
     setDeleteError('')
 
     try {
-      const res = await fetch(`/api/transactions/${transactionId}`, { method: 'DELETE' })
+      const res = await ledgerRequest(`/api/transactions/${transactionId}`, { method: 'DELETE' })
       if (!res.ok) {
         setDeleteError('삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.')
         setDeleting(false)

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ChevronLeft, Pencil } from 'lucide-react'
 import { useStore } from '@/lib/store'
 import { formatAmount, formatDate } from '@/lib/utils'
-import { assetBalanceDelta, estimateLoanPayoff, getDebtBalance, getLoanRepaymentPrincipal, isDebtAssetType } from '@/lib/finance'
+import { assetBalanceDelta, transactionAffectsBalance, estimateLoanPayoff, getDebtBalance, getLoanRepaymentPrincipal, isDebtAssetType } from '@/lib/finance'
 import AssetForm from '@/components/assets/AssetForm'
 import type { Asset, Transaction } from '@/lib/types'
 
@@ -37,8 +37,8 @@ function LoanDetail({ assetId }: { assetId: string }) {
   // 상환 직후 남은 잔액(러닝). 기준일(balance_date) 이후 상환만 잔액에 반영 — 잔액 변동 이력과 동일 규칙.
   // repayments는 최신순 — 위에서부터 현재 잔액, 아래로 갈수록 상환 전이라 잔액이 큼.
   const repayCut = asset.balance_date
-  const postRepays = repayments.filter(t => !repayCut || t.date > repayCut)
-  const preRepays = repayments.filter(t => repayCut && t.date <= repayCut)
+  const postRepays = repayments.filter(t => transactionAffectsBalance(t, asset))
+  const preRepays = repayments.filter(t => !transactionAffectsBalance(t, asset))
   let remainingDebt = getDebtBalance(asset.balance)
   const repayRows = postRepays.map(tx => {
     const principal = getLoanRepaymentPrincipal(tx)
@@ -263,8 +263,8 @@ function BalanceHistory({ asset, transactions }: { asset: Asset; transactions: T
 
   const cut = asset.balance_date
   // 기준일 이후 거래만 잔액에 반영(잔액 자동 계산 로직과 동일). 그 외는 참고용.
-  const post = transactions.filter(t => !cut || t.date > cut)
-  const pre = transactions.filter(t => cut && t.date <= cut)
+  const post = transactions.filter(t => transactionAffectsBalance(t, asset))
+  const pre = transactions.filter(t => !transactionAffectsBalance(t, asset))
 
   // post는 최신순(API: date DESC). 위에서부터 "거래 직후 잔액" = 현재 잔액에서 더 최신 거래 델타를 뺀 값.
   let running = asset.balance

@@ -1,3 +1,4 @@
+import { ownerApi } from '@/lib/ledger-api'
 import { NextRequest, NextResponse } from 'next/server'
 import db from '@/lib/db'
 import type { Memo } from '@/lib/types'
@@ -14,7 +15,7 @@ function rowToMemo(row: Record<string, unknown>): Memo {
   }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function handlePATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const body = await req.json()
 
@@ -40,7 +41,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return NextResponse.json(rowToMemo(updated.rows[0] as Record<string, unknown>))
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function handleDELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const existing = await db.execute({ sql: 'SELECT * FROM memos WHERE id = ?', args: [id] })
   if (!existing.rows[0]) return NextResponse.json({ error: '해당 메모를 찾을 수 없습니다' }, { status: 404 })
@@ -48,3 +49,6 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   await db.execute({ sql: 'DELETE FROM memos WHERE id = ?', args: [id] })
   return NextResponse.json({ ok: true })
 }
+
+export const PATCH = ownerApi(handlePATCH)
+export const DELETE = ownerApi(handleDELETE)

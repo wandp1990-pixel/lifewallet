@@ -9,10 +9,12 @@ async function main() {
   // 실제 사용자 데이터에 접근하지 않고 로컬 임시 DB에서 API를 실행한다.
   process.env.TURSO_DATABASE_URL = `file:${join(dir, 'test.db')}`
   delete process.env.TURSO_AUTH_TOKEN
+  process.env.WORK_MCP_TOKEN = 'local-fixture-only-owner-token-with-32-chars'
+  const authHeaders = {authorization: 'Bearer ' + process.env.WORK_MCP_TOKEN}
   const { default: db, initDb } = await import('../lib/db')
   const { DELETE, PATCH } = await import('../app/api/assets/[id]/route')
   const { GET } = await import('../app/api/assets/route')
-  const remove = (id: string) => DELETE(new NextRequest(`http://localhost/api/assets/${id}`, { method: 'DELETE' }), { params: Promise.resolve({ id }) })
+  const remove = (id: string) => DELETE(new NextRequest(`http://localhost/api/assets/${id}`, { method: 'DELETE', headers: authHeaders }), { params: Promise.resolve({ id }) })
   try {
     await initDb()
     for (const id of ['target', 'other', 'rollback']) {
@@ -33,14 +35,14 @@ async function main() {
     const beforeTx = (await db.execute('SELECT * FROM transactions ORDER BY id')).rows
     const beforeRecurring = (await db.execute('SELECT * FROM recurring_transactions ORDER BY id')).rows
     const hidden = await PATCH(new NextRequest('http://localhost/api/assets/target', {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ visible: false }),
+      method: 'PATCH', headers: { 'Content-Type': 'application/json', ...authHeaders }, body: JSON.stringify({ visible: false }),
     }), { params: Promise.resolve({ id: 'target' }) })
     assert.equal(hidden.status, 200)
     assert.equal((await hidden.json()).visible, false)
-    assert.equal((await (await GET()).json()).some((a: { id: string }) => a.id === 'target'), true)
+    assert.equal((await (await GET(new NextRequest('http://localhost/api/assets',{headers:authHeaders}))).json()).some((a: { id: string }) => a.id === 'target'), true)
 
     assert.equal((await remove('target')).status, 200)
-    assert.equal((await (await GET()).json()).some((a: { id: string }) => a.id === 'target'), false)
+    assert.equal((await (await GET(new NextRequest('http://localhost/api/assets',{headers:authHeaders}))).json()).some((a: { id: string }) => a.id === 'target'), false)
     const unlink = (row: Record<string, unknown>) => ({ ...row,
       asset_id: row.asset_id === 'target' ? '' : row.asset_id,
       from_asset_id: row.from_asset_id === 'target' ? '' : row.from_asset_id,
@@ -58,7 +60,7 @@ async function main() {
     assert.equal((await remove('missing')).status, 404)
 
     await db.execute("CREATE TRIGGER reject_delete BEFORE DELETE ON assets WHEN OLD.id='rollback' BEGIN SELECT RAISE(ABORT,'test failure'); END")
-    await assert.rejects(() => remove('rollback'))
+    assert.equal((await remove('rollback')).status, 500)
     assert.equal((await db.execute("SELECT asset_id FROM transactions WHERE id='rollback-tx'")).rows[0].asset_id, 'rollback')
     const recurring = (await db.execute("SELECT asset_id,enabled FROM recurring_transactions WHERE id='rollback-tx'")).rows[0]
     assert.equal(recurring.asset_id, 'rollback')

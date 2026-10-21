@@ -1,3 +1,4 @@
+import { ownerApi } from '@/lib/ledger-api'
 import { NextRequest, NextResponse } from 'next/server'
 import db, { initDb } from '@/lib/db'
 import { validateTransactionInput } from '@/lib/finance'
@@ -25,13 +26,13 @@ function rowToRecurring(row: Record<string, unknown>): RecurringTransaction {
   }
 }
 
-export async function GET() {
+async function handleGET() {
   await initDb()
   const rows = await db.execute('SELECT * FROM recurring_transactions ORDER BY day_of_month ASC, created_at ASC')
   return NextResponse.json(rows.rows.map(rowToRecurring), { headers: { 'Cache-Control': 'no-store' } })
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   await initDb()
   const body = await req.json()
 
@@ -69,3 +70,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json(r, { status: 201 })
 }
+
+export const GET = ownerApi(handleGET)
+export const POST = ownerApi(handlePOST)

@@ -1,3 +1,4 @@
+import { ownerApi } from '@/lib/ledger-api'
 import { NextRequest, NextResponse } from 'next/server'
 import db from '@/lib/db'
 import { generateId } from '@/lib/utils'
@@ -5,12 +6,12 @@ import type { SavingsGoal } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+async function handleGET() {
   const rows = await db.execute('SELECT * FROM savings_goals ORDER BY created_at DESC')
   return NextResponse.json(rows.rows, { headers: { 'Cache-Control': 'no-store' } })
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const body = await req.json()
   if (!body.name) return NextResponse.json({ error: '목표 이름을 입력해주세요' }, { status: 400 })
 
@@ -32,3 +33,6 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json(g, { status: 201 })
 }
+
+export const GET = ownerApi(handleGET)
+export const POST = ownerApi(handlePOST)

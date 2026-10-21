@@ -1,5 +1,7 @@
 'use client'
 
+import { useLedgerRequest } from '@/lib/use-ledger-request'
+
 import { useEffect, useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import SlideUpSheet from '@/components/ui/SlideUpSheet'
@@ -131,7 +133,8 @@ interface Props {
 }
 
 export default function AssetForm({ open, onClose, editing }: Props) {
-  const { addAsset, updateAsset, categories } = useStore()
+  const ledgerRequest = useLedgerRequest()
+  const { addAsset, updateAsset, deleteAsset: removeAsset, categories } = useStore()
   const assetCategories = categories.filter(c => c.type === 'asset' && c.visible)
   const [form, setForm] = useState<FormState>(editing ? assetToForm(editing) : DEFAULT_FORM)
   // 열린 시점의 프리필 잔액 스냅샷. 제출 시 이 값과 같으면 balance를 전송하지 않는다 —
@@ -192,7 +195,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
 
     try {
       if (editing) {
-        const res = await fetch(`/api/assets/${editing.id}`, {
+        const res = await ledgerRequest(`/api/assets/${editing.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -201,7 +204,7 @@ export default function AssetForm({ open, onClose, editing }: Props) {
         const updated: Asset = await res.json()
         updateAsset(updated)
       } else {
-        const res = await fetch('/api/assets', {
+        const res = await ledgerRequest('/api/assets', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -220,10 +223,9 @@ export default function AssetForm({ open, onClose, editing }: Props) {
 
   async function handleDelete() {
     if (!editing) return
-    const res = await fetch(`/api/assets/${editing.id}`, { method: 'DELETE' })
+    const res = await ledgerRequest(`/api/assets/${editing.id}`, { method: 'DELETE' })
     if (res.ok) {
-      const updated: Asset = await res.json()
-      updateAsset(updated)
+      removeAsset(editing.id)
       setShowDeleteConfirm(false)
       onClose()
     }

@@ -1,7 +1,8 @@
+import { ownerApi } from '@/lib/ledger-api'
 import { NextRequest, NextResponse } from 'next/server'
 import db from '@/lib/db'
 
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function handlePATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const body = await req.json()
 
@@ -20,7 +21,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return NextResponse.json({ ...r, is_done: Boolean(r.is_done) })
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function handleDELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const existing = await db.execute({ sql: 'SELECT * FROM wishlist WHERE id = ?', args: [id] })
   if (!existing.rows[0]) return NextResponse.json({ error: '해당 항목을 찾을 수 없습니다' }, { status: 404 })
@@ -28,3 +29,6 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
   await db.execute({ sql: 'DELETE FROM wishlist WHERE id = ?', args: [id] })
   return NextResponse.json({ ok: true })
 }
+
+export const PATCH = ownerApi(handlePATCH)
+export const DELETE = ownerApi(handleDELETE)

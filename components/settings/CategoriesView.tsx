@@ -1,5 +1,7 @@
 'use client'
 
+import { useLedgerRequest } from '@/lib/use-ledger-request'
+
 import { useEffect, useRef, useState } from 'react'
 import { ChevronUp, ChevronDown, Plus } from 'lucide-react'
 import { useStore } from '@/lib/store'
@@ -16,6 +18,7 @@ interface CategoriesViewProps {
 }
 
 export default function CategoriesView({ type }: CategoriesViewProps) {
+  const ledgerRequest = useLedgerRequest()
   const { categories, ready, reorderCategories } = useStore()
   const [localItems, setLocalItems] = useState<LocalCategory[]>([])
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
@@ -94,7 +97,7 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
     try {
       // 1. 삭제
       await Promise.all([...deletedIds].map(id =>
-        fetch(`/api/categories/${id}`, { method: 'DELETE' })
+        ledgerRequest(`/api/categories/${id}`, { method: 'DELETE' })
       ))
 
       // 2. 위치 기반 order 재부여
@@ -104,7 +107,7 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
       const newItems = itemsWithOrder.filter(i => i._isNew)
       const tempToReal = new Map<string, Category>()
       for (const item of newItems) {
-        const res = await fetch('/api/categories', {
+        const res = await ledgerRequest('/api/categories', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: item.name, icon: item.icon, type, order: item.order, essentiality: item.essentiality, budget_excluded: item.budget_excluded, default_asset_id: item.default_asset_id }),
@@ -123,7 +126,7 @@ export default function CategoriesView({ type }: CategoriesViewProps) {
             return orig && (orig.name !== item.name || orig.icon !== item.icon || orig.order !== item.order || orig.essentiality !== item.essentiality || orig.budget_excluded !== item.budget_excluded || orig.default_asset_id !== item.default_asset_id)
           })
           .map(item =>
-            fetch(`/api/categories/${item.id}`, {
+            ledgerRequest(`/api/categories/${item.id}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ name: item.name, icon: item.icon, order: item.order, essentiality: item.essentiality, budget_excluded: item.budget_excluded, default_asset_id: item.default_asset_id }),

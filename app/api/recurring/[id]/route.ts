@@ -1,3 +1,4 @@
+import { ownerApi } from '@/lib/ledger-api'
 import { NextRequest, NextResponse } from 'next/server'
 import db from '@/lib/db'
 import { validateTransactionInput } from '@/lib/finance'
@@ -7,7 +8,7 @@ import type { Asset, Category } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function handlePATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const body = await req.json()
   const existing = await db.execute({ sql: 'SELECT * FROM recurring_transactions WHERE id=?', args: [id] })
@@ -64,8 +65,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   } satisfies RecurringTransaction)
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function handleDELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   await db.execute({ sql: 'DELETE FROM recurring_transactions WHERE id=?', args: [id] })
   return NextResponse.json({ ok: true })
 }
+
+export const PATCH = ownerApi(handlePATCH)
+export const DELETE = ownerApi(handleDELETE)
