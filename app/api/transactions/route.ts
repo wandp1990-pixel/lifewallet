@@ -1,12 +1,12 @@
+import { ownerApi } from '@/lib/ledger-api'
 import { NextRequest, NextResponse } from 'next/server'
-import db, { applyTransactionBalance } from '@/lib/db'
-import { validateTransactionInput } from '@/lib/finance'
-import { generateId } from '@/lib/utils'
-import type { Asset, Category, Transaction } from '@/lib/types'
+import db from '@/lib/db'
+import { ledgerWrite, saveTransaction, withBalanceEffects } from '@/lib/ledger-service'
+import { requestKey } from '@/lib/ledger-api'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const year = searchParams.get('year')
   const month = searchParams.get('month')
@@ -34,40 +34,15 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json(rows.rows, { headers: { 'Cache-Control': 'no-store' } })
+  return NextResponse.json(await withBalanceEffects(rows.rows), { headers: { 'Cache-Control': 'no-store' } })
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const body = await req.json()
-
-  const t: Transaction = {
-    id: generateId('txn'),
-    date: body.date,
-    type: body.type,
-    amount: body.amount,
-    category_id: body.category_id ?? '',
-    asset_id: body.asset_id ?? '',
-    content: body.content ?? '',
-    note: body.note ?? '',
-    from_asset_id: body.from_asset_id ?? '',
-    to_asset_id: body.to_asset_id ?? '',
-    fee: body.fee ?? 0,
-    created_at: new Date().toISOString(),
-  }
-
-  const assets = (await db.execute({ sql: 'SELECT id, group_type, visible, balance FROM assets' })).rows as unknown as Pick<Asset, 'id' | 'group_type' | 'visible' | 'balance'>[]
-  const categories = (await db.execute({ sql: 'SELECT id, type, visible FROM categories' })).rows as unknown as Pick<Category, 'id' | 'type' | 'visible'>[]
-  const validationError = validateTransactionInput(t, assets, categories, [])
-  if (validationError) {
-    return NextResponse.json({ error: validationError }, { status: 400 })
-  }
-
-  await db.execute({
-    sql: `INSERT INTO transactions (id,date,type,amount,category_id,asset_id,content,note,from_asset_id,to_asset_id,fee,created_at)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-    args: [t.id, t.date, t.type, t.amount, t.category_id, t.asset_id, t.content, t.note, t.from_asset_id, t.to_asset_id, t.fee, t.created_at],
-  })
-  await applyTransactionBalance(t)
-
-  return NextResponse.json(t, { status: 201 })
+  const requestKeyValue = requestKey(req)
+  const result = await ledgerWrite('app.create_transaction', requestKeyValue, body, tx => saveTransaction(tx, requestKeyValue, body))
+  return NextResponse.json(result.transaction, { status: 201 })
 }
+
+export const GET = ownerApi(handleGET)
+export const POST = ownerApi(handlePOST)

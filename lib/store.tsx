@@ -56,6 +56,7 @@ async function fetchJson<T>(url: string, retries = 2): Promise<T> {
   for (let attempt = 0; ; attempt++) {
     try {
       const res = await fetch(url)
+      if (res.status === 401 || res.status === 403) window.location.assign('/login')
       if (!res.ok) throw new Error(`fetch error: ${url} (${res.status})`)
       return res.json()
     } catch (err) {

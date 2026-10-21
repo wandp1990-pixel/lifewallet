@@ -1,10 +1,12 @@
+import { ownerApi } from '@/lib/ledger-api'
 import { NextRequest, NextResponse } from 'next/server'
 import db from '@/lib/db'
-import { isExpenseLikeType } from '@/lib/finance'
+import { getOutflowAmount } from '@/lib/finance'
+import type { Transaction } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const year = searchParams.get('year')
   const month = searchParams.get('month')
@@ -26,10 +28,12 @@ export async function GET(req: NextRequest) {
   const values = rows.rows as unknown as { type: string; amount: number; fee?: number }[]
   const income = values.filter(row => row.type === 'income').reduce((sum, row) => sum + row.amount, 0)
   const expense = values.filter(row => row.type === 'expense').reduce((sum, row) => sum + row.amount, 0)
-  const outflow = values.filter(row => isExpenseLikeType(row.type)).reduce((sum, row) => sum + row.amount, 0)
+  const outflow = getOutflowAmount(values as Transaction[])
 
   return NextResponse.json(
     { income, expense, outflow },
     { headers: { 'Cache-Control': 'no-store' } }
   )
 }
+
+export const GET = ownerApi(handleGET)

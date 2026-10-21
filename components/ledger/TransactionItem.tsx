@@ -1,5 +1,7 @@
 'use client'
 
+import { useLedgerRequest } from '@/lib/use-ledger-request'
+
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { MoreHorizontal } from 'lucide-react'
@@ -24,6 +26,7 @@ const TYPE_ICON: Record<string, string> = {
 }
 
 export default function TransactionItem({ tx, categories, assets, onDelete, onEdit }: Props) {
+  const ledgerRequest = useLedgerRequest()
   const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -86,7 +89,7 @@ export default function TransactionItem({ tx, categories, assets, onDelete, onEd
     setDeleteError('')
 
     try {
-      const res = await fetch(`/api/transactions/${tx.id}`, { method: 'DELETE' })
+      const res = await ledgerRequest(`/api/transactions/${tx.id}`, { method: 'DELETE' })
       if (!res.ok) {
         setDeleteError('삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.')
         setDeleting(false)

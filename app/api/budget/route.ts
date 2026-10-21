@@ -1,3 +1,4 @@
+import { ownerApi } from '@/lib/ledger-api'
 import { NextRequest, NextResponse } from 'next/server'
 import db from '@/lib/db'
 
@@ -33,12 +34,12 @@ async function validateExpenseCategory(categoryId: string) {
   return category.rows.length > 0
 }
 
-export async function GET() {
+async function handleGET() {
   const rows = await db.execute('SELECT * FROM budgets')
   return NextResponse.json(rows.rows, { headers: { 'Cache-Control': 'no-store' } })
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   const body = await req.json()
   const parsed = parseBudgetInput(body)
   if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 })
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ year, month, category_id: categoryId, amount })
 }
 
-export async function DELETE(req: NextRequest) {
+async function handleDELETE(req: NextRequest) {
   const body = await req.json()
   const parsed = parseBudgetInput({ ...body, amount: 0 })
   if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 })
@@ -69,3 +70,7 @@ export async function DELETE(req: NextRequest) {
 
   return NextResponse.json({ ok: true, year, month, category_id: categoryId })
 }
+
+export const GET = ownerApi(handleGET)
+export const POST = ownerApi(handlePOST)
+export const DELETE = ownerApi(handleDELETE)

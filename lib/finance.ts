@@ -91,6 +91,10 @@ export function assetBalanceDelta(
   }
 }
 
+export function transactionAffectsBalance(tx: Pick<Transaction, 'date' | 'balance_effects'>, asset: Pick<Asset, 'id' | 'balance_date'>): boolean {
+  return tx.balance_effects?.[asset.id] ?? (!asset.balance_date || tx.date > asset.balance_date)
+}
+
 export interface LoanPayoffEstimate {
   balance: number
   monthlyInterest: number

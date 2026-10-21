@@ -1,5 +1,7 @@
 'use client'
 
+import { useLedgerRequest } from '@/lib/use-ledger-request'
+
 import { useState, useEffect, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { Repeat, ChevronDown, ChevronRight } from 'lucide-react'
@@ -99,6 +101,7 @@ function displayMonthKeyForDate(dateStr: string): string {
 }
 
 export default function AddTransactionSheet({ open, onClose, onSaved, onRecurringApplied, mode = 'new', initial, transactionId, defaultDate }: Props) {
+  const ledgerRequest = useLedgerRequest()
   const { categories, assets } = useStore()
 
   const [type, setType] = useState<TxType>('expense')
@@ -198,7 +201,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, onRecurrin
 
   useEffect(() => {
     if (!open || mode !== 'new') return
-    fetch('/api/recurring')
+    ledgerRequest('/api/recurring')
       .then(r => r.ok ? r.json() : [])
       .then((data: RecurringTransaction[]) => {
         setRecurringList(Array.isArray(data) ? data.filter(r => r.enabled && isSheetTxType(r.type)) : [])
@@ -310,14 +313,14 @@ export default function AddTransactionSheet({ open, onClose, onSaved, onRecurrin
       const url = mode === 'edit' && transactionId
         ? `/api/transactions/${transactionId}`
         : '/api/transactions'
-      const res = await fetch(url, {
+      const res = await ledgerRequest(url, {
         method: mode === 'edit' && transactionId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
       if (res.ok) {
         if (mode === 'new' && selectedRecurringId) {
-          await fetch(`/api/recurring/${selectedRecurringId}`, {
+          await ledgerRequest(`/api/recurring/${selectedRecurringId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ last_applied_month: displayMonthKeyForDate(date) }),
@@ -350,7 +353,7 @@ export default function AddTransactionSheet({ open, onClose, onSaved, onRecurrin
     setDeleteError('')
 
     try {
-      const res = await fetch(`/api/transactions/${transactionId}`, { method: 'DELETE' })
+      const res = await ledgerRequest(`/api/transactions/${transactionId}`, { method: 'DELETE' })
       if (!res.ok) {
         setDeleteError('삭제에 실패했습니다. 잠시 후 다시 시도해 주세요.')
         setDeleting(false)

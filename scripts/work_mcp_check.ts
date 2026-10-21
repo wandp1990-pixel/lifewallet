@@ -31,7 +31,7 @@ async function main() {
     const request = (body: unknown, authorized = true) => new NextRequest('https://example.com/api/mcp',{ method:'POST',headers:{ 'content-type':'application/json', ...(authorized ? { authorization:`Bearer ${process.env.WORK_MCP_TOKEN}` } : {}) },body:JSON.stringify(body) })
     assert.equal((await POST(request({ jsonrpc:'2.0',id:1,method:'tools/list' },false))).status,401)
     const list = await (await POST(request({ jsonrpc:'2.0',id:1,method:'tools/list' }))).json()
-    assert.equal(list.result.tools.length,3)
+    assert.equal(list.result.tools.length,18)
     const notification = await POST(request({ jsonrpc:'2.0',method:'notifications/initialized' }))
     assert.equal(notification.status,202)
     console.log('Work MCP: 인증, 동시 재시도, 잔액, 날짜·분류 검증, DB 합계 통과')

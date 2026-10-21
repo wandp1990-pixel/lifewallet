@@ -22,6 +22,8 @@ export interface Transaction {
   to_asset_id: string
   fee: number
   created_at: string
+  // Explicit checkpoint inclusion, shared by MCP writes and app balance history.
+  balance_effects?: Record<string, boolean>
 }
 
 // 50/30/20 + 카케이보 4분류. expense 카테고리에만 의미 있음 (income/asset은 'wants' 기본값 유지·보고서 미사용)

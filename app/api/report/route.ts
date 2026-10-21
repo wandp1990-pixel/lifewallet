@@ -1,3 +1,4 @@
+import { ownerApi } from '@/lib/ledger-api'
 import { NextRequest, NextResponse } from 'next/server'
 import db, { initDb, rowToAsset } from '@/lib/db'
 import { getMonthRange } from '@/lib/monthStart'
@@ -35,7 +36,7 @@ function rowToRecurring(row: Record<string, unknown>): RecurringTransaction {
   }
 }
 
-export async function GET(req: NextRequest) {
+async function handleGET(req: NextRequest) {
   await initDb()
 
   const { searchParams } = new URL(req.url)
@@ -107,3 +108,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(report, { headers: { 'Cache-Control': 'no-store' } })
 }
+
+export const GET = ownerApi(handleGET)
