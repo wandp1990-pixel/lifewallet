@@ -263,10 +263,8 @@ async function validateTransaction(tx: LedgerTx, transaction: Transaction, old?:
     transaction.from_asset_id,
     transaction.to_asset_id,
   ].filter(Boolean)) {
-    const asset = assets.find((a) => a.id === id)
-    if (!asset) fail('NOT_FOUND', '자산 목록에서 실제 ID를 선택해주세요.', { asset_id: id })
-    if (!asset.visible && ![old?.asset_id, old?.from_asset_id, old?.to_asset_id].includes(id))
-      fail('INVALID_TARGET', '숨긴 자산에는 새 거래를 등록할 수 없습니다.', { asset_id: id })
+    if (!assets.some((asset) => asset.id === id))
+      fail('NOT_FOUND', '자산 목록에서 실제 ID를 선택해주세요.', { asset_id: id })
   }
   const error = validateTransactionInput(
     transaction,

@@ -602,6 +602,34 @@ async function main() {
     success(await write('delete_transaction', { transaction_id: yesterdayA }))
     success(await write('delete_transaction', { transaction_id: yesterdayB }))
     assert.equal(await balance(bank), 1_500_100)
+
+    // Excluding an asset from totals does not disable new transactions.
+    success(await write('update_asset', { asset_id: bank, changes: { visible: false } }))
+    const excludedExpense = {
+      type: 'expense',
+      date: today,
+      amount: 500,
+      asset_id: bank,
+      category_id: food,
+    }
+    success(await write('record_transaction', excludedExpense))
+    const appExcludedExpense = await createApp(
+      new NextRequest('https://test.example/api/transactions', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(excludedExpense),
+      }),
+    )
+    assert.equal(appExcludedExpense.status, 201)
+    assert.equal(await balance(bank), 1_499_100)
+    const excludedOverview = success(
+      await rpc('get_financial_overview', { ...period, as_of: today }),
+    )
+    assert.ok(
+      excludedOverview.balances.some(
+        (row: any) => row.id === bank && row.included_in_totals === false,
+      ),
+    )
     assert.equal(workTools.length, 18)
     console.log(
       'Ledger MCP PASS: supplied examples; checkpoint confirmation; create/query/update/requery/delete; totals across pages; principal/interest; same-day double-count prevention; concurrent/legacy/app retries; atomic rollback; invalid IDs/inputs; auth denial; audit; KST; shared app persistence.',
