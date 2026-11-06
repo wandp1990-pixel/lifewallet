@@ -94,7 +94,7 @@ get_financial_overview 총액은 앱 보고서처럼 **표시 중이고 as_of까
 | MISSING_INFORMATION | details.fields를 사용자에게 질문 |
 | AMBIGUOUS_TARGET | candidates의 날짜·금액·내용·ID로 선택 요청. has_more면 조건 축소 |
 | BALANCE_CONFIRMATION_REQUIRED | 해당 자산의 기준 잔액에 포함됐는지 확인 |
-| NOT_FOUND / INVALID_TARGET | 실제 목록 재조회; 없는/숨긴/유형이 다른 대상 추정 금지 |
+| NOT_FOUND / INVALID_TARGET | 실제 목록에서 대상의 ID와 유형을 재확인. 집계 제외 자산도 거래에 사용할 수 있음 |
 | UNSUPPORTED_FIELD / UNSUPPORTED_OPERATION / UNSUPPORTED_VALUE | 지원 범위를 설명하고 입력 확인 |
 | INVALID_DATE / INVALID_AMOUNT / INVALID_TRANSACTION / INVALID_INPUT / INVALID_BALANCE | 단위·부호·날짜 등 입력 확인 |
 | IDEMPOTENCY_CONFLICT | 의도를 확인; 다른 작업이면 새 ID |
